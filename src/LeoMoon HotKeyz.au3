@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.3.0)
+#pragma compile(FileVersion, 1.8.4.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.3.0)
+#pragma compile(ProductVersion, 1.8.4.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -36,6 +36,8 @@
 #include <WinAPIFiles.au3>
 #include <ScreenCapture.au3>
 #include <WinAPIGdi.au3>
+#include <Clipboard.au3>
+#include <Inet.au3>
 ;gui includes
 #include <ButtonConstants.au3>
 #include <ComboConstants.au3>
@@ -60,21 +62,26 @@
 ;       Caps Lock state
 ;       Num Lock state
 ;       Scroll Lock state
-;   Add run as admin checkbox
-;   Add only one instance checkbox
-;   Add clear clipboard option
-
+;   Add run as admin checkbox DONE
+;   Add only one instance checkbox [HkzOptOne]
+;   Add clear clipboard option DONE
+;   Fix office resize issues DONE
+;   Improve "Batch command" DONE
+;   add new text macro variables: DONE
+        ;<COMPUTERNAME>
+        ;<USERNAME>
+        ;<WANIP>
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.3'
+Global $ver = '1.8.4'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
 Global $ini = @ScriptDir&'\'&$title&'.ini'
 ;global gui vars
 Global $mainGui, $saveBtn, $startupCbox, $cancelBtn, $ctrlCbox, $altCbox, $shiftCbox, $winCbox, $keyDown, $ListView1
-Global $editGui, $ctrlEditCbox, $altEditCbox, $shiftEditCbox, $winEditCbox, $keyEditDown, $okEditBtn, $cancelEditBtn, $specialRdo, $specialDown
+Global $editGui, $ctrlEditCbox, $altEditCbox, $shiftEditCbox, $winEditCbox, $keyEditDown, $okEditBtn, $cancelEditBtn, $specialRdo, $specialDown, $adminCbox, $oneCbox
 Global $windowRdo, $windowDown, $moveCbox, $xLbl, $movexInp, $yLbl, $moveyInp, $resizeCbox, $wLbl, $resizewInp, $hLbl, $resizehInp
 Global $folderRdo, $folderInp, $folderBrowseBtn
 Global $fileRdo, $cmdCbox, $fileInp, $fileBrowseBtn, $fileParamLbl, $fileParamInp
@@ -104,7 +111,7 @@ $clsid[6][0] = 'My Documents'
 $clsid[6][1] = '::{450D8FBA-AD25-11D0-98A8-0800361B1103}'
 $clsid[7][0] = 'Network'
 $clsid[7][1] = '::{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}'
-Global $sPaths[23][2]
+Global $sPaths[24][2]
 $sPaths[0][0] = 'Control Panel (Category View)'
 $sPaths[0][1] = '::{26EE0668-A00A-44D7-9371-BEB064C98683}'
 $sPaths[1][0] = 'Control Panel (Icon View)'
@@ -151,6 +158,8 @@ $sPaths[21][0] = 'Start Screensaver'
 $sPaths[21][1] = '[HkzExe]Start Screensaver'
 $sPaths[22][0] = 'Start Screensaver And Lock'
 $sPaths[22][1] = '[HkzExe]Start Screensaver And Lock'
+$sPaths[23][0] = 'Empty Clipboard'
+$sPaths[23][1] = '[HkzExe]Empty Clipboard'
 
 If @OSArch <> 'X86' Then _WinAPI_Wow64EnableWow64FsRedirection(False)
 
@@ -205,27 +214,27 @@ Func _mainGui()
     ;~ $mainGui = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
     ;~ $mainGui = GUICreate("Hotkey Settings", 386, 242, -1, -1, BitOR($WS_SYSMENU,$WS_POPUP)) ;frame only
     If $winVis == False Then
-        $mainGui = GUICreate($title&" Settings", 634, 594, -1, -1, $WS_SYSMENU)
+        $mainGui = GUICreate($title&" Settings", 682, 666, -1, -1, $WS_SYSMENU)
         GUISetFont(9, 400, 0, "Tahoma")
-        $optionsGrp = GUICtrlCreateGroup("Options", 8, 8, 610, 57)
+        $optionsGrp = GUICtrlCreateGroup("Startup", 8, 8, 658, 57)
         $startupCbox = GUICtrlCreateCheckbox("Start with Windows", 17, 32, 289, 17)
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $hotkeyGrp = GUICtrlCreateGroup("HotKeyz toggle hotkey", 8, 72, 610, 57)
+        $hotkeyGrp = GUICtrlCreateGroup("HotKeyz main hotkey", 8, 72, 658, 57)
         $ctrlCbox = GUICtrlCreateCheckbox("Ctrl", 17, 96, 97, 17)
         $altCbox = GUICtrlCreateCheckbox("Alt", 136, 96, 97, 17)
         $shiftCbox = GUICtrlCreateCheckbox("Shift", 256, 96, 97, 17)
         $winCbox = GUICtrlCreateCheckbox("Win", 376, 96, 97, 17)
-        $keyDown = GUICtrlCreateCombo("", 489, 94, 119, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-        GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|'|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+        $keyDown = GUICtrlCreateCombo("", 497, 94, 159, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
+        GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $customHokeysGrp = GUICtrlCreateGroup("Edit hotkeys", 8, 136, 610, 378)
-        $addBtn = GUICtrlCreateButton("Add New", 16, 160, 193, 33)
-        $editBtn = GUICtrlCreateButton("Edit Selected", 216, 160, 193, 33)
-        $delBtn = GUICtrlCreateButton("Delete Selected", 416, 160, 193, 33)
-        $ListView1 = GUICtrlCreateListView("", 17, 201, 591, 303, BitOR($GUI_SS_DEFAULT_LISTVIEW,$WS_HSCROLL,$WS_VSCROLL), BitOR($WS_EX_CLIENTEDGE,$LVS_EX_FULLROWSELECT))
+        $customHokeysGrp = GUICtrlCreateGroup("Edit hotkeys", 8, 136, 658, 450)
+        $addBtn = GUICtrlCreateButton("Add New", 16, 160, 209, 33)
+        $editBtn = GUICtrlCreateButton("Edit Selected", 232, 160, 209, 33)
+        $delBtn = GUICtrlCreateButton("Delete Selected", 448, 160, 209, 33)
+        $ListView1 = GUICtrlCreateListView("", 17, 201, 639, 375, BitOR($GUI_SS_DEFAULT_LISTVIEW,$WS_HSCROLL,$WS_VSCROLL), BitOR($WS_EX_CLIENTEDGE,$LVS_EX_FULLROWSELECT))
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $cancelBtn = GUICtrlCreateButton("Cancel", 433, 520, 185, 33)
-        $saveBtn = GUICtrlCreateButton("Save", 8, 520, 177, 33)
+        $cancelBtn = GUICtrlCreateButton("Cancel", 449, 592, 209, 33)
+        $saveBtn = GUICtrlCreateButton("Save", 16, 592, 209, 33)
         ;edit ui
         GUISetIcon(@ScriptFullPath, 201)
         GUICtrlSetOnEvent($ListView1, '_sort')
@@ -238,6 +247,7 @@ Func _mainGui()
         _GUICtrlListView_AddColumn($ListView1, 'Type')
         _GUICtrlListView_AddColumn($ListView1, 'Hotkey')
         _GUICtrlListView_AddColumn($ListView1, 'Item')
+        _GUICtrlListView_AddColumn($ListView1, 'Options')
         _iniToGui($ini) ;set gui from ini file
         GUIRegisterMsg($WM_NOTIFY, "WM_NOTIFY")
         _GUICtrlListView_RegisterSortCallBack($ListView1)
@@ -271,74 +281,79 @@ EndFunc
 
 Func _editGui($name, $buttonName)
     ;edit gui
-    $editGui = GUICreate($name, 410, 682, -1, -1, $WS_EX_TOOLWINDOW, $WS_EX_MDICHILD, $mainGui)
+    $editGui = GUICreate($name, 418, 706, -1, -1, $WS_EX_TOOLWINDOW, $WS_EX_MDICHILD, $mainGui)
     GUISetFont(9, 400, 0, "Tahoma")
-    $actionEditGrp = GUICtrlCreateGroup("Action", 8, 8, 387, 530)
+    $actionEditGrp = GUICtrlCreateGroup("Action", 8, 8, 395, 554)
     $fileRdo = GUICtrlCreateRadio("Run a program or open a file", 17, 32, 185, 17)
-    $cmdCbox = GUICtrlCreateCheckbox("Batch command", 280, 32, 105, 17, BitOR($GUI_SS_DEFAULT_CHECKBOX,$BS_LEFT))
-    $fileInp = GUICtrlCreateInput("", 17, 58, 271, 22)
-    $fileBrowseBtn = GUICtrlCreateButton("Browse File", 296, 56, 89, 25)
-    $fileParamLbl = GUICtrlCreateLabel("Parameters (Optional)", 16, 90, 124, 18)
-    $fileParamInp = GUICtrlCreateInput("", 145, 88, 239, 22)
-    $folderRdo = GUICtrlCreateRadio("Open a folder", 17, 128, 369, 17)
-    $folderInp = GUICtrlCreateInput("", 17, 154, 271, 22)
+    $fileInp = GUICtrlCreateInput("", 17, 58, 279, 22)
+    $fileBrowseBtn = GUICtrlCreateButton("Browse File", 304, 56, 89, 25)
+    $fileParamLbl = GUICtrlCreateLabel("Parameters (Optional)", 16, 92, 124, 18)
+    $fileParamInp = GUICtrlCreateInput("", 145, 88, 247, 22)
+    $adminCbox = GUICtrlCreateCheckbox("Run as admin", 17, 121, 113, 17)
+    $oneCbox = GUICtrlCreateCheckbox("Singleton", 152, 121, 113, 17)
+    $cmdCbox = GUICtrlCreateCheckbox("Batch command", 281, 120, 113, 17)
+    $folderRdo = GUICtrlCreateRadio("Open a folder", 17, 152, 369, 17)
+    $folderInp = GUICtrlCreateInput("", 17, 178, 271, 22)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $folderBrowseBtn = GUICtrlCreateButton("Browse Folder", 296, 152, 89, 25)
+    $folderBrowseBtn = GUICtrlCreateButton("Browse Folder", 296, 176, 89, 25)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $specialRdo = GUICtrlCreateRadio("Run a system action", 17, 192, 369, 17)
-    $specialDown = GUICtrlCreateCombo("", 17, 218, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
+    $specialRdo = GUICtrlCreateRadio("Run a system action", 17, 216, 369, 17)
+    $specialDown = GUICtrlCreateCombo("", 17, 242, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
     GUICtrlSetData(-1, "Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown")
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 256, 369, 17)
-    $windowDown = GUICtrlCreateCombo("", 17, 282, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
+    $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
+    $windowDown = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
     GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Toggle Ghost (Advanced)|Custom Move and/or Resize")
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $moveCbox = GUICtrlCreateCheckbox("Move active window", 17, 312, 177, 17)
+    $moveCbox = GUICtrlCreateCheckbox("Move active window", 17, 336, 177, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $xLbl = GUICtrlCreateLabel("X:", 18, 338, 15, 18)
+    $xLbl = GUICtrlCreateLabel("X:", 18, 362, 15, 18)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $movexInp = GUICtrlCreateInput("0", 41, 336, 55, 22, $ES_NUMBER)
+    $movexInp = GUICtrlCreateInput("0", 41, 360, 55, 22, $ES_NUMBER)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $yLbl = GUICtrlCreateLabel("Y:", 106, 338, 16, 18)
+    $yLbl = GUICtrlCreateLabel("Y:", 106, 362, 16, 18)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $moveyInp = GUICtrlCreateInput("0", 129, 336, 55, 22, $ES_NUMBER)
+    $moveyInp = GUICtrlCreateInput("0", 129, 360, 55, 22, $ES_NUMBER)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $resizeCbox = GUICtrlCreateCheckbox("Resize active window", 217, 312, 169, 17)
+    $resizeCbox = GUICtrlCreateCheckbox("Resize active window", 217, 336, 169, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $wLbl = GUICtrlCreateLabel("W:", 218, 338, 20, 18)
+    $wLbl = GUICtrlCreateLabel("W:", 218, 362, 20, 18)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $resizewInp = GUICtrlCreateInput("800", 241, 336, 55, 22, $ES_NUMBER)
+    $resizewInp = GUICtrlCreateInput("800", 241, 360, 55, 22, $ES_NUMBER)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $hLbl = GUICtrlCreateLabel("H:", 306, 338, 16, 18)
+    $hLbl = GUICtrlCreateLabel("H:", 306, 362, 16, 18)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $resizehInp = GUICtrlCreateInput("600", 329, 336, 55, 22, $ES_NUMBER)
+    $resizehInp = GUICtrlCreateInput("600", 329, 360, 55, 22, $ES_NUMBER)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $urlRdo = GUICtrlCreateRadio("Open a URL (URL will open with the default browser)", 17, 376, 369, 17)
-    $urlDown = GUICtrlCreateCombo("", 17, 402, 79, 25, BitOR($CBS_DROPDOWNLIST,$CBS_AUTOHSCROLL))
+    $urlRdo = GUICtrlCreateRadio("Open a URL (URL will open with the default browser)", 17, 400, 369, 17)
+    $urlDown = GUICtrlCreateCombo("", 17, 426, 79, 25, BitOR($CBS_DROPDOWNLIST,$CBS_AUTOHSCROLL))
     GUICtrlSetData(-1, "https://|http://|ftp://", "https://")
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $urlInp = GUICtrlCreateInput("leomoon.com", 105, 402, 279, 22)
+    $urlInp = GUICtrlCreateInput("leomoon.com", 105, 426, 279, 22)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $txtRdo = GUICtrlCreateRadio("Paste text into active window", 17, 440, 353, 17)
-    $txtEdit = GUICtrlCreateEdit("", 17, 465, 367, 63, BitOR($ES_AUTOVSCROLL,$ES_WANTRETURN,$WS_VSCROLL))
+    $txtRdo = GUICtrlCreateRadio("Paste text into active window", 17, 464, 353, 17)
+    $txtEdit = GUICtrlCreateEdit("", 17, 489, 367, 63, BitOR($ES_AUTOVSCROLL,$ES_WANTRETURN,$WS_VSCROLL))
     GUICtrlSetState(-1, $GUI_DISABLE)
     GUICtrlCreateGroup("", -99, -99, 1, 1)
-    $hotkeyEditGrp = GUICtrlCreateGroup("Assign a hotkey", 8, 544, 387, 58)
-    $ctrlEditCbox = GUICtrlCreateCheckbox("Ctrl", 17, 568, 57, 17)
-    $altEditCbox = GUICtrlCreateCheckbox("Alt", 80, 568, 57, 17)
-    $shiftEditCbox = GUICtrlCreateCheckbox("Shift", 144, 568, 57, 17)
-    $winEditCbox = GUICtrlCreateCheckbox("Win", 208, 568, 57, 17)
-    $keyEditDown = GUICtrlCreateCombo("", 265, 566, 119, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-    GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|'|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+    $hotkeyEditGrp = GUICtrlCreateGroup("Assign a hotkey", 8, 568, 395, 58)
+    $ctrlEditCbox = GUICtrlCreateCheckbox("Ctrl", 17, 592, 57, 17)
+    $altEditCbox = GUICtrlCreateCheckbox("Alt", 80, 592, 57, 17)
+    $shiftEditCbox = GUICtrlCreateCheckbox("Shift", 144, 592, 57, 17)
+    $winEditCbox = GUICtrlCreateCheckbox("Win", 208, 592, 57, 17)
+    $keyEditDown = GUICtrlCreateCombo("", 273, 590, 119, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
+    GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
     GUICtrlCreateGroup("", -99, -99, 1, 1)
-    $cancelEditBtn = GUICtrlCreateButton("Cancel", 201, 608, 193, 33)
-    $okEditBtn = GUICtrlCreateButton("OK", 8, 608, 185, 33)
+    $cancelEditBtn = GUICtrlCreateButton("Cancel", 209, 632, 193, 33)
+    $okEditBtn = GUICtrlCreateButton("OK", 8, 632, 193, 33)
     ;other settings
+    GUICtrlSetState($oneCbox, 32)
     GUISetIcon(@ScriptFullPath, 201)
     GUICtrlSetOnEvent($folderRdo, "_folderRdo")
     GUICtrlSetOnEvent($cmdCbox, "_cmdCbox")
+    GUICtrlSetTip($adminCbox, 'Run program as administrator.', 'Run as admin', 1)
+    GUICtrlSetTip($oneCbox, 'Run only one instance.', 'Singleton', 1)
     GUICtrlSetTip($cmdCbox, 'Enter batch command in the input field and it will get executed in a hidden command prompt.'&@CR& _
                             ''&@CR& _
                             'Examples:'&@CR& _
@@ -379,12 +394,23 @@ Func HotKeyPressed()
     For $x = 1 To UBound($aHotkeys)-1
         If @HotKeyPressed == StringReplace($aHotkeys[$x][0], '{HkzEq}', '{=}') Then
             ;~ ConsoleWrite($hkzparam)
+            $hkzoptadmin = ''
+            ;~ $hkzoptone = False
             $hkzcmd = $aHotkeys[$x][1]
             $hkzcmd = StringReplace($hkzcmd, '[HkzEq]', '=') ;replace HkzEq with real equal sign before applying hotkeys
+            If StringInStr($hkzcmd, '[HkzOptAdmin]') Then
+                $hkzoptadmin = 'runas'
+                $hkzcmd = StringReplace($hkzcmd, '[HkzOptAdmin]', '')
+            EndIf
+            ;~ If StringInStr($hkzcmd, '[HkzOptOne]') Then
+            ;~     $hkzoptone = True
+            ;~     $hkzcmd = StringReplace($hkzcmd, '[HkzOptOne]', '')
+            ;~ EndIf
             If StringInStr($hkzcmd, '[HkzSysSnd]') Then ;execute special volume and media tasks
                 If _security($sPaths, StringReplace($hkzcmd, '[HkzSysSnd]', '')) Then Send('{'&StringUpper(StringReplace(StringReplace($hkzcmd, '[HkzSysSnd]', ''), ' ', '_'))&'}')
             ElseIf StringInStr($hkzcmd, '[HkzCmd]') Then ;run special dos commands
-                _RunDos(StringReplace($hkzcmd, '[HkzCmd]', ''))
+                ;~ _RunDos(StringReplace($hkzcmd, '[HkzCmd]', '')) ;dont use _rundos. it waits until process if finished!
+                ShellExecute(@ComSpec, " /k "&StringReplace($hkzcmd, '[HkzCmd]', ''), '', $hkzoptadmin, @SW_HIDE)
             ElseIf StringInStr($hkzcmd, '[HkzExe]') Then ;execute commands as is
                 If _security($sPaths, StringReplace($hkzcmd, '[HkzExe]', '')) Then Execute('_'&StringReplace(StringReplace($hkzcmd, '[HkzExe]', ''), ' ', '')&'()')
             ElseIf StringInStr($hkzcmd, '[HkzWM]') Then ;window manager
@@ -585,6 +611,9 @@ Func HotKeyPressed()
                 $hkzcmd = StringReplace($hkzcmd, '<MONTHNUMBER>', @MON)
                 $hkzcmd = StringReplace($hkzcmd, '<DAYNAME>', _DateDayOfWeek(@WDAY))
                 $hkzcmd = StringReplace($hkzcmd, '<DAYNUMBER>', @MDAY)
+                $hkzcmd = StringReplace($hkzcmd, '<COMPUTERNAME>', @ComputerName)
+                $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
+                $hkzcmd = StringReplace($hkzcmd, '<WANIP>', _GetIP())
                 $hkzcmd = StringReplace($hkzcmd, '[HkzNL]', @LF)
                 ClipPut($hkzcmd) ;insert text
                 Send('^v')
@@ -598,23 +627,24 @@ Func HotKeyPressed()
                         If $hkzsplit[0] == 2 Then $hkzparam = StringStripWS($hkzsplit[2], 7)
                     EndIf
                 EndIf
-                If GUICtrlRead($cmdCbox) == $GUI_CHECKED Then
-                    _RunDos($hkzcmd)
-                    ;~ Run(@ComSpec&' /c  '&$hkzcmd, '', @SW_HIDE)
-                ElseIf $hkzparam <> '' Then
+                ;~ If GUICtrlRead($cmdCbox) == $GUI_CHECKED Then
+                ;~     _RunDos($hkzcmd)
+                ;~     ConsoleWrite('yes'&@LF)
+                ;~     ;~ Run(@ComSpec&' /c  '&$hkzcmd, '', @SW_HIDE)
+                If $hkzparam <> '' Then
                     If StringInStr($hkzparam, '<GetActiveWindowsExplorerPath>') Then
                         Local $paramPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
                         $hkzparam = StringReplace($hkzparam, '<GetActiveWindowsExplorerPath>', $paramPath)
                         If FileExists($paramPath) Then ;check if Windows explorer path is real
-                            ShellExecute($hkzcmd, $hkzparam, '', '', @SW_HIDE)
+                            ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with <GetActiveWindowsExplorerPath> parameter
                         Else
-                            ShellExecute($hkzcmd)
+                            ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;program with failed <GetActiveWindowsExplorerPath> parameter
                         EndIf
                     Else
-                        ShellExecute($hkzcmd, $hkzparam, '', '', @SW_HIDE)
+                        ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with parameters
                     EndIf
                 Else
-                    ShellExecute($hkzcmd)
+                    ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;regular program with no parameters
                 EndIf
             EndIf
         EndIf
@@ -642,6 +672,14 @@ Func _StartScreensaverAndLock()
     RunWait('ssText3d.scr /s')
     ;~ _WinAPI_Wow64EnableWow64FsRedirection(True)
     _Lock()
+EndFunc
+
+Func _EmptyClipboard()
+    _ClipBoard_Open(WinGetHandle("[ACTIVE]"))
+    _ClipBoard_Empty()
+    _ClipBoard_Close()
+    ClipPut('')
+    ;~ ConsoleWrite('DONE'&@LF)
 EndFunc
 
 Func _Lock()
@@ -733,11 +771,11 @@ Func _iniCheck($iniFile)
         IniWrite($iniFile, 'Options', 'Main', '^#2')
         IniWrite($iniFile, 'Hotkeys', '^+n', 'C:\Windows\System32\notepad.exe')
         IniWrite($iniFile, 'Hotkeys', '^+i', 'C:\Program Files (x86)\Internet Explorer\iexplore.exe')
+        IniWrite($iniFile, 'Hotkeys', '^+8', 'https://leomoon.com/development-fund/')
         IniWrite($iniFile, 'Hotkeys', '^+9', 'C:\Program Files (x86)\Internet Explorer\iexplore.exe[HkzParam]https://leomoon.com')
         IniWrite($iniFile, 'Hotkeys', '^!c', '::{20d04fe0-3aea-1069-a2d8-08002b30309d}')
         IniWrite($iniFile, 'Hotkeys', '^!u', 'C:\Users\%USERNAME%')
         IniWrite($iniFile, 'Hotkeys', '^!p', '::{26EE0668-A00A-44D7-9371-BEB064C98683}')
-        IniWrite($iniFile, 'Hotkeys', '^!8', 'https://leomoon.com/development-fund/')
         IniWrite($iniFile, 'Hotkeys', '^!{PGDN}', '[HkzWM]Minimize')
         IniWrite($iniFile, 'Hotkeys', '^!{NUMPADADD}', '[HkzWM]Transparency +')
         IniWrite($iniFile, 'Hotkeys', '^!{NUMPADSUB}', '[HkzWM]Transparency -')
@@ -828,6 +866,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     Local $aArray = IniReadSection($iniFile, "Hotkeys")
 	If Not @error Then
         For $i = 1 To $aArray[0][0]
+            Local $opts = ''
             Local $special = False
             Local $sPath = False
             For $c = 0 To UBound($clsid, 1)-1
@@ -859,6 +898,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             Else
                 $type = 'File'
             EndIf
+            If StringInStr($aArray[$i][1], '[HkzOptAdmin]') Then $opts = 'admin'
             ;~ ConsoleWrite($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&@LF)
             ;cleanups
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzEq]', '=')
@@ -866,10 +906,11 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzSndTxt]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzExe]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzWM]', '')
+            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzOptAdmin]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzCmd]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzParam]', ' [Parameters] ')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzNL]', '[New Line]')
-			GUICtrlCreateListViewItem($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1], $ListView1)
+			GUICtrlCreateListViewItem($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&'|'&$opts, $ListView1)
         Next
     EndIf
     ;~ GUICtrlSendMsg($ListView1, $LVM_SETCOLUMNWIDTH, 1, -1)
@@ -878,12 +919,13 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     _GUICtrlListView_SetColumnWidth($ListView1, 0, $LVSCW_AUTOSIZE_USEHEADER)
     _GUICtrlListView_SetColumnWidth($ListView1, 1, $LVSCW_AUTOSIZE_USEHEADER)
     If IsArray($aArray) Then
-        _GUICtrlListView_SetColumnWidth($ListView1, 0, _GUICtrlListView_GetColumnWidth($ListView1, 0)+15)
-        _GUICtrlListView_SetColumnWidth($ListView1, 1, _GUICtrlListView_GetColumnWidth($ListView1, 1)+15)
+        _GUICtrlListView_SetColumnWidth($ListView1, 0, _GUICtrlListView_GetColumnWidth($ListView1, 0)+10)
+        _GUICtrlListView_SetColumnWidth($ListView1, 1, _GUICtrlListView_GetColumnWidth($ListView1, 1)+10)
+        _GUICtrlListView_SetColumnWidth($ListView1, 3, _GUICtrlListView_GetColumnWidth($ListView1, 3)+10)
     Else
         _GUICtrlListView_SetColumnWidth($ListView1, 1, 160)
     EndIf
-    _GUICtrlListView_SetColumnWidth($ListView1, 2, ControlGetPos($mainGui, '', $ListView1)[2]-(_GUICtrlListView_GetColumnWidth($ListView1, 0)+_GUICtrlListView_GetColumnWidth($ListView1, 1)+25))
+    _GUICtrlListView_SetColumnWidth($ListView1, 2, ControlGetPos($mainGui, '', $ListView1)[2]-(_GUICtrlListView_GetColumnWidth($ListView1, 0)+_GUICtrlListView_GetColumnWidth($ListView1, 1)+_GUICtrlListView_GetColumnWidth($ListView1, 3)+25))
     _GUICtrlListView_SetItemSelected($ListView1, 0) ;select first item
 EndFunc
 
@@ -931,8 +973,9 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         ;reversals
         $path = StringReplace($path, '=', '[HkzEq]')
         If _GUICtrlListView_GetItemText($ListView1, $x, 0) == 'Text' Then $path = '[HkzSndTxt]'&$path
-        If _GUICtrlListView_GetItemText($ListView1, $x, 0) == 'Command' Then $path = '[HkzCmd]'&$path
         If _GUICtrlListView_GetItemText($ListView1, $x, 0) == 'Window' Then $path = '[HkzWM]'&$path
+        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 0), 'Command') Then $path = '[HkzCmd]'&$path
+        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'admin') Then $path = $path&'[HkzOptAdmin]'
         $path = StringReplace($path, ' [Parameters] ', '[HkzParam]')
         $path = StringReplace($path, '[New Line]', '[HkzNL]')
         IniWrite($iniFile, 'Hotkeys', _encodeHotkey(_GUICtrlListView_GetItemText($ListView1, $x, 1)), $path)
@@ -963,11 +1006,13 @@ EndFunc
 
 Func _fileRdo()
     If GUICtrlRead($fileRdo) == 1 Then
-        GUICtrlSetState($cmdCbox, $GUI_ENABLE)
         GUICtrlSetState($fileInp, $GUI_ENABLE)
         GUICtrlSetState($fileBrowseBtn, $GUI_ENABLE)
         GUICtrlSetState($fileParamLbl, $GUI_ENABLE)
         GUICtrlSetState($fileParamInp, $GUI_ENABLE)
+        GUICtrlSetState($adminCbox, $GUI_ENABLE)
+        GUICtrlSetState($oneCbox, $GUI_ENABLE)
+        GUICtrlSetState($cmdCbox, $GUI_ENABLE)
         _cmdCbox()
         GUICtrlSetState($folderInp, $GUI_DISABLE)
         GUICtrlSetState($folderBrowseBtn, $GUI_DISABLE)
@@ -984,21 +1029,26 @@ Func _cmdCbox()
     If GUICtrlRead($cmdCbox) == $GUI_CHECKED Then
         GUICtrlSetState($fileParamInp, $GUI_DISABLE)
         GUICtrlSetState($fileBrowseBtn, $GUI_DISABLE)
+        GUICtrlSetState($oneCbox, $GUI_UNCHECKED)
+        GUICtrlSetState($oneCbox, $GUI_DISABLE)
         GUICtrlSetData($fileRdo, 'Run a Batch command')
     Else
         GUICtrlSetState($fileParamInp, $GUI_ENABLE)
         GUICtrlSetState($fileBrowseBtn, $GUI_ENABLE)
+        GUICtrlSetState($oneCbox, $GUI_ENABLE)
         GUICtrlSetData($fileRdo, 'Run a program or open a file')
     EndIf
 EndFunc
 
 Func _folderRdo()
     If GUICtrlRead($folderRdo) == 1 Then
-        GUICtrlSetState($cmdCbox, $GUI_DISABLE)
         GUICtrlSetState($fileInp, $GUI_DISABLE)
         GUICtrlSetState($fileBrowseBtn, $GUI_DISABLE)
         GUICtrlSetState($fileParamLbl, $GUI_DISABLE)
         GUICtrlSetState($fileParamInp, $GUI_DISABLE)
+        GUICtrlSetState($adminCbox, $GUI_DISABLE)
+        GUICtrlSetState($oneCbox, $GUI_DISABLE)
+        GUICtrlSetState($cmdCbox, $GUI_DISABLE)
         GUICtrlSetState($folderInp, $GUI_ENABLE)
         GUICtrlSetState($folderBrowseBtn, $GUI_ENABLE)
         GUICtrlSetState($specialDown, $GUI_DISABLE)
@@ -1012,11 +1062,13 @@ EndFunc
 
 Func _specialRdo()
     If GUICtrlRead($specialRdo) == 1 Then
-        GUICtrlSetState($cmdCbox, $GUI_DISABLE)
         GUICtrlSetState($fileInp, $GUI_DISABLE)
         GUICtrlSetState($fileBrowseBtn, $GUI_DISABLE)
         GUICtrlSetState($fileParamLbl, $GUI_DISABLE)
         GUICtrlSetState($fileParamInp, $GUI_DISABLE)
+        GUICtrlSetState($adminCbox, $GUI_DISABLE)
+        GUICtrlSetState($oneCbox, $GUI_DISABLE)
+        GUICtrlSetState($cmdCbox, $GUI_DISABLE)
         GUICtrlSetState($folderInp, $GUI_DISABLE)
         GUICtrlSetState($folderBrowseBtn, $GUI_DISABLE)
         GUICtrlSetState($specialDown, $GUI_ENABLE)
@@ -1030,11 +1082,13 @@ EndFunc
 
 Func _windowRdo()
     If GUICtrlRead($windowRdo) == 1 Then
-        GUICtrlSetState($cmdCbox, $GUI_DISABLE)
         GUICtrlSetState($fileInp, $GUI_DISABLE)
         GUICtrlSetState($fileBrowseBtn, $GUI_DISABLE)
         GUICtrlSetState($fileParamLbl, $GUI_DISABLE)
         GUICtrlSetState($fileParamInp, $GUI_DISABLE)
+        GUICtrlSetState($adminCbox, $GUI_DISABLE)
+        GUICtrlSetState($oneCbox, $GUI_DISABLE)
+        GUICtrlSetState($cmdCbox, $GUI_DISABLE)
         GUICtrlSetState($folderInp, $GUI_DISABLE)
         GUICtrlSetState($folderBrowseBtn, $GUI_DISABLE)
         GUICtrlSetState($specialDown, $GUI_DISABLE)
@@ -1192,6 +1246,8 @@ Func _add()
     Else
         Local $childRead = ''
         Local $error = False
+        Local $opts = ''
+        If GUICtrlRead($adminCbox) == $GUI_CHECKED Then $opts = 'admin'
         If BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
         If BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
         If BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
@@ -1214,10 +1270,10 @@ Func _add()
             If GUICtrlRead($fileRdo) == 1 Then
                 $fileParam = GUICtrlRead($fileInp)
                 If GUICtrlRead($cmdCbox) == $GUI_CHECKED Then
-                    GUICtrlCreateListViewItem('Command|'&$childRead&'|'&$fileParam, $ListView1)
+                    GUICtrlCreateListViewItem('Command'&'|'&$childRead&'|'&$fileParam&'|'&$opts, $ListView1)
                 Else
                     If GUICtrlRead($fileParamInp) <> '' Then $fileParam = $fileParam&' [Parameters] '&GUICtrlRead($fileParamInp)
-                    GUICtrlCreateListViewItem('File|'&$childRead&'|'&$fileParam, $ListView1)
+                    GUICtrlCreateListViewItem('File'&'|'&$childRead&'|'&$fileParam&'|'&$opts, $ListView1)
                 EndIf
             ElseIf GUICtrlRead($folderRdo) == 1 Then
                 GUICtrlCreateListViewItem('Folder|'&$childRead&'|'&GUICtrlRead($folderInp), $ListView1)
@@ -1273,6 +1329,7 @@ Func _editBtn()
         EndIf
     Next
     _editGui('Edit Hotkey', 'OK')
+    If StringInStr(_GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 3), 'admin') Then GUICtrlSetState($adminCbox, $GUI_CHECKED)
     If $special Then
         GUICtrlSetState($specialRdo, $GUI_CHECKED)
         _GUICtrlComboBox_SelectString($specialDown, $sPaths[$s][0])
@@ -1344,7 +1401,7 @@ Func _editBtn()
         GUICtrlSetState($txtRdo, $GUI_CHECKED)
         GUICtrlSetData($txtEdit, StringReplace($path, '[New Line]', @CRLF))
         _txtRdo()
-    ElseIf _GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 0) == 'Command' Then
+    ElseIf StringInStr(_GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 0), 'Command') Then
         GUICtrlSetState($fileRdo, $GUI_CHECKED)
         GUICtrlSetState($cmdCbox, $GUI_CHECKED)
         GUICtrlSetData($fileInp, StringReplace($path, '[HkzCmd]', ''))
@@ -1417,6 +1474,8 @@ Func _edit()
     Else
         Local $childRead = ''
         Local $error = False
+        Local $opts = ''
+        If GUICtrlRead($adminCbox) == 1 Then $opts = 'admin'
         If BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
         If BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
         If BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
@@ -1478,6 +1537,7 @@ Func _edit()
                 _GUICtrlListView_SetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), $hkztxt, 2)
                 _GUICtrlListView_SetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 'Text', 0)
             EndIf
+            _GUICtrlListView_SetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), $opts, 3)
             _hideChild()
         EndIf
     EndIf
@@ -1586,6 +1646,7 @@ Func _decodeKey($k)
         If $k == '{NUMPADDIV}' Then $k = 'Numpad Divide'
         If $k == '{NUMPADMULT}' Then $k = 'Numpad Multiply'
         If $k == '{NUMPADSUB}' Then $k = 'Numpad Subtract'
+        If $k == '{NUMPADADD}' Then $k = 'Numpad Add'
         If $k == '{HkzEq}' Then $k = '='
         $k = _StringTitleCase($k)
     Else
@@ -1671,7 +1732,7 @@ Func _typeCheck($hWnd)
     ;~ ConsoleWrite($csiz[0]&' '&$wpos[2]&@LF)
     ;~ ConsoleWrite($csiz[1]&' '&$wpos[3]&@LF)
     If @OSVersion == 'WIN_10' Then
-        If $csiz[0] <> $wpos[2] And @OSVersion == 'WIN_10' Then
+        If $csiz[0] <> $wpos[2] And $wpos[2] - $csiz[0] > 15 And @OSVersion == 'WIN_10' Then
             $xf = 14
             $yf = 7
         Else
