@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<object type="TAForm" name="mainGui">
+	<properties>
+		<property name="Left" vt="Int16">495</property>
+		<property name="Top" vt="Int16">234</property>
+		<property name="Width" vt="Int16">689</property>
+		<property name="Height" vt="Int16">704</property>
+		<property name="Caption" vt="String"> Settings</property>
+		<property name="Color" vt="Ident">clBtnFace</property>
+		<property name="Font.Charset" vt="Ident">DEFAULT_CHARSET</property>
+		<property name="Font.Color" vt="Ident">clWindowText</property>
+		<property name="Font.Height" vt="Int8">-12</property>
+		<property name="Font.Name" vt="String">Tahoma</property>
+		<property name="Font.Style" vt="Set"/>
+		<property name="OldCreateOrder" vt="False">False</property>
+		<property name="Visible" vt="True">True</property>
+		<property name="Style" vt="Int32">-1798701056</property>
+		<property name="ExStyle" vt="Int16">256</property>
+		<property name="Version" vt="String">1.04</property>
+		<property name="Description" vt="String">A standard Windows Form.</property>
+		<property name="FormOptOnEvent" vt="False">False</property>
+		<property name="FormOptExpVars" vt="False">False</property>
+		<property name="FormOptPopulate" vt="False">False</property>
+		<property name="FormOptVarsForSet" vt="False">False</property>
+		<property name="FormOptIndentChar" vt="Int8">0</property>
+		<property name="FormOptIndentCount" vt="Int8">1</property>
+		<property name="FormOptIndentInit" vt="Int8">0</property>
+		<property name="FormOptVarScope" vt="Int8">0</property>
+		<property name="Resizing" vt="Set"/>
+		<property name="PixelsPerInch" vt="Int8">96</property>
+		<property name="TextHeight" vt="Int8">14</property>
+	</properties>
+	<components>
+		<object type="TAButton" name="saveBtn">
+			<properties>
+				<property name="Left" vt="Int8">16</property>
+				<property name="Top" vt="Int16">592</property>
+				<property name="Width" vt="Int16">209</property>
+				<property name="Height" vt="Int8">33</property>
+				<property name="Caption" vt="String">Save</property>
+				<property name="TabOrder" vt="Int8">4</property>
+				<property name="Color" vt="Ident">clBtnFace</property>
+				<property name="CtrlStyle" vt="Int32">1342373888</property>
+				<property name="CtrlExStyle" vt="Int8">0</property>
+				<property name="Resizing" vt="Set">DockWidth, DockHeight</property>
+			</properties>
+			<components/>
+		</object>
+		<object type="TAButton" name="cancelBtn">
+			<properties>
+				<property name="Left" vt="Int16">449</property>
+				<property name="Top" vt="Int16">592</property>
+				<property name="Width" vt="Int16">209</property>
+				<property name="Height" vt="Int8">33</property>
+				<property name="Caption" vt="String">Cancel</property>
+				<property name="TabOrder" vt="Int8">3</property>
+				<property name="Color" vt="Ident">clBtnFace</property>
+				<property name="CtrlStyle" vt="Int32">1342373888</property>
+				<property name="CtrlExStyle" vt="Int8">0</property>
+				<property name="Resizing" vt="Set">DockWidth, DockHeight</property>
+			</properties>
+			<components/>
+		</object>
+		<object type="TAGroup" name="optionsGrp">
+			<properties>
+				<property name="Left" vt="Int8">8</property>
+				<property name="Top" vt="Int8">8</property>
+				<property name="Width" vt="Int16">658</property>
+				<property name="Height" vt="Int8">57</property>
+				<property name="CtrlStyle" vt="Int32">1342308359</property>
+				<property name="CtrlExStyle" vt="Int8">0</property>
+				<property name="Caption" vt="String">Startup</property>
+				<property name="TabOrder" vt="Int8">0</property>
+				<property name="Resizing" vt="Set"/>
+			</properties>
+			<components>
+				<object type="TACheckbox" name="startupCbox">
+					<properties>
+						<property name="Left" vt="Int8">9</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int16">289</property>
+						<property name="Height" vt="Int8">17</property>
+						<property name="Caption" vt="String">Start with Windows</property>
+						<property name="TabOrder" vt="Int8">0</property>
+						<property name="CtrlStyle" vt="Int32">1342242819</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+			</components>
+		</object>
+		<object type="TAGroup" name="customHokeysGrp">
+			<properties>
+				<property name="Left" vt="Int8">8</property>
+				<property name="Top" vt="Int16">136</property>
+				<property name="Width" vt="Int16">658</property>
+				<property name="Height" vt="Int16">450</property>
+				<property name="CtrlStyle" vt="Int32">1342308359</property>
+				<property name="CtrlExStyle" vt="Int8">0</property>
+				<property name="Caption" vt="String">Edit hotkeys</property>
+				<property name="TabOrder" vt="Int8">2</property>
+				<property name="Resizing" vt="Set"/>
+			</properties>
+			<components>
+				<object type="TAButton" name="addBtn">
+					<properties>
+						<property name="Left" vt="Int8">8</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int16">209</property>
+						<property name="Height" vt="Int8">33</property>
+						<property name="Caption" vt="String">Add New</property>
+						<property name="TabOrder" vt="Int8">0</property>
+						<property name="Color" vt="Ident">clBtnFace</property>
+						<property name="CtrlStyle" vt="Int32">1342373888</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockWidth, DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TAButton" name="editBtn">
+					<properties>
+						<property name="Left" vt="Int16">224</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int16">209</property>
+						<property name="Height" vt="Int8">33</property>
+						<property name="Caption" vt="String">Edit Selected</property>
+						<property name="TabOrder" vt="Int8">1</property>
+						<property name="Color" vt="Ident">clBtnFace</property>
+						<property name="CtrlStyle" vt="Int32">1342373888</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockWidth, DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TAButton" name="delBtn">
+					<properties>
+						<property name="Left" vt="Int16">440</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int16">209</property>
+						<property name="Height" vt="Int8">33</property>
+						<property name="Caption" vt="String">Delete Selected</property>
+						<property name="TabOrder" vt="Int8">2</property>
+						<property name="Color" vt="Ident">clBtnFace</property>
+						<property name="CtrlStyle" vt="Int32">1342373888</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockWidth, DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TAListView" name="ListView1">
+					<properties>
+						<property name="Left" vt="Int8">9</property>
+						<property name="Top" vt="Int8">65</property>
+						<property name="Width" vt="Int16">639</property>
+						<property name="Height" vt="Int16">375</property>
+						<property name="CtrlStyle" vt="Int32">1345519629</property>
+						<property name="CtrlExStyle" vt="Int16">544</property>
+						<property name="Resizing" vt="Set"/>
+						<property name="Columns" vt="Collection">
+							<collection/>
+						</property>
+					</properties>
+					<components/>
+				</object>
+			</components>
+		</object>
+		<object type="TAGroup" name="hotkeyGrp">
+			<properties>
+				<property name="Left" vt="Int8">8</property>
+				<property name="Top" vt="Int8">72</property>
+				<property name="Width" vt="Int16">658</property>
+				<property name="Height" vt="Int8">57</property>
+				<property name="CtrlStyle" vt="Int32">1342308359</property>
+				<property name="CtrlExStyle" vt="Int8">0</property>
+				<property name="Caption" vt="String">HotKeyz main hotkey</property>
+				<property name="TabOrder" vt="Int8">1</property>
+				<property name="Resizing" vt="Set"/>
+			</properties>
+			<components>
+				<object type="TACheckbox" name="ctrlCbox">
+					<properties>
+						<property name="Left" vt="Int8">9</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int8">97</property>
+						<property name="Height" vt="Int8">17</property>
+						<property name="Caption" vt="String">Ctrl</property>
+						<property name="TabOrder" vt="Int8">0</property>
+						<property name="CtrlStyle" vt="Int32">1342242819</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TACheckbox" name="shiftCbox">
+					<properties>
+						<property name="Left" vt="Int16">248</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int8">97</property>
+						<property name="Height" vt="Int8">17</property>
+						<property name="Caption" vt="String">Shift</property>
+						<property name="TabOrder" vt="Int8">2</property>
+						<property name="CtrlStyle" vt="Int32">1342242819</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TACheckbox" name="winCbox">
+					<properties>
+						<property name="Left" vt="Int16">368</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int8">97</property>
+						<property name="Height" vt="Int8">17</property>
+						<property name="Caption" vt="String">Win</property>
+						<property name="TabOrder" vt="Int8">3</property>
+						<property name="CtrlStyle" vt="Int32">1342242819</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TACheckbox" name="altCbox">
+					<properties>
+						<property name="Left" vt="Int16">128</property>
+						<property name="Top" vt="Int8">24</property>
+						<property name="Width" vt="Int8">97</property>
+						<property name="Height" vt="Int8">17</property>
+						<property name="Caption" vt="String">Alt</property>
+						<property name="TabOrder" vt="Int8">1</property>
+						<property name="CtrlStyle" vt="Int32">1342242819</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TACombo" name="keyDown">
+					<properties>
+						<property name="Left" vt="Int16">489</property>
+						<property name="Top" vt="Int8">22</property>
+						<property name="Width" vt="Int16">159</property>
+						<property name="Height" vt="Int8">25</property>
+						<property name="ItemHeight" vt="Int8">14</property>
+						<property name="TabOrder" vt="Int8">4</property>
+						<property name="Items.Strings" vt="List">
+							<list>
+								<li vt="LString">Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|'|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add</li>
+							</list>
+						</property>
+						<property name="CtrlStyle" vt="Int32">1344471619</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+			</components>
+		</object>
+	</components>
+</object>
