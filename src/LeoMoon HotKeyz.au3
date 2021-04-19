@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.2.0)
+#pragma compile(FileVersion, 1.8.3.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.2.0)
+#pragma compile(ProductVersion, 1.8.3.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -46,16 +46,28 @@
 #include <GuiListView.au3>
 #include <ListViewConstants.au3>
 
-;changes
-;   Added new items to Active Window actions:
-;   Move to Next Monitor
-;   Move to Previous Monitor
-;   Minor UI changes
-;   Bugfixes
+;TODO 1.8.4.0
+;   Add new keys:
+;       {LALT}
+;       {RALT}
+;       {LCTRL}
+;       {RCTRL}
+;       {LSHIFT}
+;       {RSHIFT}
+;       {LWIN}
+;       {RWIN}
+;   Add conditions:
+;       Caps Lock state
+;       Num Lock state
+;       Scroll Lock state
+;   Add run as admin checkbox
+;   Add only one instance checkbox
+;   Add clear clipboard option
+
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.2'
+Global $ver = '1.8.3'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
@@ -279,7 +291,7 @@ Func _editGui($name, $buttonName)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 256, 369, 17)
     $windowDown = GUICtrlCreateCombo("", 17, 282, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Custom Move and/or Resize")
+    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Toggle Ghost (Advanced)|Custom Move and/or Resize")
     GUICtrlSetState(-1, $GUI_DISABLE)
     $moveCbox = GUICtrlCreateCheckbox("Move active window", 17, 312, 177, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
@@ -524,6 +536,18 @@ Func HotKeyPressed()
                             WinMove($hWnd, '', Default, Default, ($areaWidth/3)+$xf, ($areaHeight/2)+$yf, $anim)
                             $wpos = WinGetPos($hWnd)
                             WinMove($hWnd, '', $area[1]-$wpos[2]+($xf/2), ($area[2]+$areaHeight)-$wpos[3]+($yf), Default, Default, $anim)
+                        Case $hkzcmd == 'Set Process Priority to Low'
+                            _setPriority($hWnd, 0)
+                        Case $hkzcmd == 'Set Process Priority to Below Normal'
+                            _setPriority($hWnd, 1)
+                        Case $hkzcmd == 'Set Process Priority to Normal'
+                            _setPriority($hWnd, 2)
+                        Case $hkzcmd == 'Set Process Priority to Above Normal'
+                            _setPriority($hWnd, 3)
+                        Case $hkzcmd == 'Set Process Priority to Hight'
+                            _setPriority($hWnd, 4)
+                        Case $hkzcmd == 'Set Process Priority to Realtime'
+                            _setPriority($hWnd, 5)
                         Case $hkzcmd == 'Close'
                             WinClose($hWnd)
                         Case $hkzcmd == 'Minimize'
@@ -1680,6 +1704,10 @@ Func _topToggle($hWnd)
     Else
         WinSetOnTop($hWnd, '', $WINDOWS_ONTOP)
     EndIf
+EndFunc
+
+Func _setPriority($hWnd, $priority=2)
+    ProcessSetPriority(_ProcessGetName(WinGetProcess($hWnd, "")), $priority)
 EndFunc
 
 Func _GetWindowsExplorerPath($hWnd)
