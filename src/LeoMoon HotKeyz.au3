@@ -638,13 +638,13 @@ Func HotKeyPressed()
                         If FileExists($paramPath) Then ;check if Windows explorer path is real
                             ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with <GetActiveWindowsExplorerPath> parameter
                         Else
-                            ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;program with failed <GetActiveWindowsExplorerPath> parameter
+                            ShellExecute($hkzcmd, '', '', $hkzoptadmin, @SW_HIDE) ;program with failed <GetActiveWindowsExplorerPath> parameter
                         EndIf
                     Else
                         ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with parameters
                     EndIf
                 Else
-                    ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;regular program with no parameters
+                    ShellExecute($hkzcmd, '', '', $hkzoptadmin, @SW_HIDE) ;regular program with no parameters
                 EndIf
             EndIf
         EndIf
@@ -683,7 +683,7 @@ Func _EmptyClipboard()
 EndFunc
 
 Func _Lock()
-    ShellExecute('Rundll32.exe', 'User32.dll,LockWorkStation')
+    ShellExecute('Rundll32.exe', 'User32.dll,LockWorkStation', '', '', @SW_HIDE)
 EndFunc
 
 Func _LogOff()
@@ -1187,7 +1187,7 @@ Func _delBtn()
 EndFunc
 
 Func _web()
-    ShellExecute('http://leomoon.com')
+    ShellExecute('http://leomoon.com', '', '', '', @SW_HIDE)
 EndFunc
 
 Func _addBtn()
