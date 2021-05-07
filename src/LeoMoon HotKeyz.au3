@@ -198,7 +198,7 @@ TrayItemSetOnEvent(-1, "_web")
 TrayCreateItem('')
 $exitTray = TrayCreateItem('Exit')
 TrayItemSetOnEvent(-1, "_exit")
-_readHotkey($ini, 'Options', 'Main', $enableTray, 'Enable LeoMoon HotKeyz', '_toggle', '^#2') ;apply main hotkey
+_readHotkey($ini, 'Options', 'Main', $enableTray, 'Enable LeoMoon HotKeyz', '_toggle', '^#,') ;apply main hotkey
 _iniToApply($ini)
 ;~ TraySetState()
 TraySetToolTip($title&" is enabled.")
@@ -225,7 +225,7 @@ Func _mainGui()
         $shiftCbox = GUICtrlCreateCheckbox("Shift", 256, 96, 97, 17)
         $winCbox = GUICtrlCreateCheckbox("Win", 376, 96, 97, 17)
         $keyDown = GUICtrlCreateCombo("", 497, 94, 159, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-        GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+        GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
         GUICtrlCreateGroup("", -99, -99, 1, 1)
         $customHokeysGrp = GUICtrlCreateGroup("Edit hotkeys", 8, 136, 658, 450)
         $addBtn = GUICtrlCreateButton("Add New", 16, 160, 209, 33)
@@ -343,7 +343,7 @@ Func _editGui($name, $buttonName)
     $shiftEditCbox = GUICtrlCreateCheckbox("Shift", 144, 592, 57, 17)
     $winEditCbox = GUICtrlCreateCheckbox("Win", 208, 592, 57, 17)
     $keyEditDown = GUICtrlCreateCombo("", 273, 590, 119, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-    GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+    GUICtrlSetData(-1, "Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
     GUICtrlCreateGroup("", -99, -99, 1, 1)
     $cancelEditBtn = GUICtrlCreateButton("Cancel", 209, 632, 193, 33)
     $okEditBtn = GUICtrlCreateButton("OK", 8, 632, 193, 33)
@@ -768,7 +768,7 @@ EndFunc
 
 Func _iniCheck($iniFile)
     If Not FileExists($iniFile) Then
-        IniWrite($iniFile, 'Options', 'Main', '^#2')
+        IniWrite($iniFile, 'Options', 'Main', '^#,')
         IniWrite($iniFile, 'Hotkeys', '^+n', 'C:\Windows\System32\notepad.exe')
         IniWrite($iniFile, 'Hotkeys', '^+i', 'C:\Program Files (x86)\Internet Explorer\iexplore.exe')
         IniWrite($iniFile, 'Hotkeys', '^+8', 'https://leomoon.com/development-fund/')
@@ -1612,6 +1612,7 @@ Func _encodeKey($k)
         If $k == 'Numpad 8' Then $k = 'NUMPAD8'
         If $k == 'Numpad 9' Then $k = 'NUMPAD9'
         If $k == 'Numpad 0' Then $k = 'NUMPAD0'
+        If $k == 'Numpad Dot' Then $k = 'NUMPADDOT'
         If $k == 'Numpad Divide' Then $k = 'NUMPADDIV'
         If $k == 'Numpad Multiply' Then $k = 'NUMPADMULT'
         If $k == 'Numpad Subtract' Then $k = 'NUMPADSUB'
@@ -1643,6 +1644,7 @@ Func _decodeKey($k)
         If $k == '{NUMPAD8}' Then $k = 'Numpad 8'
         If $k == '{NUMPAD9}' Then $k = 'Numpad 9'
         If $k == '{NUMPAD0}' Then $k = 'Numpad 0'
+        If $k == '{NUMPADDOT}' Then $k = 'Numpad Dot'
         If $k == '{NUMPADDIV}' Then $k = 'Numpad Divide'
         If $k == '{NUMPADMULT}' Then $k = 'Numpad Multiply'
         If $k == '{NUMPADSUB}' Then $k = 'Numpad Subtract'
