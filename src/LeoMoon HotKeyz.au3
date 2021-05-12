@@ -162,7 +162,7 @@ Opt('TrayAutoPause',0)
 Opt("GUIOnEventMode", 1)
 Opt("GUICloseOnESC", 0)
 
-_ExtMsgBoxSet(0, 1, -1, -1, 9, "Tahoma")
+_ExtMsgBoxSet(0, 0, -1, -1, 9, "Tahoma")
 
 If _Singleton($title, 1) == 0 Then
 	_ExtMsgBox(48, 'OK', 'Oops!', $title&' is currently running.'&@CRLF, 0)
@@ -340,7 +340,7 @@ Func _editGui($name, $buttonName)
     $cancelEditBtn = GUICtrlCreateButton("Cancel", 209, 632, 193, 33)
     $okEditBtn = GUICtrlCreateButton("OK", 8, 632, 193, 33)
     ;other settings
-    GUICtrlSetState($oneCbox, 32)
+    ;~ GUICtrlSetState($oneCbox, 32)
     GUISetIcon(@ScriptFullPath, 201)
     GUICtrlSetOnEvent($folderRdo, "_folderRdo")
     GUICtrlSetOnEvent($cmdCbox, "_cmdCbox")
@@ -387,17 +387,17 @@ Func HotKeyPressed()
         If @HotKeyPressed == StringReplace($aHotkeys[$x][0], '{HkzEq}', '{=}') Then
             ;~ ConsoleWrite($hkzparam)
             $hkzoptadmin = ''
-            ;~ $hkzoptone = False
+            $hkzoptone = False
             $hkzcmd = $aHotkeys[$x][1]
             $hkzcmd = StringReplace($hkzcmd, '[HkzEq]', '=') ;replace HkzEq with real equal sign before applying hotkeys
             If StringInStr($hkzcmd, '[HkzOptAdmin]') Then
                 $hkzoptadmin = 'runas'
                 $hkzcmd = StringReplace($hkzcmd, '[HkzOptAdmin]', '')
             EndIf
-            ;~ If StringInStr($hkzcmd, '[HkzOptOne]') Then
-            ;~     $hkzoptone = True
-            ;~     $hkzcmd = StringReplace($hkzcmd, '[HkzOptOne]', '')
-            ;~ EndIf
+            If StringInStr($hkzcmd, '[HkzOptOne]') Then
+                $hkzoptone = True
+                $hkzcmd = StringReplace($hkzcmd, '[HkzOptOne]', '')
+            EndIf
             If StringInStr($hkzcmd, '[HkzSysSnd]') Then ;execute special volume and media tasks
                 If _security($sPaths, StringReplace($hkzcmd, '[HkzSysSnd]', '')) Then Send('{'&StringUpper(StringReplace(StringReplace($hkzcmd, '[HkzSysSnd]', ''), ' ', '_'))&'}')
             ElseIf StringInStr($hkzcmd, '[HkzCmd]') Then ;run special dos commands
@@ -623,20 +623,24 @@ Func HotKeyPressed()
                 ;~     _RunDos($hkzcmd)
                 ;~     ConsoleWrite('yes'&@LF)
                 ;~     ;~ Run(@ComSpec&' /c  '&$hkzcmd, '', @SW_HIDE)
-                If $hkzparam <> '' Then
-                    If StringInStr($hkzparam, '<GetActiveWindowsExplorerPath>') Then
-                        Local $paramPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
-                        $hkzparam = StringReplace($hkzparam, '<GetActiveWindowsExplorerPath>', $paramPath)
-                        If FileExists($paramPath) Then ;check if Windows explorer path is real
-                            ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin) ;program with <GetActiveWindowsExplorerPath> parameter
+                If ($hkzoptone And Not ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", ""))) Or Not $hkzoptone Then
+                    If $hkzparam <> '' Then
+                        If StringInStr($hkzparam, '<GetActiveWindowsExplorerPath>') Then
+                            Local $paramPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
+                            $hkzparam = StringReplace($hkzparam, '<GetActiveWindowsExplorerPath>', $paramPath)
+                            If FileExists($paramPath) Then ;check if Windows explorer path is real
+                                ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with <GetActiveWindowsExplorerPath> parameter
+                            Else
+                                ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;program with failed <GetActiveWindowsExplorerPath> parameter
+                            EndIf
                         Else
-                            ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;program with failed <GetActiveWindowsExplorerPath> parameter
+                            ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with parameters
                         EndIf
                     Else
-                        ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin) ;program with parameters
+                        ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;regular program with no parameters
                     EndIf
-                Else
-                    ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;regular program with no parameters
+                ;~ ElseIf $hkzoptone And ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", "")) Then ;tell program already running
+                    ;~ _ExtMsgBox(48, 'OK', 'LeoMoon HotKeyz Singleton!', 'This'&'"'&$hkzcmd&'" is already running.'&@CRLF, 0)
                 EndIf
             EndIf
         EndIf
@@ -890,7 +894,9 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             Else
                 $type = 'File'
             EndIf
-            If StringInStr($aArray[$i][1], '[HkzOptAdmin]') Then $opts = 'admin'
+            If StringInStr($aArray[$i][1], '[HkzOptAdmin]') Then $opts &= 'Admin'
+            If $opts == 'Admin' Then $opts &= ', '
+            If StringInStr($aArray[$i][1], '[HkzOptOne]') Then $opts &= 'Singleton'
             ;~ ConsoleWrite($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&@LF)
             ;cleanups
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzEq]', '=')
@@ -899,6 +905,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzExe]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzWM]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzOptAdmin]', '')
+            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzOptOne]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzCmd]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzParam]', ' [Parameters] ')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzNL]', '[New Line]')
@@ -967,7 +974,8 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         If _GUICtrlListView_GetItemText($ListView1, $x, 0) == 'Text' Then $path = '[HkzSndTxt]'&$path
         If _GUICtrlListView_GetItemText($ListView1, $x, 0) == 'Window' Then $path = '[HkzWM]'&$path
         If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 0), 'Command') Then $path = '[HkzCmd]'&$path
-        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'admin') Then $path = $path&'[HkzOptAdmin]'
+        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'Admin') Then $path = $path&'[HkzOptAdmin]'
+        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'Singleton') Then $path = $path&'[HkzOptOne]'
         $path = StringReplace($path, ' [Parameters] ', '[HkzParam]')
         $path = StringReplace($path, '[New Line]', '[HkzNL]')
         IniWrite($iniFile, 'Hotkeys', _encodeHotkey(_GUICtrlListView_GetItemText($ListView1, $x, 1)), $path)
@@ -1239,7 +1247,10 @@ Func _add()
         Local $childRead = ''
         Local $error = False
         Local $opts = ''
-        If GUICtrlRead($adminCbox) == $GUI_CHECKED Then $opts = 'admin'
+        ;~ If GUICtrlRead($adminCbox) == $GUI_CHECKED Then $opts = 'admin'
+        If GUICtrlRead($adminCbox) == 1 Then $opts &= 'Admin'
+        If $opts == 'Admin' Then $opts &= ', '
+        If GUICtrlRead($oneCbox) == 1 Then $opts &= 'Singleton'
         If BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
         If BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
         If BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
@@ -1321,7 +1332,8 @@ Func _editBtn()
         EndIf
     Next
     _editGui('Edit Hotkey', 'OK')
-    If StringInStr(_GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 3), 'admin') Then GUICtrlSetState($adminCbox, $GUI_CHECKED)
+    If StringInStr(_GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 3), 'Admin') Then GUICtrlSetState($adminCbox, $GUI_CHECKED)
+    If StringInStr(_GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 3), 'Singleton') Then GUICtrlSetState($oneCbox, $GUI_CHECKED)
     If $special Then
         GUICtrlSetState($specialRdo, $GUI_CHECKED)
         _GUICtrlComboBox_SelectString($specialDown, $sPaths[$s][0])
@@ -1467,7 +1479,9 @@ Func _edit()
         Local $childRead = ''
         Local $error = False
         Local $opts = ''
-        If GUICtrlRead($adminCbox) == 1 Then $opts = 'admin'
+        If GUICtrlRead($adminCbox) == 1 Then $opts &= 'Admin'
+        If $opts == 'Admin' Then $opts &= ', '
+        If GUICtrlRead($oneCbox) == 1 Then $opts &= 'Singleton'
         If BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
         If BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
         If BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
