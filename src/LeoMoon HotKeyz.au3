@@ -48,7 +48,7 @@
 #include <GuiListView.au3>
 #include <ListViewConstants.au3>
 
-;TODO 1.8.4.0
+;TODO
 ;   Add new keys:
 ;       {LALT}
 ;       {RALT}
@@ -62,15 +62,7 @@
 ;       Caps Lock state
 ;       Num Lock state
 ;       Scroll Lock state
-;   Add run as admin checkbox DONE
 ;   Add only one instance checkbox [HkzOptOne]
-;   Add clear clipboard option DONE
-;   Fix office resize issues DONE
-;   Improve "Batch command" DONE
-;   add new text macro variables: DONE
-        ;<COMPUTERNAME>
-        ;<USERNAME>
-        ;<WANIP>
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
