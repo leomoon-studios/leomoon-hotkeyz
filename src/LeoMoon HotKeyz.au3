@@ -346,6 +346,7 @@ Func _editGui($name, $buttonName)
     GUICtrlSetOnEvent($cmdCbox, "_cmdCbox")
     GUICtrlSetTip($adminCbox, 'Run program as administrator.', 'Run as admin', 1)
     GUICtrlSetTip($oneCbox, 'Run only one instance.'&@CR& _
+                            ''&@CR& _
                             'This gets the program file name and runs the program only if'&@CR& _
                             'there are no process running with that name.', 'Singleton', 1)
     GUICtrlSetTip($cmdCbox, 'Enter batch command in the input field and it will get executed in a hidden command prompt.'&@CR& _
