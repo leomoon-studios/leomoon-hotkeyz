@@ -636,15 +636,15 @@ Func HotKeyPressed()
                         Local $paramPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
                         $hkzparam = StringReplace($hkzparam, '<GetActiveWindowsExplorerPath>', $paramPath)
                         If FileExists($paramPath) Then ;check if Windows explorer path is real
-                            ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with <GetActiveWindowsExplorerPath> parameter
+                            ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin) ;program with <GetActiveWindowsExplorerPath> parameter
                         Else
-                            ShellExecute($hkzcmd, '', '', $hkzoptadmin, @SW_HIDE) ;program with failed <GetActiveWindowsExplorerPath> parameter
+                            ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;program with failed <GetActiveWindowsExplorerPath> parameter
                         EndIf
                     Else
-                        ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with parameters
+                        ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin) ;program with parameters
                     EndIf
                 Else
-                    ShellExecute($hkzcmd, '', '', $hkzoptadmin, @SW_HIDE) ;regular program with no parameters
+                    ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;regular program with no parameters
                 EndIf
             EndIf
         EndIf
