@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.4.0)
+#pragma compile(FileVersion, 1.8.5.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.4.0)
+#pragma compile(ProductVersion, 1.8.5.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -66,7 +66,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.4'
+Global $ver = '1.8.5'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
@@ -291,7 +291,7 @@ Func _editGui($name, $buttonName)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $specialRdo = GUICtrlCreateRadio("Run a system action", 17, 216, 369, 17)
     $specialDown = GUICtrlCreateCombo("", 17, 242, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown")
+    GUICtrlSetData(-1, "Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Empty Clipboard|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown")
     GUICtrlSetState(-1, $GUI_DISABLE)
     $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
     $windowDown = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
