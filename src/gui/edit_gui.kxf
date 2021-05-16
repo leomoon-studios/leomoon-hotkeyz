@@ -275,7 +275,7 @@
 						<property name="TabOrder" vt="Int8">12</property>
 						<property name="Items.Strings" vt="List">
 							<list>
-								<li vt="LString">Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown</li>
+								<li vt="LString">Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Empty Clipboard|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown</li>
 							</list>
 						</property>
 						<property name="CtrlStyle" vt="Int32">1344471555</property>
