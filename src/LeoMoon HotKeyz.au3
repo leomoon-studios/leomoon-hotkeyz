@@ -898,8 +898,10 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
                 $type = 'File'
             EndIf
             If StringInStr($aArray[$i][1], '[HkzOptAdmin]') Then $opts &= 'Admin'
-            If $opts == 'Admin' Then $opts &= ', '
-            If StringInStr($aArray[$i][1], '[HkzOptOne]') Then $opts &= 'Singleton'
+            If StringInStr($aArray[$i][1], '[HkzOptOne]') Then
+                If $opts == 'Admin' Then $opts &= ', '
+                $opts &= 'Singleton'
+            EndIf
             ;~ ConsoleWrite($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&@LF)
             ;cleanups
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzEq]', '=')
@@ -1252,8 +1254,10 @@ Func _add()
         Local $opts = ''
         ;~ If GUICtrlRead($adminCbox) == $GUI_CHECKED Then $opts = 'admin'
         If GUICtrlRead($adminCbox) == 1 Then $opts &= 'Admin'
-        If $opts == 'Admin' Then $opts &= ', '
-        If GUICtrlRead($oneCbox) == 1 Then $opts &= 'Singleton'
+        If GUICtrlRead($oneCbox) == 1 Then
+            If $opts == 'Admin' Then $opts &= ', '
+            $opts &= 'Singleton'
+        EndIf
         If BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
         If BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
         If BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
@@ -1483,8 +1487,10 @@ Func _edit()
         Local $error = False
         Local $opts = ''
         If GUICtrlRead($adminCbox) == 1 Then $opts &= 'Admin'
-        If $opts == 'Admin' Then $opts &= ', '
-        If GUICtrlRead($oneCbox) == 1 Then $opts &= 'Singleton'
+        If GUICtrlRead($oneCbox) == 1 Then
+            If $opts == 'Admin' Then $opts &= ', '
+            $opts &= 'Singleton'
+        EndIf
         If BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
         If BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
         If BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
