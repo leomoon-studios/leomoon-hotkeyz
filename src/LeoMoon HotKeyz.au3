@@ -340,7 +340,6 @@ Func _editGui($name, $buttonName)
     $cancelEditBtn = GUICtrlCreateButton("Cancel", 209, 632, 193, 33)
     $okEditBtn = GUICtrlCreateButton("OK", 8, 632, 193, 33)
     ;other settings
-    ;~ GUICtrlSetState($oneCbox, 32)
     GUISetIcon(@ScriptFullPath, 201)
     GUICtrlSetOnEvent($folderRdo, "_folderRdo")
     GUICtrlSetOnEvent($cmdCbox, "_cmdCbox")
@@ -623,10 +622,6 @@ Func HotKeyPressed()
                     EndIf
                 EndIf
                 $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
-                ;~ If GUICtrlRead($cmdCbox) == $GUI_CHECKED Then
-                ;~     _RunDos($hkzcmd)
-                ;~     ConsoleWrite('yes'&@LF)
-                ;~     ;~ Run(@ComSpec&' /c  '&$hkzcmd, '', @SW_HIDE)
                 If ($hkzoptone And Not ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", ""))) Or Not $hkzoptone Then
                     If $hkzparam <> '' Then
                         If StringInStr($hkzparam, '<GetActiveWindowsExplorerPath>') Then
@@ -893,7 +888,6 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
                 $type = 'URL'
             ElseIf $special Or StringInStr($aArray[$i][1], '[HkzExe]') Then
                 $type = 'System'
-            ;~ ElseIf StringInStr(FileGetAttrib($aArray[$i][1]), 'D') Or $sPath Then
             ElseIf StringInStr(FileGetAttrib(StringReplace($aArray[$i][1], '<USERNAME>', @UserName)), 'D') Or $sPath Then
                 $type = 'Folder'
             Else
@@ -1006,7 +1000,6 @@ Func _encodeHotkey($hotkey)
     If StringInStr($hotkey,'Alt + ') Then $encode &= '!'
     If StringInStr($hotkey,'Shift + ') Then $encode &= '+'
     If StringInStr($hotkey,'Win + ') Then $encode &= '#'
-    ;~ If StringInStr($hotkey,'=') Then $encode &= 'HkzEq'
     $encode &= _encodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'Ctrl + ',''),'Alt + ',''),'Shift + ',''),'Win + ','')) ;get the last key
     Return($encode)
 EndFunc
@@ -1254,7 +1247,6 @@ Func _add()
         Local $childRead = ''
         Local $error = False
         Local $opts = ''
-        ;~ If GUICtrlRead($adminCbox) == $GUI_CHECKED Then $opts = 'admin'
         If GUICtrlRead($adminCbox) == 1 Then $opts &= 'Admin'
         If GUICtrlRead($oneCbox) == 1 Then
             If $opts == 'Admin' Then $opts &= ', '
