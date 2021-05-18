@@ -622,6 +622,7 @@ Func HotKeyPressed()
                         If $hkzsplit[0] == 2 Then $hkzparam = StringStripWS($hkzsplit[2], 7)
                     EndIf
                 EndIf
+                $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
                 ;~ If GUICtrlRead($cmdCbox) == $GUI_CHECKED Then
                 ;~     _RunDos($hkzcmd)
                 ;~     ConsoleWrite('yes'&@LF)
@@ -892,7 +893,8 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
                 $type = 'URL'
             ElseIf $special Or StringInStr($aArray[$i][1], '[HkzExe]') Then
                 $type = 'System'
-            ElseIf StringInStr(FileGetAttrib($aArray[$i][1]), 'D') Or $sPath Then
+            ;~ ElseIf StringInStr(FileGetAttrib($aArray[$i][1]), 'D') Or $sPath Then
+            ElseIf StringInStr(FileGetAttrib(StringReplace($aArray[$i][1], '<USERNAME>', @UserName)), 'D') Or $sPath Then
                 $type = 'Folder'
             Else
                 $type = 'File'
@@ -1349,7 +1351,7 @@ Func _editBtn()
         GUICtrlSetState($folderRdo, $GUI_CHECKED)
         GUICtrlSetData($folderInp, $path)
         _folderRdo()
-    ElseIf StringInStr(FileGetAttrib($path), 'D') Then
+    ElseIf StringInStr(FileGetAttrib(StringReplace($path, '<USERNAME>', @UserName)), 'D') Then
         GUICtrlSetState($folderRdo, $GUI_CHECKED)
         GUICtrlSetData($folderInp, $path)
         _folderRdo()
