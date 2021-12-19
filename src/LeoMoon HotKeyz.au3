@@ -66,7 +66,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.5'
+Global $ver = '1.8.6'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
