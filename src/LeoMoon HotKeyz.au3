@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.6.0)
+#pragma compile(FileVersion, 1.8.7.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.6.0)
+#pragma compile(ProductVersion, 1.8.7.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -66,7 +66,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.6'
+Global $ver = '1.8.7'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
@@ -103,7 +103,7 @@ $clsid[6][0] = 'My Documents'
 $clsid[6][1] = '::{450D8FBA-AD25-11D0-98A8-0800361B1103}'
 $clsid[7][0] = 'Network'
 $clsid[7][1] = '::{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}'
-Global $sPaths[24][2]
+Global $sPaths[25][2]
 $sPaths[0][0] = 'Control Panel (Category View)'
 $sPaths[0][1] = '::{26EE0668-A00A-44D7-9371-BEB064C98683}'
 $sPaths[1][0] = 'Control Panel (Icon View)'
@@ -146,12 +146,14 @@ $sPaths[19][0] = 'Shutdown'
 $sPaths[19][1] = '[HkzExe]Shutdown'
 $sPaths[20][0] = 'Turn Off Monitors'
 $sPaths[20][1] = '[HkzExe]Turn Off Monitors'
-$sPaths[21][0] = 'Start Screensaver'
-$sPaths[21][1] = '[HkzExe]Start Screensaver'
-$sPaths[22][0] = 'Start Screensaver And Lock'
-$sPaths[22][1] = '[HkzExe]Start Screensaver And Lock'
-$sPaths[23][0] = 'Empty Clipboard'
-$sPaths[23][1] = '[HkzExe]Empty Clipboard'
+$sPaths[21][0] = 'Turn Off Monitors And Lock'
+$sPaths[21][1] = '[HkzExe]Turn Off Monitors And Lock'
+$sPaths[22][0] = 'Start Screensaver'
+$sPaths[22][1] = '[HkzExe]Start Screensaver'
+$sPaths[23][0] = 'Start Screensaver And Lock'
+$sPaths[23][1] = '[HkzExe]Start Screensaver And Lock'
+$sPaths[24][0] = 'Empty Clipboard'
+$sPaths[24][1] = '[HkzExe]Empty Clipboard'
 
 If @OSArch <> 'X86' Then _WinAPI_Wow64EnableWow64FsRedirection(False)
 
@@ -165,8 +167,8 @@ Opt("GUICloseOnESC", 0)
 _ExtMsgBoxSet(0, 0, -1, -1, 9, "Tahoma")
 
 If _Singleton($title, 1) == 0 Then
-	_ExtMsgBox(48, 'OK', 'Oops!', $title&' is currently running.'&@CRLF, 0)
-	Exit
+    _ExtMsgBox(48, 'OK', 'Oops!', $title&' is currently running.'&@CRLF, 0)
+    Exit
 EndIf
 
 _iniCheck($ini)
@@ -291,7 +293,7 @@ Func _editGui($name, $buttonName)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $specialRdo = GUICtrlCreateRadio("Run a system action", 17, 216, 369, 17)
     $specialDown = GUICtrlCreateCombo("", 17, 242, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Empty Clipboard|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown")
+    GUICtrlSetData(-1, "Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Empty Clipboard|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Turn Off Monitors And Lock|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown")
     GUICtrlSetState(-1, $GUI_DISABLE)
     $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
     $windowDown = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
@@ -643,7 +645,7 @@ Func HotKeyPressed()
                 EndIf
             EndIf
         EndIf
-	Next
+    Next
 EndFunc
 
 Func _security($arr, $str)
@@ -697,6 +699,11 @@ Func _EmptyRecycleBin()
     FileRecycleEmpty()
 EndFunc
 
+Func _TurnOffMonitorsAndLock()
+    _TurnOffMonitors()
+    _Lock()
+EndFunc
+
 Func _TurnOffMonitors($OnOff = 0)
     Sleep(500)
     ;turns off the monitor by default, but as it happens, monitor comes back on upon user input - keyboard or mouse
@@ -720,56 +727,55 @@ Func _TurnOffMonitors($OnOff = 0)
 EndFunc
 
 Func _shot($hWnd)
-	WinActivate($hWnd)
+    WinActivate($hWnd)
     ;~ $hWnd = WinGetHandle("[ACTIVE]")
-	$img = _ScreenCapture_CaptureWnd('', $hWnd)
-	Local Const $sMessage = "Choose a filename."
-	Local $sFileSaveDialog = FileSaveDialog($sMessage, "::{450D8FBA-AD25-11D0-98A8-0800361B1103}", "Image as JPG (*.jpg)", $FD_PATHMUSTEXIST)
-	If @error Then
-		;~ _ExtMsgBox(48, 'OK', 'Oops!', 'No file was saved.'&@CRLF, 0)
-	Else
-		Local $sFileName = StringTrimLeft($sFileSaveDialog, StringInStr($sFileSaveDialog, "\", $STR_NOCASESENSEBASIC, -1))
-		Local $iExtension = StringInStr($sFileName, ".", $STR_NOCASESENSEBASIC)
-		If $iExtension Then
-			If Not (StringTrimLeft($sFileName, $iExtension - 1) = ".jpg") Then $sFileSaveDialog &= ".jpg"
-		Else
-			$sFileSaveDialog &= ".jpg"
-		EndIf
-	EndIf
-	;~ Sleep(500)
+    $img = _ScreenCapture_CaptureWnd('', $hWnd)
+    Local Const $sMessage = "Choose a filename."
+    Local $sFileSaveDialog = FileSaveDialog($sMessage, "::{450D8FBA-AD25-11D0-98A8-0800361B1103}", "Image as JPG (*.jpg)", $FD_PATHMUSTEXIST)
+    If @error Then
+        ;~ _ExtMsgBox(48, 'OK', 'Oops!', 'No file was saved.'&@CRLF, 0)
+    Else
+        Local $sFileName = StringTrimLeft($sFileSaveDialog, StringInStr($sFileSaveDialog, "\", $STR_NOCASESENSEBASIC, -1))
+        Local $iExtension = StringInStr($sFileName, ".", $STR_NOCASESENSEBASIC)
+        If $iExtension Then
+            If Not (StringTrimLeft($sFileName, $iExtension - 1) = ".jpg") Then $sFileSaveDialog &= ".jpg"
+        Else
+            $sFileSaveDialog &= ".jpg"
+        EndIf
+    EndIf
+    ;~ Sleep(500)
     _ScreenCapture_SaveImage($sFileSaveDialog, $img)
 EndFunc
 
 Func _toggle()
-	;$enabled = Not $enabled
-	If $enabled == False Then ;disable it
+    ;$enabled = Not $enabled
+    If $enabled == False Then ;disable it
         For $i = 1 To $aHotkeys[0][0]
             HotKeySet(StringReplace($aHotkeys[$i][0], '{HkzEq}', '{=}'))
         Next
-		$enabled = True
-		TraySetIcon(@ScriptFullPath, 202)
-		TrayItemSetState($enableTray, $TRAY_UNCHECKED)
-		TraySetToolTip($title&" is disabled.")
-	Else
+        $enabled = True
+        TraySetIcon(@ScriptFullPath, 202)
+        TrayItemSetState($enableTray, $TRAY_UNCHECKED)
+        TraySetToolTip($title&" is disabled.")
+    Else
         For $i = 1 To $aHotkeys[0][0]
             HotKeySet(StringReplace($aHotkeys[$i][0], '{HkzEq}', '{=}'), "HotKeyPressed")
         Next
-		$enabled = False
-		TraySetIcon(@ScriptFullPath, 201)
-		TrayItemSetState($enableTray, $TRAY_CHECKED)
-		TraySetToolTip($title&" is enabled.")
-	EndIf
+        $enabled = False
+        TraySetIcon(@ScriptFullPath, 201)
+        TrayItemSetState($enableTray, $TRAY_CHECKED)
+        TraySetToolTip($title&" is enabled.")
+    EndIf
 EndFunc
 
 Func _iniCheck($iniFile)
     If Not FileExists($iniFile) Then
         IniWrite($iniFile, 'Options', 'Main', '^#,')
-        IniWrite($iniFile, 'Hotkeys', '^+n', 'C:\Windows\System32\notepad.exe')
-        IniWrite($iniFile, 'Hotkeys', '^+i', 'C:\Program Files (x86)\Internet Explorer\iexplore.exe')
-        IniWrite($iniFile, 'Hotkeys', '^+8', 'https://leomoon.com/development-fund/')
-        IniWrite($iniFile, 'Hotkeys', '^+9', 'C:\Program Files (x86)\Internet Explorer\iexplore.exe[HkzParam]https://leomoon.com')
+        IniWrite($iniFile, 'Hotkeys', '^#l', '[HkzExe]Turn Off Monitors And Lock')
+        IniWrite($iniFile, 'Hotkeys', '^+e', 'C:\Windows\System32\notepad.exe')
+        IniWrite($iniFile, 'Hotkeys', '^+i', 'C:\Program Files (x86)\Internet Explorer\iexplore.exe[HkzParam]https://leomoon.com')
         IniWrite($iniFile, 'Hotkeys', '^!c', '::{20d04fe0-3aea-1069-a2d8-08002b30309d}')
-        IniWrite($iniFile, 'Hotkeys', '^!u', 'C:\Users\%USERNAME%')
+        IniWrite($iniFile, 'Hotkeys', '^!u', '%USERPROFILE%')
         IniWrite($iniFile, 'Hotkeys', '^!p', '::{26EE0668-A00A-44D7-9371-BEB064C98683}')
         IniWrite($iniFile, 'Hotkeys', '^!{PGDN}', '[HkzWM]Minimize')
         IniWrite($iniFile, 'Hotkeys', '^!{NUMPADADD}', '[HkzWM]Transparency +')
@@ -859,7 +865,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
         GUICtrlSetState($startupCbox, $GUI_CHECKED)
     EndIf
     Local $aArray = IniReadSection($iniFile, "Hotkeys")
-	If Not @error Then
+    If Not @error Then
         For $i = 1 To $aArray[0][0]
             Local $opts = ''
             Local $special = False
@@ -910,7 +916,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzCmd]', '')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzParam]', ' [Parameters] ')
             $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzNL]', '[New Line]')
-			GUICtrlCreateListViewItem($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&'|'&$opts, $ListView1)
+            GUICtrlCreateListViewItem($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&'|'&$opts, $ListView1)
         Next
     EndIf
     ;~ GUICtrlSendMsg($ListView1, $LVM_SETCOLUMNWIDTH, 1, -1)
@@ -1311,7 +1317,7 @@ EndFunc
 
 Func _editBtn()
     $hotkey = _GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 1)
-    ConsoleWrite($hotkey)
+    ;~ ConsoleWrite($hotkey)
     $path = _GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 2)
     Local $match = False
     Local $special = False
@@ -1319,7 +1325,7 @@ Func _editBtn()
     Local $url = False
     Local $sndTxt = False
     Local $k = _decodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'Ctrl + ',''),'Alt + ',''),'Shift + ',''),'Win + ',''))
-    ConsoleWrite($k)
+    ;~ ConsoleWrite($k)
     ;define clsid list
     For $c = 0 To UBound($clsid, 1)-1
         If _strCompare($path, $clsid[$c][0]) Then
@@ -1588,8 +1594,8 @@ EndFunc
 
 Func _folderBrowse()
     Local $sFolder = FileSelectFolder('Select a folder...', "", Default, '', $editGui)
-	If @error Then
-		;do nothing
+    If @error Then
+        ;do nothing
     Else
         ;define clsid list
         For $c = 0 To UBound($clsid, 1)-1
@@ -1598,8 +1604,8 @@ Func _folderBrowse()
                 ExitLoop
             EndIf
         Next
-		GUICtrlSetData($folderInp, $sFolder)
-	EndIf
+        GUICtrlSetData($folderInp, $sFolder)
+    EndIf
 EndFunc
 
 Func _exit()
@@ -1719,7 +1725,7 @@ Func _transPlus($hWnd)
 EndFunc
 
 Func _transMinus($hWnd)
-	Local $o = 17 ;0 to 255
+    Local $o = 17 ;0 to 255
     Local $iInfo, $iTransparency
     $iInfo = _WinGetTrans($hWnd, $iTransparency)
     If Not @error Then
@@ -1735,8 +1741,8 @@ Func _ghostToggle($hWnd)
     If BitAND(_WinAPI_GetWindowLong($hWnd, $GWL_EXSTYLE), $WS_EX_TRANSPARENT) Then
         _WinAPI_SetWindowLong($hWnd, $GWL_EXSTYLE, BitAND(_WinAPI_GetWindowLong($hWnd, $GWL_EXSTYLE), BitNOT($WS_EX_TRANSPARENT)))
     Else
-	    _WinAPI_SetWindowLong($hWnd, $GWL_EXSTYLE, BitOR(_WinAPI_GetWindowLong($hWnd, $GWL_EXSTYLE), $WS_EX_TRANSPARENT))
-	EndIf
+        _WinAPI_SetWindowLong($hWnd, $GWL_EXSTYLE, BitOR(_WinAPI_GetWindowLong($hWnd, $GWL_EXSTYLE), $WS_EX_TRANSPARENT))
+    EndIf
 EndFunc
 
 Func _typeCheck($hWnd)
