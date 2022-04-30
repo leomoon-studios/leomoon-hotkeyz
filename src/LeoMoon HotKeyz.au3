@@ -62,7 +62,6 @@
 ;       Caps Lock state
 ;       Num Lock state
 ;       Scroll Lock state
-;   Add only one instance checkbox [HkzOptOne]
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
@@ -79,14 +78,13 @@ Global $folderRdo, $folderInp, $folderBrowseBtn
 Global $fileRdo, $cmdCbox, $fileInp, $fileBrowseBtn, $fileParamLbl, $fileParamInp
 Global $urlRdo, $urlDown, $urlInp
 Global $txtRdo, $txtEdit
-Global $clsid[8][2]
 ;window management vars
 Global $hWnd, $wpos[3], $csiz
 Global $xf = 0
 Global $yf = 0
 Global $isTop = False
 Global $isGhost = False
-
+Global $clsid[8][2]
 $clsid[0][0] = 'Libraries'
 $clsid[0][1] = '::{031E4825-7B94-4DC3-B131-E946B44C8DD5}'
 $clsid[1][0] = 'Libraries\Documents'
@@ -154,6 +152,56 @@ $sPaths[23][0] = 'Start Screensaver And Lock'
 $sPaths[23][1] = '[HkzExe]Start Screensaver And Lock'
 $sPaths[24][0] = 'Empty Clipboard'
 $sPaths[24][1] = '[HkzExe]Empty Clipboard'
+Global $aTags[14][2]
+$aTags[0][0] = '<HOUR>'
+$aTags[0][1] = @HOUR
+$aTags[1][0] = '<MINUTE>'
+$aTags[1][1] = @MIN
+$aTags[2][0] = '<SECOND>'
+$aTags[2][1] = @SEC
+$aTags[3][0] = '<YEAR>'
+$aTags[3][1] = @YEAR
+$aTags[4][0] = '<MONTHNAME>'
+$aTags[4][1] = _DateToMonth(@MON, 2)
+$aTags[5][0] = '<MONTHNUMBER>'
+$aTags[5][1] = @MON
+$aTags[6][0] = '<DAYNAME>'
+$aTags[6][1] = _DateDayOfWeek(@WDAY)
+$aTags[7][0] = '<DAYNUMBER>'
+$aTags[7][1] = @MDAY
+$aTags[8][0] = '<COMPUTERNAME>'
+$aTags[8][1] = @ComputerName
+$aTags[9][0] = '<USERNAME>'
+$aTags[9][1] = @UserName
+$aTags[10][0] = '<WANIP>'
+$aTags[10][1] = _GetIP()
+$aTags[11][0] = '[HkzNL]'
+$aTags[11][1] = @LF
+$aTags[12][0] = '<YYYYMMDD>'
+$aTags[12][1] = @YEAR&@MON&@MDAY
+$aTags[13][0] = '<YYYY-MM-DD>'
+$aTags[13][1] = @YEAR&'-'&@MON&'-'&@MDAY
+Global $aCleanup[10][2]
+$aCleanup[0][0] = '[HkzEq]'
+$aCleanup[0][1] = ''
+$aCleanup[1][0] = '[HkzSysSnd]'
+$aCleanup[1][1] = ''
+$aCleanup[2][0] = '[HkzSndTxt]'
+$aCleanup[2][1] = ''
+$aCleanup[3][0] = '[HkzExe]'
+$aCleanup[3][1] = ''
+$aCleanup[4][0] = '[HkzWM]'
+$aCleanup[4][1] = ''
+$aCleanup[5][0] = '[HkzOptAdmin]'
+$aCleanup[5][1] = ''
+$aCleanup[6][0] = '[HkzOptOne]'
+$aCleanup[6][1] = ''
+$aCleanup[7][0] = '[HkzCmd]'
+$aCleanup[7][1] = ''
+$aCleanup[8][0] = '[HkzParam]'
+$aCleanup[8][1] = '[Parameters]'
+$aCleanup[9][0] = '[HkzNL]'
+$aCleanup[9][1] = '[New Line]'
 
 If @OSArch <> 'X86' Then _WinAPI_Wow64EnableWow64FsRedirection(False)
 
@@ -345,17 +393,15 @@ Func _editGui($name, $buttonName)
     GUISetIcon(@ScriptFullPath, 201)
     GUICtrlSetOnEvent($folderRdo, "_folderRdo")
     GUICtrlSetOnEvent($cmdCbox, "_cmdCbox")
-    GUICtrlSetTip($adminCbox, 'Run program as administrator.', 'Run as admin', 1)
-    GUICtrlSetTip($oneCbox, 'Run only one instance.'&@CR& _
-                            ''&@CR& _
-                            'This gets the program file name and runs the program only if'&@CR& _
-                            'there are no process running with that name.', 'Singleton', 1)
-    GUICtrlSetTip($cmdCbox, 'Enter batch command in the input field and it will get executed in a hidden command prompt.'&@CR& _
+    GUICtrlSetTip($adminCbox, 'Runs program as administrator.', 'Run as admin', 1)
+    GUICtrlSetTip($oneCbox, 'Runs program only if there are no'&@CR& _
+                            'process running with that name.', 'Singleton', 1)
+    GUICtrlSetTip($cmdCbox, 'Runs batch command in a hidden command prompt.'&@CR& _
                             ''&@CR& _
                             'Examples:'&@CR& _
-                            'net stop "Service Name" && net start "Service Name"'&@CR& _
+                            'net stop "ServiceName" && net start "ServiceName"'&@CR& _
                             'RunDll32.exe shell32.dll,Control_RunDLL mmsys.cpl,,0'&@CR& _
-                            'START "" "C:\Program Files (x86)\VMware\VMware Workstation\vmrun" -T ws start "C:\VMs\Virtual.vmx"', 'For Advanced Users', 1)
+                            'start "" "C:\Windows\System32\notepad.exe" & start "" "C:\Windows\system32\cmd.exe"', 'For Advanced Users', 1)
     GUICtrlSetOnEvent($folderBrowseBtn, "_folderBrowse")
     GUICtrlSetOnEvent($fileRdo, "_fileRdo")
     GUICtrlSetOnEvent($fileBrowseBtn, "_fileBrowse")
@@ -375,7 +421,9 @@ Func _editGui($name, $buttonName)
                 "<MONTHNAME> will paste the name of the current month."&@LF& _
                 "<MONTHNUMBER> will paste the number of the current month."&@LF& _
                 "<DAYNAME> will paste the name of the current day."&@LF& _
-                "<DAYNUMBER> will paste the current day of the month.", "Predefined Tags", 1)
+                "<DAYNUMBER> will paste the current day of the month."&@LF& _
+                "<YYYYMMDD> will paste the current date in YYYYMMDD format."&@LF& _
+                "<YYYY-MM-DD> will paste the current date in YYYY-MM-DD format.", "Predefined Tags", 1)
     GUICtrlSetOnEvent($cancelEditBtn, "_hideChild")
     ;center child window
     $mpos = WinGetPos($mainGui)
@@ -394,6 +442,9 @@ Func HotKeyPressed()
             $hkzoptone = False
             $hkzcmd = $aHotkeys[$x][1]
             $hkzcmd = StringReplace($hkzcmd, '[HkzEq]', '=') ;replace HkzEq with real equal sign before applying hotkeys
+            for $t = 0 To UBound($aTags, 1) -1
+                $hkzcmd = StringReplace($hkzcmd, $aTags[$t][0], $aTags[$t][1])
+            Next
             If StringInStr($hkzcmd, '[HkzOptAdmin]') Then
                 $hkzoptadmin = 'runas'
                 $hkzcmd = StringReplace($hkzcmd, '[HkzOptAdmin]', '')
@@ -599,18 +650,6 @@ Func HotKeyPressed()
             ElseIf StringInStr($hkzcmd, '[HkzSndTxt]') Then ;paste text to active window
                 Local $oldClip = ClipGet()
                 $hkzcmd = StringReplace($hkzcmd, '[HkzSndTxt]', '')
-                $hkzcmd = StringReplace($hkzcmd, '<HOUR>', @HOUR)
-                $hkzcmd = StringReplace($hkzcmd, '<MINUTE>', @MIN)
-                $hkzcmd = StringReplace($hkzcmd, '<SECOND>', @SEC)
-                $hkzcmd = StringReplace($hkzcmd, '<YEAR>', @YEAR)
-                $hkzcmd = StringReplace($hkzcmd, '<MONTHNAME>', _DateToMonth(@MON, 2))
-                $hkzcmd = StringReplace($hkzcmd, '<MONTHNUMBER>', @MON)
-                $hkzcmd = StringReplace($hkzcmd, '<DAYNAME>', _DateDayOfWeek(@WDAY))
-                $hkzcmd = StringReplace($hkzcmd, '<DAYNUMBER>', @MDAY)
-                $hkzcmd = StringReplace($hkzcmd, '<COMPUTERNAME>', @ComputerName)
-                $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
-                $hkzcmd = StringReplace($hkzcmd, '<WANIP>', _GetIP())
-                $hkzcmd = StringReplace($hkzcmd, '[HkzNL]', @LF)
                 ClipPut($hkzcmd) ;insert text
                 Send('^v')
                 ClipPut($oldClip)
@@ -623,7 +662,7 @@ Func HotKeyPressed()
                         If $hkzsplit[0] == 2 Then $hkzparam = StringStripWS($hkzsplit[2], 7)
                     EndIf
                 EndIf
-                $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
+                ;~ $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
                 If ($hkzoptone And Not ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", ""))) Or Not $hkzoptone Then
                     If $hkzparam <> '' Then
                         If StringInStr($hkzparam, '<GetActiveWindowsExplorerPath>') Then
@@ -640,8 +679,8 @@ Func HotKeyPressed()
                     Else
                         ShellExecute($hkzcmd, '', '', $hkzoptadmin) ;regular program with no parameters
                     EndIf
-                ;~ ElseIf $hkzoptone And ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", "")) Then ;tell program already running
-                    ;~ _ExtMsgBox(48, 'OK', 'LeoMoon HotKeyz Singleton!', 'This'&'"'&$hkzcmd&'" is already running.'&@CRLF, 0)
+                ;~ ElseIf $hkzoptone And ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", "")) Then ;show program already running msgbox
+                ;~     _ExtMsgBox(48, 'OK', 'LeoMoon HotKeyz Singleton!', 'This'&'"'&$hkzcmd&'" is already running.'&@CRLF, 5)
                 EndIf
             EndIf
         EndIf
@@ -870,53 +909,51 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             Local $opts = ''
             Local $special = False
             Local $sPath = False
+            $hkzcmd = $aArray[$i][1]
+            $hkzcmdtest = $hkzcmd
+            for $t = 0 To UBound($aTags, 1) -1
+                $hkzcmdtest = StringReplace($hkzcmdtest, $aTags[$t][0], $aTags[$t][1])
+            Next
             For $c = 0 To UBound($clsid, 1)-1
-                If _strCompare($aArray[$i][1], $clsid[$c][1]) Then
-                    $aArray[$i][1] = $clsid[$c][0]
+                If _strCompare($hkzcmd, $clsid[$c][1]) Then
+                    $hkzcmd = $clsid[$c][0]
                     $sPath = True
                     ExitLoop
                 EndIf
             Next
             For $s = 0 To UBound($sPaths, 1)-1
-                If _strCompare($aArray[$i][1], $sPaths[$s][1]) Then
-                    $aArray[$i][1] = $sPaths[$s][0]
+                If _strCompare($hkzcmd, $sPaths[$s][1]) Then
+                    $hkzcmd = $sPaths[$s][0]
                     $special = True
                     ExitLoop
                 EndIf
             Next
-            If StringInStr($aArray[$i][1], '[HkzSndTxt]') Then
+            If StringInStr($hkzcmd, '[HkzSndTxt]') Then
                 $type = 'Text'
-            ElseIf StringInStr($aArray[$i][1], '[HkzWM]') Then
+            ElseIf StringInStr($hkzcmd, '[HkzWM]') Then
                 $type = 'Window'
-            ElseIf StringInStr($aArray[$i][1], '[HkzCmd]') Then
+            ElseIf StringInStr($hkzcmd, '[HkzCmd]') Then
                 $type = 'Command'
-            ElseIf StringInStr($aArray[$i][1], 'https://') Or StringInStr($aArray[$i][1], 'http://') Or StringInStr($aArray[$i][1], 'ftp://') And Not StringInStr($aArray[$i][1], '[HkzParam]') Then
+            ElseIf StringInStr($hkzcmd, 'https://') Or StringInStr($hkzcmd, 'http://') Or StringInStr($hkzcmd, 'ftp://') And Not StringInStr($hkzcmd, '[HkzParam]') Then
                 $type = 'URL'
-            ElseIf $special Or StringInStr($aArray[$i][1], '[HkzExe]') Then
+            ElseIf $special Or StringInStr($hkzcmd, '[HkzExe]') Then
                 $type = 'System'
-            ElseIf StringInStr(FileGetAttrib(StringReplace($aArray[$i][1], '<USERNAME>', @UserName)), 'D') Or $sPath Then
+            ElseIf StringInStr(FileGetAttrib($hkzcmdtest), 'D') Or $sPath Then
                 $type = 'Folder'
             Else
                 $type = 'File'
             EndIf
-            If StringInStr($aArray[$i][1], '[HkzOptAdmin]') Then $opts &= 'Admin'
-            If StringInStr($aArray[$i][1], '[HkzOptOne]') Then
+            If StringInStr($hkzcmd, '[HkzOptAdmin]') Then $opts &= 'Admin'
+            If StringInStr($hkzcmd, '[HkzOptOne]') Then
                 If $opts == 'Admin' Then $opts &= ', '
                 $opts &= 'Singleton'
             EndIf
-            ;~ ConsoleWrite($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&@LF)
+            ;~ ConsoleWrite($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$hkzcmd&@LF)
             ;cleanups
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzEq]', '=')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzSysSnd]', '')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzSndTxt]', '')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzExe]', '')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzWM]', '')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzOptAdmin]', '')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzOptOne]', '')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzCmd]', '')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzParam]', ' [Parameters] ')
-            $aArray[$i][1] = StringReplace($aArray[$i][1], '[HkzNL]', '[New Line]')
-            GUICtrlCreateListViewItem($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$aArray[$i][1]&'|'&$opts, $ListView1)
+            for $u = 0 To UBound($aCleanup, 1) -1
+                $hkzcmd = StringReplace($hkzcmd, $aCleanup[$u][0], $aCleanup[$u][1])
+            Next
+            GUICtrlCreateListViewItem($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$hkzcmd&'|'&$opts, $ListView1)
         Next
     EndIf
     ;~ GUICtrlSendMsg($ListView1, $LVM_SETCOLUMNWIDTH, 1, -1)
