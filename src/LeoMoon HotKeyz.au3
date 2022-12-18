@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.8.0)
+#pragma compile(FileVersion, 1.8.9.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.8.0)
+#pragma compile(ProductVersion, 1.8.9.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -65,7 +65,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.8'
+Global $ver = '1.8.9'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
@@ -354,7 +354,7 @@ Func _editGui($name, $buttonName)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
     $windowDown = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Toggle Ghost (Advanced)|Custom Move and/or Resize")
+    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Custom Move and/or Resize")
     GUICtrlSetState(-1, $GUI_DISABLE)
     $moveCbox = GUICtrlCreateCheckbox("Move active window", 17, 336, 177, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
@@ -658,6 +658,34 @@ Func HotKeyPressed()
                             WinMove($hWnd, '', Default, Default, Floor(($areaWidth/3)+$xf), Floor(($areaHeight/2)+$yf), $anim)
                         Case $hkzcmd == 'Hide'
                             WinSetState($hWnd, '', @SW_HIDE)
+                        Case $hkzcmd == 'Upper Case Selected Text'
+                            ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(StringUpper(ClipGet()))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Lower Case Selected Text'
+                            ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(StringLower(ClipGet()))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Title Case Selected Text'
+                            ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(_StringTitleCase(ClipGet()))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Reverse Selected Text'
+                            ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(StringReverse(ClipGet()))
+                            Send('^v')
+                            ClipPut($oldClip)
                     EndSelect
                     ;~ WinActivate($hWnd)
                 EndIf
@@ -665,8 +693,8 @@ Func HotKeyPressed()
                 Local $oldClip = ClipGet()
                 _aTags()
                 $hkzcmd = StringReplace($hkzcmd, '[HkzSndTxt]', '')
-                ConsoleWrite($hkzcmd)
-                ClipPut($hkzcmd) ;insert text
+                ;~ ConsoleWrite($hkzcmd)
+                ClipPut($hkzcmd)
                 Send('^v')
                 ClipPut($oldClip)
             Else ;execute program or file
