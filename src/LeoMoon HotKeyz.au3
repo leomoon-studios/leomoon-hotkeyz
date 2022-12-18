@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.7.0)
+#pragma compile(FileVersion, 1.8.8.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.7.0)
+#pragma compile(ProductVersion, 1.8.8.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -65,7 +65,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.7'
+Global $ver = '1.8.8'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
@@ -152,35 +152,42 @@ $sPaths[23][0] = 'Start Screensaver And Lock'
 $sPaths[23][1] = '[HkzExe]Start Screensaver And Lock'
 $sPaths[24][0] = 'Empty Clipboard'
 $sPaths[24][1] = '[HkzExe]Empty Clipboard'
-Global $aTags[14][2]
-$aTags[0][0] = '<HOUR>'
-$aTags[0][1] = @HOUR
-$aTags[1][0] = '<MINUTE>'
-$aTags[1][1] = @MIN
-$aTags[2][0] = '<SECOND>'
-$aTags[2][1] = @SEC
-$aTags[3][0] = '<YEAR>'
-$aTags[3][1] = @YEAR
-$aTags[4][0] = '<MONTHNAME>'
-$aTags[4][1] = _DateToMonth(@MON, 2)
-$aTags[5][0] = '<MONTHNUMBER>'
-$aTags[5][1] = @MON
-$aTags[6][0] = '<DAYNAME>'
-$aTags[6][1] = _DateDayOfWeek(@WDAY)
-$aTags[7][0] = '<DAYNUMBER>'
-$aTags[7][1] = @MDAY
-$aTags[8][0] = '<COMPUTERNAME>'
-$aTags[8][1] = @ComputerName
-$aTags[9][0] = '<USERNAME>'
-$aTags[9][1] = @UserName
-$aTags[10][0] = '<WANIP>'
-$aTags[10][1] = _GetIP()
-$aTags[11][0] = '[HkzNL]'
-$aTags[11][1] = @LF
-$aTags[12][0] = '<YYYYMMDD>'
-$aTags[12][1] = @YEAR&@MON&@MDAY
-$aTags[13][0] = '<YYYY-MM-DD>'
-$aTags[13][1] = @YEAR&'-'&@MON&'-'&@MDAY
+Global $aTags[16][2]
+Func _aTags()
+    $aTags[0][0] = '<HOUR>'
+    $aTags[0][1] = @HOUR
+    $aTags[1][0] = '<MINUTE>'
+    $aTags[1][1] = @MIN
+    $aTags[2][0] = '<SECOND>'
+    $aTags[2][1] = @SEC
+    $aTags[3][0] = '<YEAR>'
+    $aTags[3][1] = @YEAR
+    $aTags[4][0] = '<MONTHNAME>'
+    $aTags[4][1] = _DateToMonth(@MON, 2)
+    $aTags[5][0] = '<MONTHNUMBER>'
+    $aTags[5][1] = @MON
+    $aTags[6][0] = '<DAYNAME>'
+    $aTags[6][1] = _DateDayOfWeek(@WDAY)
+    $aTags[7][0] = '<DAYNUMBER>'
+    $aTags[7][1] = @MDAY
+    $aTags[8][0] = '<COMPUTERNAME>'
+    $aTags[8][1] = @ComputerName
+    $aTags[9][0] = '<USERNAME>'
+    $aTags[9][1] = @UserName
+    $aTags[10][0] = '[HkzNL]'
+    $aTags[10][1] = @LF
+    $aTags[11][0] = '<YYYYMMDD>'
+    $aTags[11][1] = @YEAR&@MON&@MDAY
+    $aTags[12][0] = '<YYYY-MM-DD>'
+    $aTags[12][1] = @YEAR&'-'&@MON&'-'&@MDAY
+    $aTags[13][0] = '<RAND_PPP>'
+    $aTags[13][1] = _generator('<RAND_PPP>')
+    $aTags[14][0] = '<RAND_LETTERS>'
+    $aTags[14][1] = _generator('<RAND_LETTERS>')
+    $aTags[15][0] = '<RAND_NUMBERS>'
+    $aTags[15][1] = _generator('<RAND_NUMBERS>')
+EndFunc
+_aTags()
 Global $aCleanup[10][2]
 $aCleanup[0][0] = '[HkzEq]'
 $aCleanup[0][1] = ''
@@ -211,6 +218,8 @@ Opt("TrayOnEventMode",1)
 Opt('TrayAutoPause',0)
 Opt("GUIOnEventMode", 1)
 Opt("GUICloseOnESC", 0)
+;~ Opt("SendKeyDelay", 0)
+Opt("SendKeyDownDelay", 0)
 
 _ExtMsgBoxSet(0, 0, -1, -1, 9, "Tahoma")
 
@@ -267,7 +276,7 @@ Func _mainGui()
         $shiftCbox = GUICtrlCreateCheckbox("Shift", 256, 96, 97, 17)
         $winCbox = GUICtrlCreateCheckbox("Win", 376, 96, 97, 17)
         $keyDown = GUICtrlCreateCombo("", 497, 94, 159, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-        GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+        GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Enter|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
         GUICtrlCreateGroup("", -99, -99, 1, 1)
         $customHokeysGrp = GUICtrlCreateGroup("Edit hotkeys", 8, 136, 658, 450)
         $addBtn = GUICtrlCreateButton("Add New", 16, 160, 209, 33)
@@ -385,7 +394,7 @@ Func _editGui($name, $buttonName)
     $shiftEditCbox = GUICtrlCreateCheckbox("Shift", 144, 592, 57, 17)
     $winEditCbox = GUICtrlCreateCheckbox("Win", 208, 592, 57, 17)
     $keyEditDown = GUICtrlCreateCombo("", 273, 590, 119, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-    GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+    GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Enter|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
     GUICtrlCreateGroup("", -99, -99, 1, 1)
     $cancelEditBtn = GUICtrlCreateButton("Cancel", 209, 632, 193, 33)
     $okEditBtn = GUICtrlCreateButton("OK", 8, 632, 193, 33)
@@ -423,7 +432,12 @@ Func _editGui($name, $buttonName)
                 "<DAYNAME> will paste the name of the current day."&@LF& _
                 "<DAYNUMBER> will paste the current day of the month."&@LF& _
                 "<YYYYMMDD> will paste the current date in YYYYMMDD format."&@LF& _
-                "<YYYY-MM-DD> will paste the current date in YYYY-MM-DD format.", "Predefined Tags", 1)
+                "<YYYY-MM-DD> will paste the current date in YYYY-MM-DD format."&@LF& _
+                "<COMPUTERNAME> will paste the name of the computer."&@LF& _
+                "<USERNAME> will paste the name of the current logged in user."&@LF& _
+                "<RAND_PPP> will generate and paste a 20 character random PPP."&@LF& _
+                "<RAND_LETTERS> will generate and paste a 20 character random letters."&@LF& _
+                "<RAND_NUMBERS> will generate and paste a 20 character random numbers.", "Predefined Tags", 1)
     GUICtrlSetOnEvent($cancelEditBtn, "_hideChild")
     ;center child window
     $mpos = WinGetPos($mainGui)
@@ -649,7 +663,9 @@ Func HotKeyPressed()
                 EndIf
             ElseIf StringInStr($hkzcmd, '[HkzSndTxt]') Then ;paste text to active window
                 Local $oldClip = ClipGet()
+                _aTags()
                 $hkzcmd = StringReplace($hkzcmd, '[HkzSndTxt]', '')
+                ConsoleWrite($hkzcmd)
                 ClipPut($hkzcmd) ;insert text
                 Send('^v')
                 ClipPut($oldClip)
@@ -1977,4 +1993,21 @@ Func _getMonitorArea($monitor)
         Return
     EndIf
     Return $area
+EndFunc
+
+Func _generator($input)
+    $length = 20
+    Switch $input
+        Case '<RAND_PPP>'
+            Local $aChars = StringSplit("!@#_23456789ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
+        Case '<RAND_LETTERS>'
+            Local $aChars = StringSplit("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
+        Case '<RAND_NUMBERS>'
+            Local $aChars = StringSplit("0123456789", "")
+    EndSwitch
+    Local $sString = ''
+    For $i = 1 To $length
+        $sString &= $aChars[Random(1, $aChars[0], 1)]
+    Next
+    Return $sString
 EndFunc
