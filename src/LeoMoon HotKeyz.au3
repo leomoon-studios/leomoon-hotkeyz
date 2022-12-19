@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.9.0)
+#pragma compile(FileVersion, 1.8.10.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.9.0)
+#pragma compile(ProductVersion, 1.8.10.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -65,7 +65,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.9'
+Global $ver = '1.8.10'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
@@ -361,11 +361,11 @@ Func _editGui($name, $buttonName)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $xLbl = GUICtrlCreateLabel("X:", 18, 362, 15, 18)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $movexInp = GUICtrlCreateInput("0", 41, 360, 55, 22, $ES_NUMBER)
+    $movexInp = GUICtrlCreateInput("0", 41, 360, 55, 22)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $yLbl = GUICtrlCreateLabel("Y:", 106, 362, 16, 18)
     GUICtrlSetState(-1, $GUI_DISABLE)
-    $moveyInp = GUICtrlCreateInput("0", 129, 360, 55, 22, $ES_NUMBER)
+    $moveyInp = GUICtrlCreateInput("0", 129, 360, 55, 22)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $resizeCbox = GUICtrlCreateCheckbox("Resize active window", 217, 336, 169, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
@@ -1357,6 +1357,11 @@ Func _add()
                 GUISetState(@SW_ENABLE, $editGui)
                 WinActivate($editGui)
             EndIf
+        ElseIf Not StringRegExp(GUICtrlRead($movexInp), '^[\d-]?\d*?$') Or Not StringRegExp(GUICtrlRead($moveyInp), '^[\d-]?\d*?$') Then
+            If MsgBox(48, 'Oops!', 'X and Y fields must be an integer.', 0, $editGui) == 1 Then
+                GUISetState(@SW_ENABLE, $editGui)
+                WinActivate($editGui)
+            EndIf
         Else
             If GUICtrlRead($fileRdo) == 1 Then
                 $fileParam = GUICtrlRead($fileInp)
@@ -1589,6 +1594,11 @@ Func _edit()
             GUISetState(@SW_DISABLE, $editGui)
             If MsgBox(48, 'Oops!', 'Hotkey alreay assigned. Please choose another hotkey.', 0, $editGui) == 1 Then
                 $error = False
+                GUISetState(@SW_ENABLE, $editGui)
+                WinActivate($editGui)
+            EndIf
+        ElseIf Not StringRegExp(GUICtrlRead($movexInp), '^[\d-]?\d*?$') Or Not StringRegExp(GUICtrlRead($moveyInp), '^[\d-]?\d*?$') Then
+            If MsgBox(48, 'Oops!', 'X and Y fields must be an integer.', 0, $editGui) == 1 Then
                 GUISetState(@SW_ENABLE, $editGui)
                 WinActivate($editGui)
             EndIf
