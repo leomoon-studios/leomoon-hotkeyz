@@ -206,7 +206,7 @@ $aCleanup[6][1] = ''
 $aCleanup[7][0] = '[HkzCmd]'
 $aCleanup[7][1] = ''
 $aCleanup[8][0] = '[HkzParam]'
-$aCleanup[8][1] = '[Parameters]'
+$aCleanup[8][1] = ' [Parameters] '
 $aCleanup[9][0] = '[HkzNL]'
 $aCleanup[9][1] = '[New Line]'
 
