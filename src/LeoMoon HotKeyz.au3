@@ -47,6 +47,8 @@
 #include <GuiComboBox.au3>
 #include <GuiListView.au3>
 #include <ListViewConstants.au3>
+; hash stuff
+#include <Crypt.au3>
 
 ;TODO
 ;   Add new keys:
@@ -152,7 +154,7 @@ $sPaths[23][0] = 'Start Screensaver And Lock'
 $sPaths[23][1] = '[HkzExe]Start Screensaver And Lock'
 $sPaths[24][0] = 'Empty Clipboard'
 $sPaths[24][1] = '[HkzExe]Empty Clipboard'
-Global $aTags[16][2]
+Global $aTags[13][2]
 Func _aTags()
     $aTags[0][0] = '<HOUR>'
     $aTags[0][1] = @HOUR
@@ -180,12 +182,6 @@ Func _aTags()
     $aTags[11][1] = @YEAR&@MON&@MDAY
     $aTags[12][0] = '<YYYY-MM-DD>'
     $aTags[12][1] = @YEAR&'-'&@MON&'-'&@MDAY
-    $aTags[13][0] = '<RAND_PPP>'
-    $aTags[13][1] = _generator('<RAND_PPP>')
-    $aTags[14][0] = '<RAND_LETTERS>'
-    $aTags[14][1] = _generator('<RAND_LETTERS>')
-    $aTags[15][0] = '<RAND_NUMBERS>'
-    $aTags[15][1] = _generator('<RAND_NUMBERS>')
 EndFunc
 _aTags()
 Global $aCleanup[10][2]
@@ -354,7 +350,7 @@ Func _editGui($name, $buttonName)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
     $windowDown = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Custom Move and/or Resize")
+    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Custom Move and/or Resize|Generate Random Password (PPP)|Generate Random Password (Letters)|Generate Random Password (Numbers)|Generate Random UUID|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|MD5 Selected Text|SHA1 Selected Text|SHA-256 Selected Text|SHA-512 Selected Text|Base64 Encode Selected Text|Base64 Decode Selected Text")
     GUICtrlSetState(-1, $GUI_DISABLE)
     $moveCbox = GUICtrlCreateCheckbox("Move active window", 17, 336, 177, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
@@ -434,10 +430,7 @@ Func _editGui($name, $buttonName)
                 "<YYYYMMDD> will paste the current date in YYYYMMDD format."&@LF& _
                 "<YYYY-MM-DD> will paste the current date in YYYY-MM-DD format."&@LF& _
                 "<COMPUTERNAME> will paste the name of the computer."&@LF& _
-                "<USERNAME> will paste the name of the current logged in user."&@LF& _
-                "<RAND_PPP> will generate and paste a 20 character random PPP."&@LF& _
-                "<RAND_LETTERS> will generate and paste a 20 character random letters."&@LF& _
-                "<RAND_NUMBERS> will generate and paste a 20 character random numbers.", "Predefined Tags", 1)
+                "<USERNAME> will paste the name of the current logged in user.", "Predefined Tags", 1)
     GUICtrlSetOnEvent($cancelEditBtn, "_hideChild")
     ;center child window
     $mpos = WinGetPos($mainGui)
@@ -658,32 +651,98 @@ Func HotKeyPressed()
                             WinMove($hWnd, '', Default, Default, Floor(($areaWidth/3)+$xf), Floor(($areaHeight/2)+$yf), $anim)
                         Case $hkzcmd == 'Hide'
                             WinSetState($hWnd, '', @SW_HIDE)
+                        Case $hkzcmd == 'Generate Random Password (Letters)'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            ClipPut(_generator('<RAND_LETTERS>'))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Generate Random Password (Numbers)'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            ClipPut(_generator('<RAND_NUMBERS>'))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Generate Random Password (PPP)'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            ClipPut(_generator('<RAND_PPP>'))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Generate Random UUID'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            ClipPut(uuid())
+                            Send('^v')
+                            ClipPut($oldClip)
                         Case $hkzcmd == 'Upper Case Selected Text'
-                            ConsoleWrite($hkzcmd)
+                            ;~ ConsoleWrite($hkzcmd)
                             Local $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringUpper(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Lower Case Selected Text'
-                            ConsoleWrite($hkzcmd)
+                            ;~ ConsoleWrite($hkzcmd)
                             Local $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringLower(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Title Case Selected Text'
-                            ConsoleWrite($hkzcmd)
+                            ;~ ConsoleWrite($hkzcmd)
                             Local $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(_StringTitleCase(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Reverse Selected Text'
-                            ConsoleWrite($hkzcmd)
+                            ;~ ConsoleWrite($hkzcmd)
                             Local $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringReverse(ClipGet()))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'MD5 Selected Text'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_MD5), 2)))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'SHA1 Selected Text'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_SHA1), 2)))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'SHA-256 Selected Text'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_SHA_256), 2)))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'SHA-512 Selected Text'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_SHA_512), 2)))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Base64 Encode Selected Text'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(_Base64Encode(ClipGet()))
+                            Send('^v')
+                            ClipPut($oldClip)
+                        Case $hkzcmd == 'Base64 Decode Selected Text'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            Send('^c')
+                            ClipPut(_Base64Decode(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                     EndSelect
@@ -2037,7 +2096,7 @@ Func _generator($input)
     $length = 20
     Switch $input
         Case '<RAND_PPP>'
-            Local $aChars = StringSplit("!@#_23456789ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
+            Local $aChars = StringSplit("~^<>.!@#(){}[]\/*_23456789ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
         Case '<RAND_LETTERS>'
             Local $aChars = StringSplit("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
         Case '<RAND_NUMBERS>'
@@ -2048,4 +2107,58 @@ Func _generator($input)
         $sString &= $aChars[Random(1, $aChars[0], 1)]
     Next
     Return $sString
+EndFunc
+
+Func _Base64Encode($sData)
+    Local $oXml = ObjCreate("Msxml2.DOMDocument")
+    If Not IsObj($oXml) Then
+        SetError(1, 1, 0)
+    EndIf
+
+    Local $oElement = $oXml.createElement("b64")
+    If Not IsObj($oElement) Then
+        SetError(2, 2, 0)
+    EndIf
+
+    $oElement.dataType = "bin.base64"
+    $oElement.nodeTypedValue = Binary($sData)
+    Local $sReturn = $oElement.Text
+
+    If StringLen($sReturn) = 0 Then
+        SetError(3, 3, 0)
+    EndIf
+
+    Return $sReturn
+EndFunc
+
+Func _Base64Decode($sData)
+    Local $oXml = ObjCreate("Msxml2.DOMDocument")
+    If Not IsObj($oXml) Then
+        SetError(1, 1, 0)
+    EndIf
+
+    Local $oElement = $oXml.createElement("b64")
+    If Not IsObj($oElement) Then
+        SetError(2, 2, 0)
+    EndIf
+
+    $oElement.dataType = "bin.base64"
+    $oElement.Text = $sData
+    Local $sReturn = BinaryToString($oElement.nodeTypedValue, 4)
+
+    If StringLen($sReturn) = 0 Then
+        SetError(3, 3, 0)
+    EndIf
+
+    Return $sReturn
+EndFunc
+
+Func uuid()
+    Return StringFormat('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', _
+            Random(0, 0xffff), Random(0, 0xffff), _
+            Random(0, 0xffff), _
+            BitOR(Random(0, 0x0fff), 0x4000), _
+            BitOR(Random(0, 0x3fff), 0x8000), _
+            Random(0, 0xffff), Random(0, 0xffff), Random(0, 0xffff) _
+        )
 EndFunc
