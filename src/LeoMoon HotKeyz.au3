@@ -2096,7 +2096,7 @@ Func _generator($input)
     $length = 20
     Switch $input
         Case '<RAND_PPP>'
-            Local $aChars = StringSplit("~*!@#_.23456789ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
+            Local $aChars = StringSplit("!#%+23456789:=?@ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
         Case '<RAND_LETTERS>'
             Local $aChars = StringSplit("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
         Case '<RAND_NUMBERS>'
