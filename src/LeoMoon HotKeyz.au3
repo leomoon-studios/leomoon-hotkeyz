@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.10.0)
+#pragma compile(FileVersion, 1.8.11.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.10.0)
+#pragma compile(ProductVersion, 1.8.11.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -67,7 +67,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.10'
+Global $ver = '1.8.11'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
@@ -183,7 +183,6 @@ Func _aTags()
     $aTags[12][0] = '<YYYY-MM-DD>'
     $aTags[12][1] = @YEAR&'-'&@MON&'-'&@MDAY
 EndFunc
-_aTags()
 Global $aCleanup[10][2]
 $aCleanup[0][0] = '[HkzEq]'
 $aCleanup[0][1] = ''
@@ -350,7 +349,7 @@ Func _editGui($name, $buttonName)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $windowRdo = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
     $windowDown = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Custom Move and/or Resize|Generate Random Password (PPP)|Generate Random Password (Letters)|Generate Random Password (Numbers)|Generate Random UUID|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|MD5 Selected Text|SHA1 Selected Text|SHA-256 Selected Text|SHA-512 Selected Text|Base64 Encode Selected Text|Base64 Decode Selected Text")
+    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Custom Move and/or Resize|Generate Random Password (PPP)|Generate Random Password (Letters)|Generate Random Password (Numbers)|Generate Random Password (Letters and Numbers)|Generate Random UUID|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|MD5 Selected Text|SHA1 Selected Text|SHA-256 Selected Text|SHA-512 Selected Text|Base64 Encode Selected Text|Base64 Decode Selected Text")
     GUICtrlSetState(-1, $GUI_DISABLE)
     $moveCbox = GUICtrlCreateCheckbox("Move active window", 17, 336, 177, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
@@ -445,6 +444,7 @@ Func HotKeyPressed()
     For $x = 1 To UBound($aHotkeys)-1
         If @HotKeyPressed == StringReplace($aHotkeys[$x][0], '{HkzEq}', '{=}') Then
             ;~ ConsoleWrite($hkzparam)
+            Execute(_aTags())
             $hkzoptadmin = ''
             $hkzoptone = False
             $hkzcmd = $aHotkeys[$x][1]
@@ -663,6 +663,12 @@ Func HotKeyPressed()
                             ClipPut(_generator('<RAND_NUMBERS>'))
                             Send('^v')
                             ClipPut($oldClip)
+                        Case $hkzcmd == 'Generate Random Password (Letters and Numbers)'
+                            ;~ ConsoleWrite($hkzcmd)
+                            Local $oldClip = ClipGet()
+                            ClipPut(_generator('<RAND_LETTERS_NUMBERS>'))
+                            Send('^v')
+                            ClipPut($oldClip)
                         Case $hkzcmd == 'Generate Random Password (PPP)'
                             ;~ ConsoleWrite($hkzcmd)
                             Local $oldClip = ClipGet()
@@ -750,9 +756,14 @@ Func HotKeyPressed()
                 EndIf
             ElseIf StringInStr($hkzcmd, '[HkzSndTxt]') Then ;paste text to active window
                 Local $oldClip = ClipGet()
-                _aTags()
-                $hkzcmd = StringReplace($hkzcmd, '[HkzSndTxt]', '')
+                ;~ $hkzcmd = $aHotkeys[$x][1]
+                ;~ ConsoleWrite($aHotkeys[$x][1]&@LF)
+                ;~ Execute(_aTags())
+                ;~ for $t = 0 To UBound($aTags, 1) -1
+                ;~     $hkzcmd = StringReplace($hkzcmd, $aTags[$t][0], $aTags[$t][1])
+                ;~ Next
                 ;~ ConsoleWrite($hkzcmd)
+                $hkzcmd = StringReplace($hkzcmd, '[HkzSndTxt]', '')
                 ClipPut($hkzcmd)
                 Send('^v')
                 ClipPut($oldClip)
@@ -2099,6 +2110,8 @@ Func _generator($input)
             Local $aChars = StringSplit("!#%+23456789:=?@ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
         Case '<RAND_LETTERS>'
             Local $aChars = StringSplit("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
+        Case '<RAND_LETTERS_NUMBERS>'
+            Local $aChars = StringSplit("23456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
         Case '<RAND_NUMBERS>'
             Local $aChars = StringSplit("0123456789", "")
     EndSwitch
