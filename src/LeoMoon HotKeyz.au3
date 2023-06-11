@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon HotKeyz)
 #pragma compile(FileDescription, LeoMoon HotKeyz)
-#pragma compile(FileVersion, 1.8.11.0)
+#pragma compile(FileVersion, 1.8.12.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.8.11.0)
+#pragma compile(ProductVersion, 1.8.12.0)
 
 #include <Math.au3>
 #include <String.au3>
@@ -51,6 +51,8 @@
 #include <Crypt.au3>
 
 ;TODO
+;   Open/close the dvd tray?
+;   Delay for turn off monitor?
 ;   Add new keys:
 ;       {LALT}
 ;       {RALT}
@@ -67,7 +69,7 @@
 
 ;global vars
 Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.11'
+Global $ver = '1.8.12'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
