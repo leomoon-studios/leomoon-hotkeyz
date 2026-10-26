@@ -86,15 +86,21 @@ $wrapperArguments = @(
     "/comp", "4",
     "/AutoIt3Dir", $autoItRoot
 )
-Push-Location $stageSource
-try {
-    & $autoItExe @wrapperArguments
-    $wrapperExitCode = $LASTEXITCODE
-} finally {
-    Pop-Location
+$wrapperStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+$wrapperStartInfo.FileName = $autoItExe
+$wrapperStartInfo.WorkingDirectory = $stageSource
+$wrapperStartInfo.UseShellExecute = $false
+foreach ($argument in $wrapperArguments) {
+    [void]$wrapperStartInfo.ArgumentList.Add($argument)
 }
-if ($null -ne $wrapperExitCode -and $wrapperExitCode -ne 0) {
-    throw "AutoIt3Wrapper failed with exit code $wrapperExitCode"
+$wrapperProcess = [System.Diagnostics.Process]::new()
+$wrapperProcess.StartInfo = $wrapperStartInfo
+if (-not $wrapperProcess.Start()) {
+    throw "Unable to start AutoIt3Wrapper"
+}
+$wrapperProcess.WaitForExit()
+if ($wrapperProcess.ExitCode -ne 0) {
+    throw "AutoIt3Wrapper failed with exit code $($wrapperProcess.ExitCode)"
 }
 if (-not (Test-Path -LiteralPath $applicationPath -PathType Leaf)) {
     throw "AutoIt3Wrapper did not create $applicationPath"
