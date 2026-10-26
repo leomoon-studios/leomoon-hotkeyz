@@ -42,6 +42,7 @@ _TestUnavailableHotkey()
 _TestReapplyHotkeys()
 _TestMaintenanceFixtures()
 _TestSideEffectBackends()
+_TestFileWorkingDirectory()
 _TestStartupRegistry()
 
 If $g_iFailures Then
@@ -407,6 +408,52 @@ Func _TestShellExecute($sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iSho
     #forceref $sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag
     $g_iShellCalls += 1
     Return False
+EndFunc
+
+Func _TestFileWorkingDirectory()
+    _AssertEqual("C:\Users\Example User\Desktop", _ProcessActions_FileWorkingDirectory("C:\Users\Example User\Desktop\test.bat"), "absolute file working directory")
+    _AssertEqual("C:\", _ProcessActions_FileWorkingDirectory("C:\test.bat"), "drive-root file working directory")
+    _AssertEqual("\\server\share\folder", _ProcessActions_FileWorkingDirectory("\\server\share\folder\test.bat"), "network file working directory")
+    _AssertEqual("\\server\share", _ProcessActions_FileWorkingDirectory("\\server\share\test.bat"), "network share root working directory")
+    _AssertEqual("", _ProcessActions_FileWorkingDirectory("code"), "bare commands retain Windows PATH lookup")
+    _AssertEqual("", _ProcessActions_FileWorkingDirectory("https://example.com/test.bat"), "URLs do not acquire a file working directory")
+    _AssertEqual("", _ProcessActions_FileWorkingDirectory("relative\test.bat"), "relative targets keep their existing working-directory behavior")
+
+    Local $sFolder = @TempDir & "\hotkeyz working directory " & @AutoItPID
+    Local $sBatch = $sFolder & "\working directory.bat"
+    Local $sNoArgsOutput = $sFolder & "\no arguments.txt"
+    Local $sArgsOutput = $sFolder & "\with arguments.txt"
+    Local $sPreviousDirectory = @WorkingDir
+    _AssertTrue(DirCreate($sFolder), "create batch working-directory test folder")
+    Local $hBatch = FileOpen($sBatch, $FO_OVERWRITE)
+    _AssertTrue($hBatch <> -1, "create batch working-directory test script")
+    If $hBatch = -1 Then Return
+    Local $sPercent = Chr(37)
+    FileWrite($hBatch, '@echo off' & @CRLF & 'if "' & $sPercent & '~1"=="" (cd > "' & $sNoArgsOutput & '") else (cd > "' & $sPercent & '~1")' & @CRLF)
+    FileClose($hBatch)
+    _AssertTrue(FileChangeDir(@SystemDir), "simulate application launched from Windows system directory")
+    Local $aTagsForTest[1][2] = [["<NONE>", ""]]
+    Local $aRecord = _HotkeyModel_Create("^!a", $HOTKEY_ACTION_FILE, $sBatch)
+    _AssertTrue(_ActionDispatcher_Dispatch($aRecord, $aTagsForTest), "launch batch file without parameters")
+    Local $hTimer = TimerInit()
+    While Not FileExists($sNoArgsOutput) And TimerDiff($hTimer) < 10000
+        Sleep(25)
+    WEnd
+    _AssertTrue(FileExists($sNoArgsOutput), "batch without parameters produced output")
+    If FileExists($sNoArgsOutput) Then _AssertEqual($sFolder, StringStripWS(FileRead($sNoArgsOutput), 3), "batch without parameters starts in its own directory")
+    $aRecord[$HOTKEY_FIELD_PARAMETERS] = '"' & $sArgsOutput & '"'
+    _AssertTrue(_ActionDispatcher_Dispatch($aRecord, $aTagsForTest), "launch batch file with parameters")
+    $hTimer = TimerInit()
+    While Not FileExists($sArgsOutput) And TimerDiff($hTimer) < 10000
+        Sleep(25)
+    WEnd
+    _AssertTrue(FileExists($sArgsOutput), "batch with parameters produced output")
+    If FileExists($sArgsOutput) Then _AssertEqual($sFolder, StringStripWS(FileRead($sArgsOutput), 3), "batch with parameters starts in its own directory")
+    FileChangeDir($sPreviousDirectory)
+    FileDelete($sNoArgsOutput)
+    FileDelete($sArgsOutput)
+    FileDelete($sBatch)
+    DirRemove($sFolder)
 EndFunc
 
 Func _TestRegistryRead($sKey, $sValue)

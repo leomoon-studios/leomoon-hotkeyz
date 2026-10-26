@@ -72,7 +72,7 @@ Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags)
     Local $vResult
     Switch _ActionDispatcher_GetRoute($aPrepared[$HOTKEY_FIELD_ACTION])
         Case $ACTION_ROUTE_FILE, $ACTION_ROUTE_FOLDER, $ACTION_ROUTE_URL
-            $vResult = _ProcessActions_ExecuteTarget($aPrepared[$HOTKEY_FIELD_TARGET], $aPrepared[$HOTKEY_FIELD_PARAMETERS], $sVerb, $bSingleton)
+            $vResult = _ProcessActions_ExecuteTarget($aPrepared[$HOTKEY_FIELD_TARGET], $aPrepared[$HOTKEY_FIELD_PARAMETERS], $sVerb, $bSingleton, $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE)
         Case $ACTION_ROUTE_TEXT
             $vResult = _ClipboardTransaction_Paste($aPrepared[$HOTKEY_FIELD_TARGET])
         Case $ACTION_ROUTE_WINDOW

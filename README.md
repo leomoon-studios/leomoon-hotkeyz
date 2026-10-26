@@ -76,6 +76,8 @@ Named keys use braces, such as `^!{LEFT}` for Ctrl+Alt+Left or `^!{NUMPAD1}` for
 
 ## Advanced commands
 
+File hotkeys start with the target file's directory as their working directory, so batch files can use relative paths and `%CD%` consistently when HotKeyz starts with Windows.
+
 The **Advanced command** action runs its value through `cmd.exe /d /c` in a hidden command prompt. It supports shell operators and therefore has the same permissions and destructive potential as a command entered manually. Review imported configuration before enabling its hotkeys, avoid commands from untrusted sources, and enable **Run as admin** only when the command genuinely requires elevation.
 
 ## Source layout

@@ -38,17 +38,29 @@ Func _ProcessActions_BuildCommandArguments($sCommand)
     Return "/d /c " & $sCommand
 EndFunc
 
-Func _ProcessActions_ExecuteTarget($sTarget, $sParameters, $sVerb, $bSingleton)
+Func _ProcessActions_FileWorkingDirectory($sTarget)
+    ; Bare commands, URLs, and shell names are resolved by Windows as before.
+    If Not StringRegExp($sTarget, "(?i)^(?:[a-z]:[\\/]|\\\\)") Then Return ""
+    Local $sPath = StringReplace($sTarget, "/", "\")
+    Local $iLastSeparator = StringInStr($sPath, "\", 0, -1)
+    If $iLastSeparator = 3 And StringMid($sPath, 2, 1) = ":" Then Return StringLeft($sPath, 3)
+    If $iLastSeparator > 0 Then Return StringLeft($sPath, $iLastSeparator - 1)
+    Return ""
+EndFunc
+
+Func _ProcessActions_ExecuteTarget($sTarget, $sParameters, $sVerb, $bSingleton, $bFileTarget = False)
     $sParameters = StringStripWS($sParameters, 7)
+    Local $sWorkingDirectory = ""
+    If $bFileTarget Then $sWorkingDirectory = _ProcessActions_FileWorkingDirectory($sTarget)
     If $bSingleton And ProcessExists(StringRegExpReplace($sTarget, "^.*\\", "")) Then Return True
-    If $sParameters = "" Then Return _ProcessActions_ShellExecute($sTarget, "", "", $sVerb)
+    If $sParameters = "" Then Return _ProcessActions_ShellExecute($sTarget, "", $sWorkingDirectory, $sVerb)
     If StringInStr($sParameters, "<GetActiveWindowsExplorerPath>") Then
         Local $sExplorerPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
         Local $iExplorerError = @error
         If $iExplorerError Or Not FileExists($sExplorerPath) Then Return SetError(2, $iExplorerError, False)
         $sParameters = StringReplace($sParameters, "<GetActiveWindowsExplorerPath>", _ProcessActions_QuoteArgument($sExplorerPath))
     EndIf
-    Return _ProcessActions_ShellExecute($sTarget, $sParameters, "", $sVerb, @SW_HIDE)
+    Return _ProcessActions_ShellExecute($sTarget, $sParameters, $sWorkingDirectory, $sVerb, @SW_HIDE)
 EndFunc
 
 Func _ProcessActions_ShellExecute($sTarget, $sParameters = "", $sWorkingDirectory = "", $sVerb = "", $iShowFlag = @SW_SHOWNORMAL)
