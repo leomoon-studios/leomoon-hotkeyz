@@ -49,6 +49,11 @@ Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags)
         _HotkeyCodec_ExpandTags($aRecord[$HOTKEY_FIELD_TARGET], $aTags), _
         _HotkeyCodec_ExpandTags($aRecord[$HOTKEY_FIELD_PARAMETERS], $aTags), _
         $aRecord[$HOTKEY_FIELD_OPTIONS])
+    ; Legacy INI values do not store whether a plain path is a file or folder.
+    ; A path containing tags may have been classified before it could be expanded.
+    If $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE And $aPrepared[$HOTKEY_FIELD_PARAMETERS] = "" Then
+        If StringInStr(FileGetAttrib($aPrepared[$HOTKEY_FIELD_TARGET]), "D") Then $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FOLDER
+    EndIf
     ; Only concrete filesystem paths can be checked here. Bare commands such as
     ; code and shell namespaces must still be resolved by ShellExecute.
     If $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE Or $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FOLDER Then

@@ -1,6 +1,7 @@
 #include-once
 
 #include "..\core\HotkeyModel.au3"
+#include "..\core\HotkeyCodec.au3"
 #include "ProcessActions.au3"
 #include "SystemActions.au3"
 #include "WindowActions.au3"
@@ -50,6 +51,8 @@ Func _ActionValidator_IsFileTarget($sTarget, $bRequireExistingPath)
     If $sTarget = "" Or StringRegExp($sTarget, '[\r\n\x00"*?|]') Then Return False
     If StringRegExp($sTarget, "(?i)^[A-Z]:[^\\]") Then Return False
     If Not $bRequireExistingPath Then Return True
+    _aTags()
+    $sTarget = _HotkeyCodec_ExpandTags($sTarget, $aTags)
     If StringRegExp($sTarget, "[<>]") Then Return False
     If Not StringRegExp($sTarget, "(?i)^(?:[A-Z]:\\|\\\\)") Then Return True
     Local $sAttributes = FileGetAttrib($sTarget)
@@ -61,6 +64,8 @@ Func _ActionValidator_IsFolderTarget($sTarget, $bRequireExistingPath)
     If StringLeft($sTarget, 3) = "::{" Then Return True
     If StringRegExp($sTarget, "(?i)^[A-Z]:[^\\]") Then Return False
     If Not $bRequireExistingPath Then Return True
+    _aTags()
+    $sTarget = _HotkeyCodec_ExpandTags($sTarget, $aTags)
     If StringRegExp($sTarget, "[<>]") Then Return False
     Return StringInStr(FileGetAttrib($sTarget), "D") > 0
 EndFunc

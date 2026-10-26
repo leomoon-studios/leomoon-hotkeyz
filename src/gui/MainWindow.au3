@@ -125,12 +125,16 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     EndIf
     Local $aArray = _HotkeyRepository_Load($iniFile)
     If IsArray($aArray) Then
+        _aTags()
         For $i = 1 To _HotkeyRepository_Count($aArray)
             Local $opts = ''
             Local $special = False
             $item = $aArray[$i][$HOTKEY_FIELD_TARGET]
             If $item = $ACTION_CATALOG_LEGACY_HIGH Then $item = "Set Process Priority to High"
             $type = _HotkeyModel_ActionLabel($aArray[$i][$HOTKEY_FIELD_ACTION])
+            If $aArray[$i][$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE And $aArray[$i][$HOTKEY_FIELD_PARAMETERS] = '' Then
+                If StringInStr(FileGetAttrib(_HotkeyCodec_ExpandTags($item, $aTags)), 'D') Then $type = 'Folder'
+            EndIf
             For $c = 0 To UBound($clsid, 1)-1
                 If _strCompare($item, $clsid[$c][1]) Then
                     $item = $clsid[$c][0]

@@ -21,10 +21,12 @@ Global $g_iTestRegistryDeleteError = -1
 Global $g_iTestRegistryReadError = 0
 Global $g_iTestRegistryDeleteCalls = 0
 Global $g_iShellCalls = 0
+Global $g_sTestShellTarget = ""
 
 _TestSpecialKeys()
 _TestCodecRoundTrips()
 _TestTags()
+_TestTaggedPaths()
 _TestLegacyFixtures()
 _TestLegacyWindowActions()
 _TestRepositoryRecovery()
@@ -572,6 +574,43 @@ EndFunc
 Func _TestTags()
     Local $aTestTags[2][2] = [["<YYYY-MM-DD>", "2026-10-26"], ["<USER>", "tester"]]
     _AssertEqual("Date 2026-10-26 for tester", _HotkeyCodec_ExpandTags("Date <YYYY-MM-DD> for <USER>", $aTestTags), "date tag expansion")
+EndFunc
+
+Func _TestTaggedPaths()
+    Local $sTaggedFolder = @TempDir & "\hotkeyz-tag-" & @AutoItPID & "-<USERNAME>"
+    Local $sActualFolder = StringReplace($sTaggedFolder, "<USERNAME>", @UserName)
+    Local $sIniFile = @TempDir & "\hotkeyz-tag-" & @AutoItPID & ".ini"
+    _AssertTrue(DirCreate($sActualFolder), "create username-expanded test folder")
+    IniWrite($sIniFile, "Hotkeys", "^!a", $sTaggedFolder)
+    Local $aTable = _HotkeyRepository_Load($sIniFile)
+    Local $aRecord = _HotkeyRepository_GetRecord($aTable, 1)
+    _AssertEqual($sTaggedFolder, $aRecord[$HOTKEY_FIELD_TARGET], "import retains unexpanded username tag")
+    _AssertEqual($HOTKEY_ACTION_FILE, $aRecord[$HOTKEY_FIELD_ACTION], "legacy tag path initially classified without filesystem expansion")
+    _aTags()
+    Local $aPrepared = _ActionDispatcher_Prepare($aRecord, $aTags)
+    _AssertTrue(IsArray($aPrepared), "existing tagged folder is accepted at runtime")
+    If IsArray($aPrepared) Then
+        _AssertEqual($HOTKEY_ACTION_FOLDER, $aPrepared[$HOTKEY_FIELD_ACTION], "expanded directory is treated as a folder")
+        _AssertEqual($sActualFolder, $aPrepared[$HOTKEY_FIELD_TARGET], "runtime uses current username in target")
+    EndIf
+    _ProcessActions_ConfigureShellBackend("_TestTaggedShellExecute")
+    $g_sTestShellTarget = ""
+    _AssertTrue(_HotkeyRegistry_ExecuteRecord($aRecord, False), "imported tagged folder reaches launch")
+    _AssertEqual($sActualFolder, $g_sTestShellTarget, "launch receives expanded directory")
+    _ProcessActions_ResetShellBackend()
+    Local $aValues = _HotkeyEditorModel_CreateValues("^!a", $HOTKEY_ACTION_FOLDER, $sTaggedFolder)
+    Local $aEdited = _HotkeyEditorModel_ToRecord($aValues, True)
+    _AssertTrue(IsArray($aEdited), "editor accepts a folder containing a username tag")
+    If IsArray($aEdited) Then _AssertEqual($sTaggedFolder, $aEdited[$HOTKEY_FIELD_TARGET], "editing keeps the tag instead of saving the expanded username")
+    _AssertFalse(_ActionValidator_IsFolderTarget($sTaggedFolder & "\missing", True), "genuinely missing expanded folder is rejected")
+    FileDelete($sIniFile)
+    DirRemove($sActualFolder)
+EndFunc
+
+Func _TestTaggedShellExecute($sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag)
+    #forceref $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag
+    $g_sTestShellTarget = $sTarget
+    Return True
 EndFunc
 
 Func _TestLegacyFixtures()
