@@ -42,78 +42,87 @@ Func _SystemActions_GetId($sTarget)
 EndFunc
 
 Func _SystemActions_Execute($sTarget)
+    Local $vResult
     Switch _SystemActions_GetId($sTarget)
         Case $SYSTEM_ACTION_EMPTY_RECYCLE_BIN
-            _EmptyRecycleBin()
+            $vResult = _EmptyRecycleBin()
         Case $SYSTEM_ACTION_LOCK
-            _Lock()
+            $vResult = _Lock()
         Case $SYSTEM_ACTION_LOG_OFF
-            _LogOff()
+            $vResult = _LogOff()
         Case $SYSTEM_ACTION_RESTART
-            _Restart()
+            $vResult = _Restart()
         Case $SYSTEM_ACTION_SHUTDOWN
-            _Shutdown()
+            $vResult = _Shutdown()
         Case $SYSTEM_ACTION_TURN_OFF_MONITORS
-            _TurnOffMonitors()
+            $vResult = _TurnOffMonitors()
         Case $SYSTEM_ACTION_TURN_OFF_MONITORS_AND_LOCK
-            _TurnOffMonitorsAndLock()
+            $vResult = _TurnOffMonitorsAndLock()
         Case $SYSTEM_ACTION_START_SCREENSAVER
-            _StartScreensaver()
+            $vResult = _StartScreensaver()
         Case $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK
-            _StartScreensaverAndLock()
+            $vResult = _StartScreensaverAndLock()
         Case $SYSTEM_ACTION_EMPTY_CLIPBOARD
-            _EmptyClipboard()
+            $vResult = _EmptyClipboard()
         Case Else
             Return SetError(1, 0, False)
     EndSwitch
+    If Not $vResult Then Return SetError(2, @error, False)
     Return True
 EndFunc
 
 Func _StartScreensaver()
     ;~ _WinAPI_Wow64EnableWow64FsRedirection(False)
-    Run('ssText3d.scr /s')
+    Local $iPid = Run('ssText3d.scr /s')
     ;~ _WinAPI_Wow64EnableWow64FsRedirection(True)
+    Return $iPid <> 0
 EndFunc
 
 Func _StartScreensaverAndLock()
     ;~ _WinAPI_Wow64EnableWow64FsRedirection(False)
     ;~ _RunDos('start /wait ssText3d.scr /s & rundll32 user32.dll,LockWorkStation')
-    RunWait('ssText3d.scr /s')
+    Local $iExitCode = RunWait('ssText3d.scr /s')
     ;~ _WinAPI_Wow64EnableWow64FsRedirection(True)
-    _Lock()
+    If @error Or $iExitCode = -1 Then Return SetError(1, @error, False)
+    Return _Lock()
 EndFunc
 
 Func _EmptyClipboard()
-    _ClipBoard_Open(WinGetHandle("[ACTIVE]"))
-    _ClipBoard_Empty()
-    _ClipBoard_Close()
-    ClipPut('')
-    ;~ ConsoleWrite('DONE'&@LF)
+    If Not _ClipBoard_Open(WinGetHandle("[ACTIVE]")) Then Return SetError(1, 0, False)
+    If Not _ClipBoard_Empty() Then
+        _ClipBoard_Close()
+        Return SetError(2, 0, False)
+    EndIf
+    If Not _ClipBoard_Close() Then Return SetError(3, 0, False)
+    Return True
 EndFunc
 
 Func _Lock()
-    ShellExecute('Rundll32.exe', 'User32.dll,LockWorkStation', '', '', @SW_HIDE)
+    Local $iPid = ShellExecute('Rundll32.exe', 'User32.dll,LockWorkStation', '', '', @SW_HIDE)
+    If @error Or $iPid = 0 Then Return SetError(1, @error, False)
+    Return True
 EndFunc
 
 Func _LogOff()
-    Shutdown(0)
+    Return Shutdown(0)
 EndFunc
 
 Func _Restart()
-    Shutdown(2)
+    Return Shutdown(2)
 EndFunc
 
 Func _Shutdown()
-    Shutdown(1)
+    Return Shutdown(1)
 EndFunc
 
 Func _EmptyRecycleBin()
     FileRecycleEmpty()
+    Return Not @error
 EndFunc
 
 Func _TurnOffMonitorsAndLock()
-    _TurnOffMonitors()
-    _Lock()
+    If Not _TurnOffMonitors() Then Return SetError(1, @error, False)
+    Return _Lock()
 EndFunc
 
 Func _TurnOffMonitors($OnOff = 0)
@@ -132,7 +141,10 @@ Func _TurnOffMonitors($OnOff = 0)
     $hWnd = WinGetHandle("classname=Progman")
     $WM_SYSCommand = 274
     $SC_MonitorPower = 61808
-    DllCall("user32.dll", "int", "SendMessage", "hwnd", $hWnd, _
+    Local $aResult = DllCall("user32.dll", "int", "SendMessage", "hwnd", $hWnd, _
             "int", $WM_SYSCommand, "int", $SC_MonitorPower, "int", $Param)
+    Local $iCallError = @error
     Opt("WinTitleMatchMode", $opt)
+    If $iCallError Or Not IsArray($aResult) Then Return SetError(1, $iCallError, False)
+    Return True
 EndFunc

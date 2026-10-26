@@ -1,6 +1,7 @@
 #include-once
 
 #include <Constants.au3>
+#include "ErrorReporter.au3"
 
 Global $enabled = False
 Global $enableTray
@@ -68,7 +69,9 @@ Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default
 EndFunc
 
 Func _web()
-    ShellExecute('http://leomoon.com', '', '', '', @SW_HIDE)
+    Local $iPid = ShellExecute('http://leomoon.com', '', '', '', @SW_HIDE)
+    If @error Or $iPid = 0 Then Return _AppError_Report("The LeoMoon Studios website could not be opened", 1, @error)
+    Return True
 EndFunc
 
 Func _exit()

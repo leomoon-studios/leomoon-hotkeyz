@@ -34,6 +34,7 @@
 #include <actions\ProcessActions.au3>
 #include <actions\ActionDispatcher.au3>
 #include <app\HotkeyRegistry.au3>
+#include <app\ErrorReporter.au3>
 #include <app\TrayController.au3>
 #include <gui\HotkeyEditor.au3>
 #include <gui\MainWindow.au3>
@@ -54,12 +55,12 @@ Func _Application_Main()
     If @OSArch <> "X86" Then _WinAPI_Wow64EnableWow64FsRedirection(False)
     _ExtMsgBoxSet(0, 0, -1, -1, 9, "Tahoma")
     If _Singleton($APP_TITLE, 1) = 0 Then
-        _ExtMsgBox(48, "OK", "Oops!", $APP_TITLE & " is currently running." & @CRLF, 0)
+        _AppError_Report($APP_TITLE & " is currently running", 1, 0)
         Exit
     EndIf
     OnAutoItExitRegister("_Application_Shutdown")
     If Not _Application_Compose($APP_INI_PATH) Then
-        _ExtMsgBox(48, "OK", "Startup failed", $APP_TITLE & " could not initialize its application modules.", 0)
+        _AppError_Report("Startup failed because application modules could not be initialized", @error, @extended)
         Exit 1
     EndIf
     While 1

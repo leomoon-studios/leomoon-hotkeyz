@@ -2,6 +2,7 @@
 
 #include "..\core\HotkeyRepository.au3"
 #include "..\actions\ActionDispatcher.au3"
+#include "ErrorReporter.au3"
 
 Global $aHotkeys = _HotkeyRepository_CreateTable(0)
 
@@ -21,13 +22,20 @@ Func _HotkeyRegistry_Shutdown()
 EndFunc
 
 Func _HotkeyRegistry_IsStartupEnabled()
-    Return RegRead($APP_STARTUP_REGISTRY_KEY, $APP_TITLE) <> ""
+    Local $sValue = RegRead($APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
+    If @error Then Return False
+    Return $sValue <> ""
 EndFunc
 
 Func _HotkeyRegistry_SetStartupEnabled($bEnabled)
-    If $bEnabled Then Return RegWrite($APP_STARTUP_REGISTRY_KEY, $APP_TITLE, "REG_SZ", '"' & @ScriptFullPath & '"')
-    RegDelete($APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
-    Return Not @error
+    If $bEnabled Then
+        If Not RegWrite($APP_STARTUP_REGISTRY_KEY, $APP_TITLE, "REG_SZ", '"' & @ScriptFullPath & '"') Then Return SetError(1, @error, False)
+        Return True
+    EndIf
+    RegRead($APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
+    If @error Then Return True
+    If Not RegDelete($APP_STARTUP_REGISTRY_KEY, $APP_TITLE) Then Return SetError(2, @error, False)
+    Return True
 EndFunc
 
 Global Const $HOTKEY_REGISTRY_ERROR_NOT_FOUND = 1
@@ -50,7 +58,11 @@ EndFunc
 
 Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord)
     _aTags()
-    If Not _ActionDispatcher_Dispatch($aRecord, $aTags) Then Return SetError($HOTKEY_REGISTRY_ERROR_DISPATCH, @error, False)
+    If Not _ActionDispatcher_Dispatch($aRecord, $aTags) Then
+        Local $iDispatchError = @error
+        _AppError_Report("The hotkey action could not be completed", $HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError)
+        Return SetError($HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError, False)
+    EndIf
     Return True
 EndFunc
 
@@ -87,7 +99,7 @@ Func _iniCheck($iniFile)
     EndIf
     ;double check
     If Not FileExists($iniFile) Then
-        _ExtMsgBox(48, 'OK', 'Oops!', $APP_TITLE&' was unable to write settings file at this location:'&@CRLF&'"'&@ScriptDir&'"'&@CRLF, 0)
+        _AppError_Report($APP_TITLE & " was unable to write its settings file", 1, 0)
         Exit
     EndIf
 EndFunc
@@ -97,7 +109,7 @@ Func _iniToApply($iniFile)
     $aHotkeys = _HotkeyRepository_Load($iniFile)
     If @error Then
         $aHotkeys = _HotkeyRepository_CreateTable(0)
-        _ExtMsgBox(48, 'OK', 'Invalid hotkey settings', 'One or more hotkey entries are malformed or duplicated. No action hotkeys were registered.', 0)
+        _AppError_Report("One or more hotkey entries are malformed or duplicated; no action hotkeys were registered", $HOTKEY_REPOSITORY_ERROR_INVALID, 0)
         Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, False)
     EndIf
     If IsArray($aHotkeys) Then
@@ -105,7 +117,7 @@ Func _iniToApply($iniFile)
             $aRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
             If Not _ActionValidator_ValidateRecord($aRecord, False) Then
                 $aHotkeys = _HotkeyRepository_CreateTable(0)
-                _ExtMsgBox(48, 'OK', 'Invalid hotkey settings', 'One or more action values are not allowed. No action hotkeys were registered.', 0)
+                _AppError_Report("One or more action values are not allowed; no action hotkeys were registered", $HOTKEY_REPOSITORY_ERROR_INVALID, $i)
                 Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, False)
             EndIf
             HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed")

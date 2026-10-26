@@ -1,10 +1,16 @@
 #include "..\src\core\HotkeyRepository.au3"
 #include "..\src\actions\ActionDispatcher.au3"
+#include "..\src\app\ErrorReporter.au3"
 
 Opt("MustDeclareVars", 1)
 
 Global $g_iFailures = 0
 Global $g_iAssertions = 0
+Global $g_iClipboardRestoreCalls = 0
+Global $g_iClipboardWaitCalls = 0
+Global $g_bClipboardWriteFails = False
+Global $g_bClipboardWaitFails = False
+Global $g_sClipboardWritten = ""
 
 _TestSpecialKeys()
 _TestCodecRoundTrips()
@@ -12,6 +18,10 @@ _TestTags()
 _TestLegacyFixtures()
 _TestRepositoryRecovery()
 _TestActionValidationAndDispatch()
+_TestGeometry()
+_TestWindowsFailurePaths()
+_TestClipboardTransactions()
+_TestTextAndCrypto()
 
 If $g_iFailures Then
     ConsoleWrite("FAILED: " & $g_iFailures & " of " & $g_iAssertions & " assertions" & @CRLF)
@@ -28,6 +38,154 @@ Func _TestSpecialKeys()
     Next
     _AssertEqual("^!{HkzEq}", _HotkeyCodec_EncodeHotkey("Ctrl + Alt + ="), "equals-sign hotkey encoding")
     _AssertEqual("Ctrl + Alt + =", _HotkeyCodec_DecodeHotkey("^!{HkzEq}"), "equals-sign hotkey decoding")
+EndFunc
+
+Func _TestGeometry()
+    Local $aNegativeArea = _Geometry_CreateWorkArea(-1920, -100, 0, 980)
+    Local $aCurrent = _Geometry_CreateRect(-1700, 20, 800, 600)
+    Local $aSnap = _Geometry_CalculateActionRect("Snap Bottom Right (2x2)", $aNegativeArea, $aCurrent)
+    _AssertEqual(-960, $aSnap[$WINDOW_RECT_X], "negative-coordinate snap x")
+    _AssertEqual(440, $aSnap[$WINDOW_RECT_Y], "negative-coordinate snap y")
+    _AssertEqual(960, $aSnap[$WINDOW_RECT_WIDTH], "negative-coordinate snap width")
+    _AssertEqual(540, $aSnap[$WINDOW_RECT_HEIGHT], "negative-coordinate snap height")
+
+    Local $aSource = _Geometry_CreateWorkArea(0, 0, 1920, 1080)
+    Local $aTarget = _Geometry_CreateWorkArea(-2560, 0, 0, 1440)
+    Local $aHalf = _Geometry_CreateRect(960, 0, 960, 1080)
+    Local $aMapped = _Geometry_MapRect($aSource, $aTarget, $aHalf)
+    _AssertEqual(-1280, $aMapped[$WINDOW_RECT_X], "different-scale monitor transfer x")
+    _AssertEqual(1280, $aMapped[$WINDOW_RECT_WIDTH], "different-scale monitor transfer width")
+    _AssertEqual(1440, $aMapped[$WINDOW_RECT_HEIGHT], "different-scale monitor transfer height")
+EndFunc
+
+Func _TestWindowsFailurePaths()
+    Local $sCancelled = _WindowActions_NormalizeScreenshotPath("")
+    Local $iCancelError = @error
+    _AssertEqual("", $sCancelled, "cancelled screenshot has no path")
+    _AssertTrue($iCancelError <> 0, "cancelled screenshot reports an error")
+    _AssertFalse(_WindowActions_SaveScreenshot("capture.jpg", 1, "_TestCaptureFails", "_TestSaveSucceeds"), "failed screenshot capture is reported")
+    _AssertFalse(_WindowActions_SaveScreenshot("capture.jpg", 1, "_TestCaptureSucceeds", "_TestSaveFails"), "failed screenshot save is reported")
+    Local $sExplorer = _GetWindowsExplorerPath(0)
+    Local $iExplorerError = @error
+    _AssertEqual("", $sExplorer, "invalid Explorer window returns no path")
+    _AssertTrue($iExplorerError <> 0, "invalid Explorer window reports an error")
+    _AssertFalse(_AppError_Report("test failure", 7, 9, False), "error reporter returns failure")
+    _AssertTrue(StringInStr($g_sLastApplicationError, "test failure") > 0, "error reporter records context")
+EndFunc
+
+Func _TestClipboardTransactions()
+    _ClipboardTransaction_ConfigureBackend("_TestClipboardSnapshot", "_TestClipboardRestore", "_TestClipboardWrite", "_TestClipboardRead", "_TestClipboardSend", "_TestClipboardWait", "_TestClipboardSequence")
+    $g_iClipboardRestoreCalls = 0
+    $g_iClipboardWaitCalls = 0
+    $g_bClipboardWriteFails = False
+    $g_bClipboardWaitFails = False
+    _AssertTrue(_ClipboardTransaction_Paste("new text"), "clipboard paste transaction succeeds")
+    _AssertEqual(1, $g_iClipboardRestoreCalls, "clipboard is restored after successful paste")
+    _AssertEqual(1, $g_iClipboardWaitCalls, "clipboard paste waits before restoration")
+
+    $g_bClipboardWriteFails = True
+    _AssertFalse(_ClipboardTransaction_Paste("failure"), "clipboard write failure is reported")
+    _AssertEqual(2, $g_iClipboardRestoreCalls, "clipboard is restored after failed paste")
+
+    $g_bClipboardWriteFails = False
+    $g_bClipboardWaitFails = True
+    _AssertFalse(_ClipboardTransaction_Paste("wait failure"), "clipboard wait failure is reported")
+    _AssertEqual(3, $g_iClipboardRestoreCalls, "clipboard is restored after failed paste wait")
+
+    $g_bClipboardWaitFails = False
+    _AssertTrue(_ClipboardTransaction_TransformSelection("Upper Case Selected Text"), "selected-text transaction succeeds")
+    _AssertEqual("SELECTED TEXT", $g_sClipboardWritten, "selected text is transformed before paste")
+    _AssertEqual(4, $g_iClipboardRestoreCalls, "clipboard is restored after selected-text transaction")
+    _AssertTrue(_ClipboardTransaction_CanPreserveFormat(50000), "registered non-text clipboard format is preservable")
+    _AssertFalse(_ClipboardTransaction_CanPreserveFormat($CF_BITMAP), "handle-based bitmap format is explicitly excluded")
+    _ClipboardTransaction_ResetBackend()
+EndFunc
+
+Func _TestTextAndCrypto()
+    Local $sUnicode = "caf" & ChrW(0x00E9) & " " & ChrW(0x4E16) & ChrW(0x754C)
+    Local $sEncoded = _Base64Encode($sUnicode)
+    _AssertFalse(@error, "UTF-8 Base64 encoding succeeds")
+    _AssertEqual($sUnicode, _Base64Decode($sEncoded), "non-ASCII Base64 round trip")
+    Local $sInvalid = _Base64Decode("not base64!")
+    Local $iInvalidError = @error
+    _AssertEqual("", $sInvalid, "invalid Base64 returns no decoded value")
+    _AssertTrue($iInvalidError <> 0, "invalid Base64 reports an error")
+    Local $sInvalidUtf8 = _Base64Decode("/w==")
+    Local $iInvalidUtf8Error = @error
+    _AssertEqual("", $sInvalidUtf8, "invalid UTF-8 Base64 returns no decoded value")
+    _AssertTrue($iInvalidUtf8Error <> 0, "invalid UTF-8 Base64 reports an error")
+
+    Local $sUuid = uuid()
+    _AssertTrue(StringRegExp($sUuid, "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") = 1, "UUID has v4 version and RFC variant bits")
+    Local $sLetters = _generator("<RAND_LETTERS>")
+    Local $sNumbers = _generator("<RAND_NUMBERS>")
+    Local $sMixed = _generator("<RAND_LETTERS_NUMBERS>")
+    Local $sPpp = _generator("<RAND_PPP>")
+    _AssertTrue(StringRegExp($sLetters, "^[A-Za-z]{20}$") = 1, "letters password constraint")
+    _AssertTrue(StringRegExp($sNumbers, "^[0-9]{20}$") = 1, "numbers password constraint")
+    _AssertTrue(StringRegExp($sMixed, "^[2-9A-Za-z]{20}$") = 1, "mixed password constraint")
+    _AssertEqual(20, StringLen($sPpp), "PPP password length constraint")
+    _AssertTrue(StringRegExp($sPpp, "^[!#%+2-9:=?@A-HJ-NP-ZA-Za-z]{20}$") = 1, "PPP password character constraint")
+    _AssertFalse(StringRegExp($sPpp, "[IOQl]") = 1, "PPP password excludes ambiguous characters")
+EndFunc
+
+Func _TestCaptureFails($sUnused, $hWnd)
+    #forceref $sUnused, $hWnd
+    Return 0
+EndFunc
+
+Func _TestCaptureSucceeds($sUnused, $hWnd)
+    #forceref $sUnused, $hWnd
+    Return 1
+EndFunc
+
+Func _TestSaveFails($sPath, $hImage)
+    #forceref $sPath, $hImage
+    Return False
+EndFunc
+
+Func _TestSaveSucceeds($sPath, $hImage)
+    #forceref $sPath, $hImage
+    Return True
+EndFunc
+
+Func _TestClipboardSnapshot()
+    Local $aSnapshot[3][2]
+    $aSnapshot[0][0] = 2
+    $aSnapshot[1][0] = $CF_UNICODETEXT
+    $aSnapshot[1][1] = "original text"
+    $aSnapshot[2][0] = 50000
+    $aSnapshot[2][1] = Binary("0x010203")
+    Return $aSnapshot
+EndFunc
+
+Func _TestClipboardRestore(ByRef $aSnapshot)
+    $g_iClipboardRestoreCalls += 1
+    Return UBound($aSnapshot, 1) = 3 And $aSnapshot[2][1] = Binary("0x010203")
+EndFunc
+
+Func _TestClipboardWrite($sText)
+    If $g_bClipboardWriteFails Then Return False
+    $g_sClipboardWritten = $sText
+    Return True
+EndFunc
+
+Func _TestClipboardRead()
+    Return "selected text"
+EndFunc
+
+Func _TestClipboardSend($sKeys)
+    Return $sKeys = "^c" Or $sKeys = "^v"
+EndFunc
+
+Func _TestClipboardWait($iSequence, $bRequireChange)
+    #forceref $iSequence, $bRequireChange
+    $g_iClipboardWaitCalls += 1
+    Return Not $g_bClipboardWaitFails
+EndFunc
+
+Func _TestClipboardSequence()
+    Return 100
 EndFunc
 
 Func _TestCodecRoundTrips()

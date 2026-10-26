@@ -6,6 +6,7 @@
 #include <ListViewConstants.au3>
 #include <WindowsConstants.au3>
 #include "..\actions\ActionValidator.au3"
+#include "..\app\ErrorReporter.au3"
 
 Func _mainGui()
     ;~ $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
@@ -218,14 +219,20 @@ EndFunc
 
 Func _saveBtn()
     If Not _guiToIni($APP_INI_PATH) Then
-        _ExtMsgBox(48, 'OK', 'Unable to save', 'The hotkey settings could not be validated and saved. The previous file is still available as a backup.', 0, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
+        _AppError_Report("The hotkey settings could not be validated and saved; the previous file is still available as a backup", @error, @extended)
         Return
     EndIf
-    _iniToApply($APP_INI_PATH)
+    If Not _iniToApply($APP_INI_PATH) Then Return
     If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_STARTUP_CHECKBOX]), $GUI_CHECKED) == 1 Then
-        _HotkeyRegistry_SetStartupEnabled(True)
+        If Not _HotkeyRegistry_SetStartupEnabled(True) Then
+            _AppError_Report("The Windows startup registry entry could not be written", @error, @extended)
+            Return
+        EndIf
     Else
-        _HotkeyRegistry_SetStartupEnabled(False)
+        If Not _HotkeyRegistry_SetStartupEnabled(False) Then
+            _AppError_Report("The Windows startup registry entry could not be removed", @error, @extended)
+            Return
+        EndIf
     EndIf
     GUIDelete($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
     $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = False

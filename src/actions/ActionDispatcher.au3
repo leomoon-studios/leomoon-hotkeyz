@@ -3,6 +3,7 @@
 #include "..\core\HotkeyCodec.au3"
 #include "ActionValidator.au3"
 #include "TextActions.au3"
+#include "ClipboardTransaction.au3"
 
 Global Enum $ACTION_ROUTE_NONE = 0, _
             $ACTION_ROUTE_FILE, _
@@ -62,7 +63,7 @@ Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags)
         Case $ACTION_ROUTE_FILE, $ACTION_ROUTE_FOLDER, $ACTION_ROUTE_URL
             $vResult = _ProcessActions_ExecuteTarget($aPrepared[$HOTKEY_FIELD_TARGET], $aPrepared[$HOTKEY_FIELD_PARAMETERS], $sVerb, $bSingleton)
         Case $ACTION_ROUTE_TEXT
-            $vResult = _TextActions_Paste($aPrepared[$HOTKEY_FIELD_TARGET])
+            $vResult = _ClipboardTransaction_Paste($aPrepared[$HOTKEY_FIELD_TARGET])
         Case $ACTION_ROUTE_WINDOW
             $vResult = _WindowActions_Execute($aPrepared[$HOTKEY_FIELD_TARGET])
         Case $ACTION_ROUTE_COMMAND
@@ -74,6 +75,7 @@ Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags)
         Case Else
             Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, False)
     EndSwitch
-    If Not $vResult Then Return SetError($ACTION_DISPATCH_ERROR_HANDLER, 0, False)
+    Local $iHandlerError = @error
+    If Not $vResult Then Return SetError($ACTION_DISPATCH_ERROR_HANDLER, $iHandlerError, False)
     Return True
 EndFunc

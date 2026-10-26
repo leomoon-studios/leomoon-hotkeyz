@@ -6,14 +6,6 @@
 
 Global $aTags[13][2]
 
-Func _TextActions_Paste($sText)
-    Local $sOldClipboard = ClipGet()
-    ClipPut($sText)
-    Send("^v")
-    ClipPut($sOldClipboard)
-    Return True
-EndFunc
-
 Func _aTags()
     $aTags[0][0] = '<HOUR>'
     $aTags[0][1] = @HOUR
@@ -56,63 +48,95 @@ Func _generator($input)
         Case '<RAND_NUMBERS>'
             $aChars = StringSplit("0123456789", "")
     EndSwitch
+    If Not IsArray($aChars) Then Return SetError(1, 0, "")
     Local $sString = ''
     For $i = 1 To $length
-        $sString &= $aChars[Random(1, $aChars[0], 1)]
+        Local $iIndex = _TextActions_CryptoIndex($aChars[0])
+        If @error Then Return SetError(2, @error, "")
+        $sString &= $aChars[$iIndex + 1]
     Next
     Return $sString
 EndFunc
 
+Func _TextActions_CryptoIndex($iCount)
+    If $iCount < 1 Or $iCount > 256 Then Return SetError(1, 0, 0)
+    Local $iLimit = Floor(256 / $iCount) * $iCount
+    Local $tByte = DllStructCreate("byte")
+    While 1
+        If Not _Crypt_GenRandom($tByte, 1) Then Return SetError(2, @error, 0)
+        Local $iValue = DllStructGetData($tByte, 1)
+        If $iValue < $iLimit Then Return Mod($iValue, $iCount)
+    WEnd
+EndFunc
+
 Func _Base64Encode($sData)
-    Local $oXml = ObjCreate("Msxml2.DOMDocument")
-    If Not IsObj($oXml) Then
-        SetError(1, 1, 0)
-    EndIf
+    If $sData = "" Then Return ""
+    Local $oXml = ObjCreate("Msxml2.DOMDocument.6.0")
+    If Not IsObj($oXml) Then Return SetError(1, 0, "")
 
     Local $oElement = $oXml.createElement("b64")
-    If Not IsObj($oElement) Then
-        SetError(2, 2, 0)
-    EndIf
+    If Not IsObj($oElement) Then Return SetError(2, 0, "")
 
     $oElement.dataType = "bin.base64"
-    $oElement.nodeTypedValue = Binary($sData)
-    Local $sReturn = $oElement.Text
-
-    If StringLen($sReturn) = 0 Then
-        SetError(3, 3, 0)
-    EndIf
-
+    $oElement.nodeTypedValue = StringToBinary($sData, 4)
+    Local $sReturn = StringRegExpReplace($oElement.Text, "\s", "")
+    If $sReturn = "" Then Return SetError(3, 0, "")
     Return $sReturn
 EndFunc
 
 Func _Base64Decode($sData)
-    Local $oXml = ObjCreate("Msxml2.DOMDocument")
-    If Not IsObj($oXml) Then
-        SetError(1, 1, 0)
-    EndIf
+    If $sData = "" Then Return ""
+    If Mod(StringLen($sData), 4) <> 0 Or Not StringRegExp($sData, "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$") Then Return SetError(1, 0, "")
+    Local $oXml = ObjCreate("Msxml2.DOMDocument.6.0")
+    If Not IsObj($oXml) Then Return SetError(2, 0, "")
 
     Local $oElement = $oXml.createElement("b64")
-    If Not IsObj($oElement) Then
-        SetError(2, 2, 0)
-    EndIf
+    If Not IsObj($oElement) Then Return SetError(3, 0, "")
 
     $oElement.dataType = "bin.base64"
     $oElement.Text = $sData
     Local $sReturn = BinaryToString($oElement.nodeTypedValue, 4)
-
-    If StringLen($sReturn) = 0 Then
-        SetError(3, 3, 0)
-    EndIf
-
+    Local $iDecodeError = @error
+    If $iDecodeError Then Return SetError(4, $iDecodeError, "")
+    Local $sCanonical = _Base64Encode($sReturn)
+    If @error Or $sCanonical <> $sData Then Return SetError(5, 0, "")
     Return $sReturn
 EndFunc
 
 Func uuid()
-    Return StringFormat('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', _
-            Random(0, 0xffff), Random(0, 0xffff), _
-            Random(0, 0xffff), _
-            BitOR(Random(0, 0x0fff), 0x4000), _
-            BitOR(Random(0, 0x3fff), 0x8000), _
-            Random(0, 0xffff), Random(0, 0xffff), Random(0, 0xffff) _
-        )
+    Local $tBytes = DllStructCreate("byte[16]")
+    If Not _Crypt_GenRandom($tBytes, 16) Then Return SetError(1, @error, "")
+    DllStructSetData($tBytes, 1, BitOR(BitAND(DllStructGetData($tBytes, 1, 7), 0x0F), 0x40), 7)
+    DllStructSetData($tBytes, 1, BitOR(BitAND(DllStructGetData($tBytes, 1, 9), 0x3F), 0x80), 9)
+    Local $sHex = "", $i
+    For $i = 1 To 16
+        $sHex &= StringFormat("%02x", DllStructGetData($tBytes, 1, $i))
+    Next
+    Return StringLeft($sHex, 8) & "-" & StringMid($sHex, 9, 4) & "-" & StringMid($sHex, 13, 4) & "-" & StringMid($sHex, 17, 4) & "-" & StringRight($sHex, 12)
+EndFunc
+
+Func _TextActions_Transform($sAction, $sText)
+    Switch $sAction
+        Case "Upper Case Selected Text"
+            Return StringUpper($sText)
+        Case "Lower Case Selected Text"
+            Return StringLower($sText)
+        Case "Title Case Selected Text"
+            Return _StringTitleCase($sText)
+        Case "Reverse Selected Text"
+            Return StringReverse($sText)
+        Case "MD5 Selected Text"
+            Return StringLower(StringTrimLeft(_Crypt_HashData($sText, $CALG_MD5), 2))
+        Case "SHA1 Selected Text"
+            Return StringLower(StringTrimLeft(_Crypt_HashData($sText, $CALG_SHA1), 2))
+        Case "SHA-256 Selected Text"
+            Return StringLower(StringTrimLeft(_Crypt_HashData($sText, $CALG_SHA_256), 2))
+        Case "SHA-512 Selected Text"
+            Return StringLower(StringTrimLeft(_Crypt_HashData($sText, $CALG_SHA_512), 2))
+        Case "Base64 Encode Selected Text"
+            Return _Base64Encode($sText)
+        Case "Base64 Decode Selected Text"
+            Return _Base64Decode($sText)
+    EndSwitch
+    Return SetError(1, 0, "")
 EndFunc

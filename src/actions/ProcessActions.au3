@@ -9,7 +9,7 @@ Func _ProcessActions_ExecuteMedia($sTarget)
 EndFunc
 
 Func _ProcessActions_ExecuteCommand($sCommand, $sVerb)
-    Return ShellExecute(@ComSpec, _ProcessActions_BuildCommandArguments($sCommand), "", $sVerb, @SW_HIDE)
+    Return _ProcessActions_ShellExecute(@ComSpec, _ProcessActions_BuildCommandArguments($sCommand), "", $sVerb, @SW_HIDE)
 EndFunc
 
 Func _ProcessActions_IsMediaTarget($sTarget)
@@ -31,11 +31,18 @@ EndFunc
 Func _ProcessActions_ExecuteTarget($sTarget, $sParameters, $sVerb, $bSingleton)
     $sParameters = StringStripWS($sParameters, 7)
     If $bSingleton And ProcessExists(StringRegExpReplace($sTarget, "^.*\\", "")) Then Return True
-    If $sParameters = "" Then Return ShellExecute($sTarget, "", "", $sVerb)
+    If $sParameters = "" Then Return _ProcessActions_ShellExecute($sTarget, "", "", $sVerb)
     If StringInStr($sParameters, "<GetActiveWindowsExplorerPath>") Then
         Local $sExplorerPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
-        If Not FileExists($sExplorerPath) Then Return ShellExecute($sTarget, "", "", $sVerb)
+        Local $iExplorerError = @error
+        If $iExplorerError Or Not FileExists($sExplorerPath) Then Return SetError(2, $iExplorerError, False)
         $sParameters = StringReplace($sParameters, "<GetActiveWindowsExplorerPath>", _ProcessActions_QuoteArgument($sExplorerPath))
     EndIf
-    Return ShellExecute($sTarget, $sParameters, "", $sVerb, @SW_HIDE)
+    Return _ProcessActions_ShellExecute($sTarget, $sParameters, "", $sVerb, @SW_HIDE)
+EndFunc
+
+Func _ProcessActions_ShellExecute($sTarget, $sParameters = "", $sWorkingDirectory = "", $sVerb = "", $iShowFlag = @SW_SHOWNORMAL)
+    Local $iPid = ShellExecute($sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag)
+    If @error Or $iPid = 0 Then Return SetError(1, @error, False)
+    Return True
 EndFunc

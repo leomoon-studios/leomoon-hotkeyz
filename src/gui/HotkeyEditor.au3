@@ -116,8 +116,10 @@ Func _editGui($name)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON], "_hideChild")
     ;center child window
     Local $mpos = WinGetPos($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
+    If @error Or Not IsArray($mpos) Then Return SetError(1, @error, False)
     Local $cpos = WinGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-    WinMove($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], '', $mpos[0]+($mpos[2]/2)-($cpos[2]/2), $mpos[1]+($mpos[3]/2)-($cpos[3]/2))
+    If @error Or Not IsArray($cpos) Then Return SetError(2, @error, False)
+    If Not WinMove($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], '', $mpos[0]+($mpos[2]/2)-($cpos[2]/2), $mpos[1]+($mpos[3]/2)-($cpos[3]/2)) Then Return SetError(3, @error, False)
     Local $aAccelKeys[1][2] = [["{ESC}", $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON]]]
     GUISetAccelerators($aAccelKeys)
     WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
