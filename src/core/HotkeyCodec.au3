@@ -19,6 +19,8 @@ Func _HotkeyCodec_EncodeKey($sKey)
         If $sKey = "Page Down" Then $sKey = "PGDN"
         If StringLeft($sKey, 7) = "Numpad " Then $sKey = "NUMPAD" & StringReplace(StringTrimLeft($sKey, 7), " ", "")
         If $sKey = "NUMPADDIVIDE" Then $sKey = "NUMPADDIV"
+        If $sKey = "NUMPADMULTIPLY" Then $sKey = "NUMPADMULT"
+        If $sKey = "NUMPADSUBTRACT" Then $sKey = "NUMPADSUB"
         $sKey = "{" & StringUpper($sKey) & "}"
     ElseIf $sKey = "=" Then
         $sKey = "{HkzEq}"
@@ -47,11 +49,11 @@ Func _HotkeyCodec_DecodeKey($sKey)
     If StringLeft(StringUpper($sKey), 7) = "{NUMPAD" Then
         Local $sNumpadKey = StringTrimRight(StringTrimLeft(StringUpper($sKey), 7), 1)
         Switch $sNumpadKey
-            Case "DIV"
+            Case "DIV", "DIVIDE"
                 $sNumpadKey = "Divide"
-            Case "MULT"
+            Case "MULT", "MULTIPLY"
                 $sNumpadKey = "Multiply"
-            Case "SUB"
+            Case "SUB", "SUBTRACT"
                 $sNumpadKey = "Subtract"
             Case "ADD"
                 $sNumpadKey = "Add"
@@ -85,6 +87,14 @@ EndFunc
 
 Func _HotkeyCodec_NormalizeHotkey($sHotkey)
     Return StringLower(_HotkeyCodec_EncodeHotkey(_HotkeyCodec_DecodeHotkey($sHotkey)))
+EndFunc
+
+Func _HotkeyCodec_ToNativeHotkey($sHotkey)
+    ; Also recover invalid numpad spellings saved by the refactored editor.
+    $sHotkey = StringReplace($sHotkey, "{NUMPADSUBTRACT}", "{NUMPADSUB}")
+    $sHotkey = StringReplace($sHotkey, "{NUMPADMULTIPLY}", "{NUMPADMULT}")
+    $sHotkey = StringReplace($sHotkey, "{NUMPADDIVIDE}", "{NUMPADDIV}")
+    Return StringReplace($sHotkey, "{HkzEq}", "{=}")
 EndFunc
 
 Func _HotkeyCodec_DecodeLegacy($sHotkey, $sValue, $sPlainAction = $HOTKEY_ACTION_FILE)
@@ -129,7 +139,7 @@ Func _HotkeyCodec_DecodeLegacy($sHotkey, $sValue, $sPlainAction = $HOTKEY_ACTION
     $sParameters = StringReplace($sParameters, $HOTKEY_CODEC_EQUAL, "=")
     If $sAction = $HOTKEY_ACTION_TEXT Then $sValue = StringReplace($sValue, $HOTKEY_CODEC_NEWLINE, @LF)
 
-    Local $aRecord = _HotkeyModel_Create(StringReplace($sHotkey, "{HkzEq}", "{=}"), $sAction, $sValue, $sParameters, $iOptions)
+    Local $aRecord = _HotkeyModel_Create(_HotkeyCodec_ToNativeHotkey($sHotkey), $sAction, $sValue, $sParameters, $iOptions)
     If Not _HotkeyModel_IsValid($aRecord) Then Return SetError(2, @error, 0)
     Return $aRecord
 EndFunc

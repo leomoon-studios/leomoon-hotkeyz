@@ -15,22 +15,31 @@ Global $g_bClipboardWriteFails = False
 Global $g_bClipboardWaitFails = False
 Global $g_sClipboardWritten = ""
 Global $g_sUnavailableHotkey = ""
+Global $g_aTestBindings[8][2]
+Global $g_iTestRegistryDeleteResult = 2
+Global $g_iTestRegistryDeleteError = -1
+Global $g_iTestRegistryReadError = 0
+Global $g_iTestRegistryDeleteCalls = 0
 Global $g_iShellCalls = 0
 
 _TestSpecialKeys()
 _TestCodecRoundTrips()
 _TestTags()
 _TestLegacyFixtures()
+_TestLegacyWindowActions()
 _TestRepositoryRecovery()
 _TestActionValidationAndDispatch()
+_TestMissingTargetMessages()
 _TestGeometry()
 _TestWindowsFailurePaths()
 _TestClipboardTransactions()
 _TestTextAndCrypto()
 _TestEditorModel()
 _TestUnavailableHotkey()
+_TestReapplyHotkeys()
 _TestMaintenanceFixtures()
 _TestSideEffectBackends()
+_TestStartupRegistry()
 
 If $g_iFailures Then
     ConsoleWrite("FAILED: " & $g_iFailures & " of " & $g_iAssertions & " assertions" & @CRLF)
@@ -47,6 +56,19 @@ Func _TestSpecialKeys()
     Next
     _AssertEqual("^!{HkzEq}", _HotkeyCodec_EncodeHotkey("Ctrl + Alt + ="), "equals-sign hotkey encoding")
     _AssertEqual("Ctrl + Alt + =", _HotkeyCodec_DecodeHotkey("^!{HkzEq}"), "equals-sign hotkey decoding")
+    _AssertEqual("{NUMPADSUB}", _HotkeyCodec_EncodeKey("Numpad Subtract"), "subtract uses native AutoIt key name")
+    _AssertEqual("{NUMPADMULT}", _HotkeyCodec_EncodeKey("Numpad Multiply"), "multiply uses native AutoIt key name")
+    _AssertEqual("{NUMPADDIV}", _HotkeyCodec_EncodeKey("Numpad Divide"), "divide uses native AutoIt key name")
+    Local $aRecovered = _HotkeyCodec_DecodeLegacy("^!{NUMPADSUBTRACT}", "[HkzWM]Transparency -")
+    _AssertEqual("^!{NUMPADSUB}", $aRecovered[$HOTKEY_FIELD_HOTKEY], "load repairs saved subtract spelling")
+    $aRecovered = _HotkeyCodec_DecodeLegacy("^!{NUMPADMULTIPLY}", "[HkzWM]Take Screenshot")
+    _AssertEqual("^!{NUMPADMULT}", $aRecovered[$HOTKEY_FIELD_HOTKEY], "load repairs saved multiply spelling")
+    _AssertEqual("^!{=}", _HotkeyCodec_ToNativeHotkey("^!{HkzEq}"), "registration uses native equals key")
+    Local $aSavedHotkeys = $aHotkeys
+    $aHotkeys = _HotkeyRepository_CreateTable(1)
+    _HotkeyRepository_SetRecord($aHotkeys, 1, $aRecovered)
+    _AssertEqual(1, _HotkeyRegistry_FindHotkey("!^{NUMPADMULT}"), "callback lookup tolerates modifier order")
+    $aHotkeys = $aSavedHotkeys
 EndFunc
 
 Func _TestGeometry()
@@ -67,6 +89,25 @@ Func _TestGeometry()
     _AssertEqual(1440, $aMapped[$WINDOW_RECT_HEIGHT], "different-scale monitor transfer height")
 EndFunc
 
+Func _TestLegacyWindowActions()
+    Local $aLegacy = _HotkeyRepository_Load(@ScriptDir & "\fixtures\legacy-window-actions.ini")
+    _AssertTrue(IsArray($aLegacy), "legacy window actions load")
+    Local $i, $aRecord
+    For $i = 1 To _HotkeyRepository_Count($aLegacy)
+        $aRecord = _HotkeyRepository_GetRecord($aLegacy, $i)
+        _AssertTrue(_ActionValidator_ValidateRecord($aRecord, False), "legacy window action passes startup validation: " & $aRecord[$HOTKEY_FIELD_TARGET])
+        _AssertTrue(StringInStr("|" & _ActionCatalog_WindowLabels() & "|", "|" & $aRecord[$HOTKEY_FIELD_TARGET] & "|") > 0, "legacy action can be selected in editor")
+    Next
+    Local $aArea = _Geometry_CreateWorkArea(-1920, -100, 1, 981)
+    Local $aCurrent = _Geometry_CreateRect(-1700, 20, 800, 600)
+    Local $aResized = _Geometry_CalculateActionRect("Resize 3x2", $aArea, $aCurrent)
+    _AssertEqual(-1700, $aResized[$WINDOW_RECT_X], "legacy resize preserves x")
+    _AssertEqual(20, $aResized[$WINDOW_RECT_Y], "legacy resize preserves y")
+    _AssertEqual(640, $aResized[$WINDOW_RECT_WIDTH], "legacy resize floors one third of work width")
+    _AssertEqual(540, $aResized[$WINDOW_RECT_HEIGHT], "legacy resize floors half of work height")
+    _AssertFalse(_WindowActions_IsValid("Resize 3x2 unexpected"), "legacy compatibility does not allow arbitrary action names")
+EndFunc
+
 Func _TestWindowsFailurePaths()
     Local $sCancelled = _WindowActions_NormalizeScreenshotPath("")
     Local $iCancelError = @error
@@ -80,6 +121,28 @@ Func _TestWindowsFailurePaths()
     _AssertTrue($iExplorerError <> 0, "invalid Explorer window reports an error")
     _AssertFalse(_AppError_Report("test failure", 7, 9, False), "error reporter returns failure")
     _AssertTrue(StringInStr($g_sLastApplicationError, "test failure") > 0, "error reporter records context")
+EndFunc
+
+Func _TestMissingTargetMessages()
+    Local $sMissing = @TempDir & "\HotKeyz-missing-" & @AutoItPID & "-<USERNAME>"
+    Local $aFile = _HotkeyModel_Create("#/", $HOTKEY_ACTION_FILE, $sMissing & "\terminal.exe")
+    Local $aFolder = _HotkeyModel_Create("^+a", $HOTKEY_ACTION_FOLDER, $sMissing)
+    _AssertTrue(_ActionValidator_ValidateRecord($aFile, False), "missing imported file remains valid at startup")
+    _AssertTrue(_ActionValidator_ValidateRecord($aFolder, False), "missing imported folder remains valid at startup")
+    _AssertFalse(_HotkeyRegistry_ExecuteRecord($aFile, False), "missing file reports a failure")
+    _AssertTrue(StringInStr($g_sLastApplicationError, "target file or folder does not exist") > 0, "missing file explains the actual cause")
+    _AssertTrue(StringInStr($g_sLastApplicationError, "Win + /") > 0, "missing file identifies shortcut")
+    _AssertTrue(StringInStr($g_sLastApplicationError, StringReplace($sMissing, "<USERNAME>", @UserName) & "\terminal.exe") > 0, "missing file shows expanded path")
+    _AssertFalse(_HotkeyRegistry_ExecuteRecord($aFolder, False), "missing folder reports a failure")
+    _AssertTrue(StringInStr($g_sLastApplicationError, "Ctrl + Shift + A") > 0, "missing folder identifies shortcut")
+    _AssertTrue(StringInStr($g_sLastApplicationError, "target file or folder does not exist") > 0, "missing folder explains the actual cause")
+    Local $aTagsForTest[1][2] = [["<TEST>", "test"]]
+    Local $aCommand = _HotkeyModel_Create("^!a", $HOTKEY_ACTION_FILE, "code")
+    Local $aPrepared = _ActionDispatcher_Prepare($aCommand, $aTagsForTest)
+    _AssertTrue(IsArray($aPrepared), "bare commands remain eligible for PATH lookup")
+    Local $aShellFolder = _HotkeyModel_Create("^!b", $HOTKEY_ACTION_FOLDER, "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}")
+    $aPrepared = _ActionDispatcher_Prepare($aShellFolder, $aTagsForTest)
+    _AssertTrue(IsArray($aPrepared), "shell namespaces are not mistaken for missing paths")
 EndFunc
 
 Func _TestClipboardTransactions()
@@ -193,6 +256,111 @@ Func _TestUnavailableHotkey()
     _HotkeyRegistry_ResetHotkeyBackend()
 EndFunc
 
+Func _TestReapplyHotkeys()
+    Local $aOld = _HotkeyRepository_CreateTable(2)
+    Local $aFirst = _HotkeyModel_Create("^!a", $HOTKEY_ACTION_TEXT, "first")
+    Local $aSecond = _HotkeyModel_Create("^!b", $HOTKEY_ACTION_TEXT, "second")
+    _HotkeyRepository_SetRecord($aOld, 1, $aFirst)
+    _HotkeyRepository_SetRecord($aOld, 2, $aSecond)
+    Local $aNew = _HotkeyRepository_CreateTable(2)
+    ; Reuse an old action key for the toggle and the old toggle for an action.
+    $aFirst[$HOTKEY_FIELD_HOTKEY] = "^!z"
+    $aSecond[$HOTKEY_FIELD_HOTKEY] = "^!c"
+    _HotkeyRepository_SetRecord($aNew, 1, $aFirst)
+    _HotkeyRepository_SetRecord($aNew, 2, $aSecond)
+    _HotkeyRegistry_ConfigureHotkeyBackend("_TestBindingBackend")
+
+    _TestResetBindings()
+    _HotkeyRegistry_RestoreBindings("^!z", $aOld)
+    _AssertTrue(_HotkeyRegistry_ApplyBindings("^!z", $aOld, "^!a", $aNew), "release all old keys before swapping toggle and action shortcuts")
+    _AssertEqual("_toggle", _TestBindingHandler("^!a"), "old action key becomes toggle")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!z"), "old toggle key becomes action")
+    _AssertEqual("", _TestBindingHandler("^!b"), "removed action key is released")
+
+    _TestResetBindings()
+    _HotkeyRegistry_SetTable($aOld, "HotKeyPressed")
+    _AssertTrue(_HotkeyRegistry_ApplyBindings("^!z", $aOld, "^!a", $aNew), "save works when old toggle was never registered")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!c"), "new action registered after missing toggle cleanup")
+
+    _TestResetBindings()
+    _HotkeyRegistry_TrySet("^!z", "_toggle")
+    _AssertTrue(_HotkeyRegistry_ApplyBindings("^!z", $aOld, "^!a", $aNew), "save works when action hotkeys were disabled")
+    _AssertEqual("_toggle", _TestBindingHandler("^!a"), "new toggle registered after disabled action cleanup")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!c"), "new action registered after disabled action cleanup")
+
+    _TestResetBindings()
+    _HotkeyRegistry_RestoreBindings("^!z", $aOld)
+    _HotkeyRegistry_TrySet("^!a")
+    _AssertTrue(_HotkeyRegistry_ApplyBindings("^!z", $aOld, "^!a", $aNew), "cleanup continues past an already released action")
+    _AssertEqual("", _TestBindingHandler("^!b"), "later old actions are still released")
+
+    _TestResetBindings()
+    _HotkeyRegistry_RestoreBindings("^!z", $aOld)
+    $g_sUnavailableHotkey = "^!c"
+    Local $bApplied = _HotkeyRegistry_ApplyBindings("^!z", $aOld, "^!a", $aNew)
+    Local $iFailedRow = @extended
+    _AssertFalse($bApplied, "real action conflict rejects changes")
+    _AssertEqual(2, $iFailedRow, "conflict identifies the failed action row")
+    _AssertEqual("_toggle", _TestBindingHandler("^!z"), "failed save restores old toggle")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!a"), "failed save restores first old action")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!b"), "failed save restores second old action")
+    _AssertEqual("", _TestBindingHandler("^!c"), "failed save leaves conflicting action unregistered")
+
+    _TestResetBindings()
+    _HotkeyRegistry_RestoreBindings("^!z", $aOld)
+    $g_sUnavailableHotkey = "^!a"
+    _AssertFalse(_HotkeyRegistry_ApplyBindings("^!z", $aOld, "^!a", $aNew), "real toggle conflict rejects changes")
+    _AssertEqual("_toggle", _TestBindingHandler("^!z"), "toggle conflict restores old toggle")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!b"), "rollback continues past an unavailable old action")
+
+    _TestResetBindings()
+    $g_sUnavailableHotkey = "^!z"
+    _AssertFalse(_HotkeyRegistry_RestoreBindings("^!z", $aOld), "restore reports unavailable old toggle")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!a"), "restore continues after unavailable old toggle")
+    _AssertEqual("HotKeyPressed", _TestBindingHandler("^!b"), "restore attempts every old action")
+    _HotkeyRegistry_ResetHotkeyBackend()
+    _TestResetBindings()
+EndFunc
+
+Func _TestResetBindings()
+    Local $aEmpty[8][2]
+    $g_aTestBindings = $aEmpty
+    $g_sUnavailableHotkey = ""
+EndFunc
+
+Func _TestBindingHandler($sHotkey)
+    Local $i
+    For $i = 0 To UBound($g_aTestBindings) - 1
+        If $g_aTestBindings[$i][0] = $sHotkey Then Return $g_aTestBindings[$i][1]
+    Next
+    Return ""
+EndFunc
+
+Func _TestBindingBackend($sHotkey, $sHandler)
+    Local $i
+    If $sHandler <> "" And $sHotkey = $g_sUnavailableHotkey Then Return False
+    For $i = 0 To UBound($g_aTestBindings) - 1
+        If $g_aTestBindings[$i][0] <> $sHotkey Then ContinueLoop
+        If $sHandler = "" Then
+            ; Match AutoIt: releasing a shortcut we do not own returns 0.
+            If $g_aTestBindings[$i][1] = "" Then Return False
+        ElseIf $g_aTestBindings[$i][1] <> "" Then
+            ; Require release before rebinding to exercise the save ordering.
+            Return False
+        EndIf
+        $g_aTestBindings[$i][1] = $sHandler
+        Return True
+    Next
+    If $sHandler = "" Then Return False
+    For $i = 0 To UBound($g_aTestBindings) - 1
+        If $g_aTestBindings[$i][0] <> "" Then ContinueLoop
+        $g_aTestBindings[$i][0] = $sHotkey
+        $g_aTestBindings[$i][1] = $sHandler
+        Return True
+    Next
+    Return False
+EndFunc
+
 Func _TestMaintenanceFixtures()
     Local $aEmpty = _HotkeyRepository_Load(@ScriptDir & "\fixtures\empty.ini")
     _AssertFalse(@error, "empty fixture loads")
@@ -240,7 +408,7 @@ EndFunc
 
 Func _TestRegistryRead($sKey, $sValue)
     #forceref $sKey, $sValue
-    Return "configured"
+    Return SetError($g_iTestRegistryReadError, 0, "configured")
 EndFunc
 
 Func _TestRegistryWrite($sKey, $sValue, $sType, $sData)
@@ -250,7 +418,41 @@ EndFunc
 
 Func _TestRegistryDelete($sKey, $sValue)
     #forceref $sKey, $sValue
-    Return False
+    $g_iTestRegistryDeleteCalls += 1
+    Return SetError($g_iTestRegistryDeleteError, 0, $g_iTestRegistryDeleteResult)
+EndFunc
+
+Func _TestStartupRegistry()
+    ; Read only: verify the native wrapper preserves the missing-value error.
+    Local $sMissingValue = "HotKeyz-Test-Missing-" & @AutoItPID & "-" & TimerInit()
+    _HotkeyRegistry_RegRead($APP_STARTUP_REGISTRY_KEY, $sMissingValue)
+    Local $iReadError = @error
+    _AssertTrue($iReadError <> 0, "native registry wrapper preserves missing-value error")
+
+    _HotkeyRegistry_ConfigureRegistryBackend("_TestRegistryRead", "_TestRegistryWrite", "_TestRegistryDelete")
+    $g_iTestRegistryReadError = -1
+    $g_iTestRegistryDeleteCalls = 0
+    _AssertTrue(_HotkeyRegistry_SetStartupEnabled(False), "missing startup value needs no deletion")
+    _AssertTrue(_HotkeyRegistry_SetStartupEnabled(False), "repeated save of missing startup value succeeds")
+    _AssertEqual(0, $g_iTestRegistryDeleteCalls, "absent startup value never requests registry write access")
+    $g_iTestRegistryReadError = 0
+    $g_iTestRegistryDeleteResult = 0
+    $g_iTestRegistryDeleteError = 0
+    _AssertTrue(_HotkeyRegistry_SetStartupEnabled(False), "unchecked startup saves when entry is already absent")
+    _AssertTrue(_HotkeyRegistry_SetStartupEnabled(False), "repeated unchecked startup saves succeed")
+    $g_iTestRegistryDeleteResult = 1
+    _AssertTrue(_HotkeyRegistry_SetStartupEnabled(False), "unchecked startup removes an existing entry")
+    $g_iTestRegistryDeleteResult = 2
+    $g_iTestRegistryDeleteError = -1
+    Local $bResult = _HotkeyRegistry_SetStartupEnabled(False)
+    Local $iError = @error, $iDetail = @extended
+    _AssertFalse($bResult, "native RegDelete failure code 2 is rejected")
+    _AssertEqual(2, $iError, "startup delete failure reports operation")
+    _AssertEqual(-1, $iDetail, "startup delete failure retains native error detail")
+    $g_iTestRegistryDeleteError = 0
+    _AssertFalse(_HotkeyRegistry_SetStartupEnabled(False), "delete failure is rejected even without an error flag")
+    $g_iTestRegistryDeleteError = -1
+    _HotkeyRegistry_ResetRegistryBackend()
 EndFunc
 
 Func _TestMonitorEnum()

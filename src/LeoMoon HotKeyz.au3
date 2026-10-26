@@ -17,8 +17,8 @@
 #pragma compile(FileDescription, LeoMoon HotKeyz)
 #pragma compile(FileVersion, 1.8.12.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
-#pragma compile(CompanyName, LeoMoon Studios Inc.)
-#pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
+#pragma compile(CompanyName, LeoMoon Studios)
+#pragma compile(LegalTrademarks, LeoMoon Studios)
 #pragma compile(ProductVersion, 1.8.12.0)
 
 #include <Misc.au3>

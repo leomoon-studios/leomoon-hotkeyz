@@ -52,3 +52,5 @@ Global Enum $GUI_STATE_WINDOW_VISIBLE = 0, _
             $GUI_STATE_COUNT
 
 Global $g_aGuiState[$GUI_STATE_COUNT]
+; Uninitialized array entries are empty strings, which do not compare equal to False.
+$g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = False

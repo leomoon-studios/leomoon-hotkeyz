@@ -17,6 +17,7 @@ Global Enum $ACTION_ROUTE_NONE = 0, _
 
 Global Const $ACTION_DISPATCH_ERROR_INVALID = 1
 Global Const $ACTION_DISPATCH_ERROR_HANDLER = 2
+Global Const $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND = 3
 
 Func _ActionDispatcher_GetRoute($sAction)
     Switch $sAction
@@ -48,13 +49,18 @@ Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags)
         _HotkeyCodec_ExpandTags($aRecord[$HOTKEY_FIELD_TARGET], $aTags), _
         _HotkeyCodec_ExpandTags($aRecord[$HOTKEY_FIELD_PARAMETERS], $aTags), _
         $aRecord[$HOTKEY_FIELD_OPTIONS])
+    ; Only concrete filesystem paths can be checked here. Bare commands such as
+    ; code and shell namespaces must still be resolved by ShellExecute.
+    If $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE Or $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FOLDER Then
+        If StringRegExp($aPrepared[$HOTKEY_FIELD_TARGET], "(?i)^(?:[A-Z]:\\|\\\\)") And Not FileExists($aPrepared[$HOTKEY_FIELD_TARGET]) Then Return SetError($ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND, 0, 0)
+    EndIf
     If Not _ActionValidator_ValidateRecord($aPrepared, True) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @error, 0)
     Return $aPrepared
 EndFunc
 
 Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags)
     Local $aPrepared = _ActionDispatcher_Prepare($aRecord, $aTags)
-    If @error Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @extended, False)
+    If @error Then Return SetError(@error, @extended, False)
     Local $sVerb = ""
     If _HotkeyModel_HasOption($aPrepared, $HOTKEY_OPTION_ADMIN) Then $sVerb = "runas"
     Local $bSingleton = _HotkeyModel_HasOption($aPrepared, $HOTKEY_OPTION_SINGLETON)

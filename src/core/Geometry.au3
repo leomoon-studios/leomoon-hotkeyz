@@ -60,6 +60,8 @@ Func _Geometry_CalculateActionRect($sAction, ByRef $aArea, ByRef $aCurrent)
     Local $iWidth = _Geometry_WorkWidth($aArea)
     Local $iHeight = _Geometry_WorkHeight($aArea)
     Switch $sAction
+        Case "Resize 3x2"
+            Return _Geometry_CreateRect($aCurrent[$WINDOW_RECT_X], $aCurrent[$WINDOW_RECT_Y], Floor($iWidth / 3), Floor($iHeight / 2))
         Case "Move Center"
             Return _Geometry_CreateRect($aArea[$WORK_AREA_LEFT] + Floor(($iWidth - $aCurrent[$WINDOW_RECT_WIDTH]) / 2), $aArea[$WORK_AREA_TOP] + Floor(($iHeight - $aCurrent[$WINDOW_RECT_HEIGHT]) / 2), $aCurrent[$WINDOW_RECT_WIDTH], $aCurrent[$WINDOW_RECT_HEIGHT])
         Case "Move Top Left"

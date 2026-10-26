@@ -38,7 +38,22 @@ If Not _strCompare("HotKeyz", "HotKeyz") Or Not _almostEqual(10, 12, 0, 5) Then
     Exit 1
 EndIf
 
-ConsoleWrite("PASSED: noninteractive module composition smoke test" & @CRLF)
+Global $aIncompleteSpecial = _HotkeyEditor_ResolveSpecial("", "Empty Clipboard")
+Global $iSpecialError = @error
+If IsArray($aIncompleteSpecial) Or $iSpecialError = 0 Then
+    ConsoleWrite("FAIL: incomplete special action must retain its decoding error" & @CRLF)
+    Exit 1
+EndIf
+Global $i, $aSpecial
+For $i = 0 To UBound($sPaths, 1) - 1
+    $aSpecial = _HotkeyEditor_ResolveSpecial("^!a", $sPaths[$i][0])
+    If @error Or Not IsArray($aSpecial) Then
+        ConsoleWrite("FAIL: special action could not be decoded: " & $sPaths[$i][0] & @CRLF)
+        Exit 1
+    EndIf
+Next
+
+ConsoleWrite("PASSED: noninteractive module composition and special-action smoke test" & @CRLF)
 Exit 0
 
 Func _SmokeRegistryInitializer($sIniFile)

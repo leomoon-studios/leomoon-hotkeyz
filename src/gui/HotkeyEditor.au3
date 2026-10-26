@@ -468,7 +468,7 @@ EndFunc
 
 Func _HotkeyEditor_Commit($iListIndex)
     Local $aRecord = _HotkeyEditor_ReadRecord()
-    If @error Then Return _HotkeyEditor_ShowError(_HotkeyEditor_ErrorMessage(@error, @extended))
+    If @error Or Not IsArray($aRecord) Then Return _HotkeyEditor_ShowError(_HotkeyEditor_ErrorMessage(@error, @extended))
     If _HotkeyEditor_HasDuplicate($aRecord[$HOTKEY_FIELD_HOTKEY], $iListIndex) Then Return _HotkeyEditor_ShowError("That hotkey is already assigned")
     Local $sRow = _HotkeyEditor_RecordRow($aRecord)
     If @error Then Return _HotkeyEditor_ShowError("The selected action could not be displayed")
@@ -511,9 +511,10 @@ Func _HotkeyEditor_ReadRecord()
         $sTarget = _HotkeyEditor_ResolveFolder(GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]))
     ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED Then
         Local $aSpecial = _HotkeyEditor_ResolveSpecial(_HotkeyCodec_EncodeHotkey($sHotkey), GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]))
-        If @error Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
+        If @error Or Not IsArray($aSpecial) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
         Local $aSpecialValues = _HotkeyEditorModel_CreateValues($aSpecial[$HOTKEY_FIELD_HOTKEY], $aSpecial[$HOTKEY_FIELD_ACTION], $aSpecial[$HOTKEY_FIELD_TARGET], $aSpecial[$HOTKEY_FIELD_PARAMETERS], $iOptions)
-        Return _HotkeyEditorModel_ToRecord($aSpecialValues, True)
+        Local $aSpecialRecord = _HotkeyEditorModel_ToRecord($aSpecialValues, True)
+        Return SetError(@error, @extended, $aSpecialRecord)
     ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) = $GUI_CHECKED Then
         $sAction = $HOTKEY_ACTION_WINDOW
         $sTarget = GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO])
@@ -527,7 +528,8 @@ Func _HotkeyEditor_ReadRecord()
         Return SetError($EDITOR_MODEL_ERROR_INPUT, 0, 0)
     EndIf
     Local $aValues = _HotkeyEditorModel_CreateValues(_HotkeyCodec_EncodeHotkey($sHotkey), $sAction, $sTarget, $sParameters, $iOptions, GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) = $GUI_CHECKED, GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) = $GUI_CHECKED, GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT]))
-    Return _HotkeyEditorModel_ToRecord($aValues, True)
+    Local $aRecord = _HotkeyEditorModel_ToRecord($aValues, True)
+    Return SetError(@error, @extended, $aRecord)
 EndFunc
 
 Func _HotkeyEditor_ResolveFolder($sDisplay)
@@ -541,7 +543,10 @@ EndFunc
 Func _HotkeyEditor_ResolveSpecial($sHotkey, $sLabel)
     Local $i
     For $i = 0 To UBound($sPaths, 1) - 1
-        If $sLabel = $sPaths[$i][0] Then Return _HotkeyCodec_DecodeLegacy($sHotkey, StringReplace($sPaths[$i][1], " [Parameters] ", $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$i][1]))
+        If $sLabel = $sPaths[$i][0] Then
+            Local $aRecord = _HotkeyCodec_DecodeLegacy($sHotkey, StringReplace($sPaths[$i][1], " [Parameters] ", $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$i][1]))
+            Return SetError(@error, @extended, $aRecord)
+        EndIf
     Next
     Return SetError(1, 0, 0)
 EndFunc

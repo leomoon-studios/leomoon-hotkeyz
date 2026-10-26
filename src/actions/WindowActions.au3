@@ -77,23 +77,33 @@ EndFunc
 Func _WinGetTrans($hWnd, ByRef $iTransparency, $bAsColorRef = False)
     Local $iColor = -1
     $iTransparency = -1
+    Local $iStyle = _WinAPI_GetWindowLong($hWnd, $GWL_EXSTYLE)
+    If @error Then Return SetError(1, @error, 0)
+    ; Ordinary windows have no layered attributes yet and start fully opaque.
+    If Not BitAND($iStyle, $WS_EX_LAYERED) Then
+        $iTransparency = 255
+        Return $LWA_ALPHA
+    EndIf
     Local $aResult = Call($g_sLayeredAttributesHandler, $hWnd, $iColor, $iTransparency)
     If @error Or Not IsArray($aResult) Or Not $aResult[0] Then Return SetError(1, @error, 0)
     If Not $bAsColorRef Then $aResult[2] = Int(BinaryMid($aResult[2], 3, 1) & BinaryMid($aResult[2], 2, 1) & BinaryMid($aResult[2], 1, 1))
-    $iTransparency = $aResult[3]
+    $iTransparency = 255
+    If BitAND($aResult[4], $LWA_ALPHA) Then $iTransparency = $aResult[3]
     Return $aResult[4]
 EndFunc
 
 Func _transPlus($hWnd)
     Local $iTransparency
-    If Not _WinGetTrans($hWnd, $iTransparency) Then Return SetError(1, @error, False)
+    _WinGetTrans($hWnd, $iTransparency)
+    If @error Then Return SetError(1, @error, False)
     If $iTransparency > 17 Then Return WinSetTrans($hWnd, "", $iTransparency - 17) <> 0
     Return WinSetTrans($hWnd, "", 0) <> 0
 EndFunc
 
 Func _transMinus($hWnd)
     Local $iTransparency
-    If Not _WinGetTrans($hWnd, $iTransparency) Then Return SetError(1, @error, False)
+    _WinGetTrans($hWnd, $iTransparency)
+    If @error Then Return SetError(1, @error, False)
     If $iTransparency + 17 > 255 Then Return WinSetTrans($hWnd, "", 255) <> 0
     Return WinSetTrans($hWnd, "", $iTransparency + 17) <> 0
 EndFunc
@@ -275,14 +285,20 @@ Func _WindowActions_Execute($sAction)
     $sAction = StringStripWS($sAction, 7)
     If Not _WindowActions_IsValid($sAction) Then Return SetError(1, 0, False)
     Local $hWnd = WinGetHandle("[ACTIVE]")
-    If Not _isReal($hWnd) Then Return SetError(2, 0, False)
+    ; As in v1.8.12, ignore repeats that land on the desktop or another ineligible
+    ; target after the previous foreground window has been minimized or closed.
+    If Not _isReal($hWnd) Then Return True
     If StringRegExp($sAction, "^(?:Move to -?\d+,-?\d+|Resize to )") Then Return _WindowActions_CustomGeometry($hWnd, $sAction)
     If $sAction = "Move to Next Monitor" Or $sAction = "Move to Previous Monitor" Then
         Local $aMonitors = _monitors()
         If @error Then Return SetError(3, @error, False)
         Return _moveToMonitor($hWnd, $aMonitors, $sAction = "Move to Next Monitor")
     EndIf
-    If StringLeft($sAction, 5) = "Move " Or StringLeft($sAction, 5) = "Snap " Then
+    If StringLeft($sAction, 5) = "Move " Or StringLeft($sAction, 5) = "Snap " Or $sAction = "Resize 3x2" Then
+        ; Legacy resize preserves the restored window's position, not its maximized position.
+        If $sAction = "Resize 3x2" And BitAND(WinGetState($hWnd), 32) Then
+            If Not WinSetState($hWnd, "", @SW_RESTORE) Then Return SetError(4, 0, False)
+        EndIf
         Local $aCurrent = _WindowActions_GetRect($hWnd)
         If @error Then Return SetError(4, @error, False)
         Local $hMonitor = _WinAPI_MonitorFromWindow($hWnd, $MONITOR_DEFAULTTONEAREST)
@@ -291,6 +307,15 @@ Func _WindowActions_Execute($sAction)
         If @error Then Return SetError(6, @error, False)
         Local $aCalculated = _Geometry_CalculateActionRect($sAction, $aArea, $aCurrent)
         If @error Then Return SetError(7, @error, False)
+        If $sAction = "Resize 3x2" And @OSVersion = "WIN_10" Then
+            ; Preserve v1.8.12's allowance for the invisible Windows frame borders.
+            Local $aClient = WinGetClientSize($hWnd)
+            If @error Or Not IsArray($aClient) Then Return SetError(7, @error, False)
+            If $aCurrent[$WINDOW_RECT_WIDTH] - $aClient[0] > 15 Then
+                $aCalculated[$WINDOW_RECT_WIDTH] += 14
+                $aCalculated[$WINDOW_RECT_HEIGHT] += 7
+            EndIf
+        EndIf
         Return _WindowActions_ApplyRect($hWnd, $aCalculated)
     EndIf
     Switch $sAction
@@ -310,6 +335,8 @@ Func _WindowActions_Execute($sAction)
             Return WinClose($hWnd) <> 0
         Case "Minimize"
             Return WinSetState($hWnd, "", @SW_MINIMIZE) <> 0
+        Case "Hide"
+            Return WinSetState($hWnd, "", @SW_HIDE) <> 0
         Case "Terminate"
             Return WinKill($hWnd) <> 0
         Case "Transparency +"

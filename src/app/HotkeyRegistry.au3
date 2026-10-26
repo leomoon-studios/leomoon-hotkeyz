@@ -29,18 +29,22 @@ Func _HotkeyRegistry_ResetRegistryBackend()
 EndFunc
 
 Func _HotkeyRegistry_RegRead($sKey, $sValue)
-    Return RegRead($sKey, $sValue)
+    Local $vResult = RegRead($sKey, $sValue)
+    Return SetError(@error, @extended, $vResult)
 EndFunc
 
 Func _HotkeyRegistry_RegWrite($sKey, $sValue, $sType, $sData)
-    Return RegWrite($sKey, $sValue, $sType, $sData)
+    Local $iResult = RegWrite($sKey, $sValue, $sType, $sData)
+    Return SetError(@error, @extended, $iResult)
 EndFunc
 
 Func _HotkeyRegistry_RegDelete($sKey, $sValue)
-    Return RegDelete($sKey, $sValue)
+    Local $iResult = RegDelete($sKey, $sValue)
+    Return SetError(@error, @extended, $iResult)
 EndFunc
 
 Func _HotkeyRegistry_SetBinding($sHotkey, $sHandler = "")
+    $sHotkey = _HotkeyCodec_ToNativeHotkey($sHotkey)
     If $sHandler = "" Then Return HotKeySet($sHotkey)
     Return HotKeySet($sHotkey, $sHandler)
 EndFunc
@@ -68,8 +72,10 @@ Func _HotkeyRegistry_ClearTable(ByRef $aRecords)
 EndFunc
 
 Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle, ByRef $aNewRecords)
-    If $sOldToggle <> "" And Not _HotkeyRegistry_TrySet($sOldToggle) Then Return SetError(1, 0, False)
-    If Not _HotkeyRegistry_ClearTable($aOldRecords) Then Return SetError(2, 0, False)
+    ; HotKeySet returns 0 when removing an already unregistered shortcut (for example,
+    ; while disabled or after a startup conflict). Still release every old binding.
+    If $sOldToggle <> "" Then _HotkeyRegistry_TrySet($sOldToggle)
+    _HotkeyRegistry_ClearTable($aOldRecords)
     If Not _HotkeyRegistry_TrySet($sNewToggle, "_toggle") Then
         _HotkeyRegistry_RestoreBindings($sOldToggle, $aOldRecords)
         Return SetError(3, 0, False)
@@ -85,8 +91,13 @@ Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle,
 EndFunc
 
 Func _HotkeyRegistry_RestoreBindings($sToggle, ByRef $aRecords)
-    If $sToggle <> "" And Not _HotkeyRegistry_TrySet($sToggle, "_toggle") Then Return False
-    Return _HotkeyRegistry_SetTable($aRecords, "HotKeyPressed")
+    Local $bSuccess = True, $i
+    If $sToggle <> "" And Not _HotkeyRegistry_TrySet($sToggle, "_toggle") Then $bSuccess = False
+    ; A conflict on one old shortcut must not prevent restoring the others.
+    For $i = 1 To _HotkeyRepository_Count($aRecords)
+        If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then $bSuccess = False
+    Next
+    Return $bSuccess
 EndFunc
 
 Func _HotkeyRegistry_Initialize($sIniFile)
@@ -112,12 +123,18 @@ EndFunc
 
 Func _HotkeyRegistry_SetStartupEnabled($bEnabled)
     If $bEnabled Then
-        If Not Call($g_sRegistryWriteHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE, "REG_SZ", '"' & @ScriptFullPath & '"') Then Return SetError(1, @error, False)
+        Local $iWriteResult = Call($g_sRegistryWriteHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE, "REG_SZ", '"' & @ScriptFullPath & '"')
+        If @error Or $iWriteResult <> 1 Then Return SetError(1, @error, False)
         Return True
     EndIf
     Call($g_sRegistryReadHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
-    If @error Then Return True
-    If Not Call($g_sRegistryDeleteHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE) Then Return SetError(2, @error, False)
+    Local $iReadError = @error
+    ; An absent value already satisfies an unchecked startup setting.
+    If $iReadError = -1 Then Return True
+    If $iReadError <> 0 And $iReadError <> 1 Then Return SetError(2, $iReadError, False)
+    ; RegDelete returns 0 when already absent, 1 when deleted, and 2 on failure.
+    Local $iDeleteResult = Call($g_sRegistryDeleteHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
+    If @error Or ($iDeleteResult <> 0 And $iDeleteResult <> 1) Then Return SetError(2, @error, False)
     Return True
 EndFunc
 
@@ -132,18 +149,25 @@ Func HotKeyPressed()
 EndFunc
 
 Func _HotkeyRegistry_FindHotkey($sHotkey)
+    Local $sNormalized = _HotkeyCodec_NormalizeHotkey($sHotkey)
     Local $i
     For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-        If $aHotkeys[$i][$HOTKEY_FIELD_HOTKEY] = $sHotkey Then Return $i
+        If _HotkeyCodec_NormalizeHotkey($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) = $sNormalized Then Return $i
     Next
     Return SetError($HOTKEY_REGISTRY_ERROR_NOT_FOUND, 0, 0)
 EndFunc
 
-Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord)
+Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True)
     _aTags()
     If Not _ActionDispatcher_Dispatch($aRecord, $aTags) Then
         Local $iDispatchError = @error
-        _AppError_Report("The hotkey action could not be completed", $HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError)
+        Local $sMessage = "The hotkey action could not be completed."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND Then $sMessage = "The target file or folder does not exist. Update this hotkey's path in Settings."
+        If _HotkeyModel_IsValid($aRecord) Then
+            $sMessage &= @CRLF & @CRLF & "Hotkey: " & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
+            $sMessage &= @CRLF & "Target: " & _HotkeyCodec_ExpandTags($aRecord[$HOTKEY_FIELD_TARGET], $aTags)
+        EndIf
+        _AppError_Report($sMessage, $HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError, $bShowMessage)
         Return SetError($HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError, False)
     EndIf
     Return True

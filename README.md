@@ -28,6 +28,14 @@ On Windows, the same checks can be run directly when an extracted AutoIt toolcha
 & scripts/check.ps1 -ToolchainDirectory C:\path\to\autoit-v3.3.18.0\install
 ```
 
+On an interactive Windows desktop, run the additional GUI regression test without elevation:
+
+```powershell
+& 'C:\Program Files (x86)\AutoIt3\AutoIt3.exe' /ErrorStdOut .\tests\DesktopSmoke.au3 | Out-Host
+```
+
+This creates disposable windows, checks incomplete editor selections, and fires temporary Ctrl+Alt+Shift shortcuts for numpad plus/minus and F24 to verify transparency and minimize through native hotkey callbacks. It removes its windows and bindings afterward and does not write application settings or startup registry values. Keep the test window focused until it closes.
+
 ## Tagged builds from Linux
 
 Pushing an exact `vX.Y.Z` tag starts the [Windows package workflow](.github/workflows/build-release.yml). Its check job validates the tag and runs the full regression suite. Only after those checks pass does the dependent build job compile the x86 application, create a portable ZIP and an unsigned per-user Inno Setup installer, perform a silent install and uninstall test, and upload one artifact containing the packages, release manifest, and checksums. Branch pushes and pull requests run CI checks but never build packages.

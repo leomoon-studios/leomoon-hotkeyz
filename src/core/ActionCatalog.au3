@@ -5,10 +5,12 @@ Global Const $ACTION_CATALOG_WINDOW_ACTIONS = "Close|Minimize|Terminate|Transpar
 Global Const $ACTION_CATALOG_LEGACY_HIGH = "Set Process Priority to Hight"
 
 Func _ActionCatalog_WindowLabels()
-    Return $ACTION_CATALOG_WINDOW_ACTIONS & "|" & $ACTION_CATALOG_CUSTOM_WINDOW
+    Return $ACTION_CATALOG_WINDOW_ACTIONS & "|Resize 3x2|Hide|" & $ACTION_CATALOG_CUSTOM_WINDOW
 EndFunc
 
 Func _ActionCatalog_IsWindowAction($sAction)
+    ; These actions were supported by v1.8.12, including imported profiles.
+    If $sAction = "Resize 3x2" Or $sAction = "Hide" Then Return True
     Return StringInStr("|" & $ACTION_CATALOG_WINDOW_ACTIONS & "|", "|" & $sAction & "|", 1) > 0 Or $sAction = $ACTION_CATALOG_LEGACY_HIGH
 EndFunc
 
