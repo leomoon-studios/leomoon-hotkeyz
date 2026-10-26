@@ -2,6 +2,13 @@
 
 LeoMoon HotKeyz is a Windows tray application for assigning global keyboard shortcuts to programs, folders, URLs, text, media controls, system operations, and active-window actions.
 
+## User documentation
+
+- [Getting started and Settings](docs/getting-started.md) — installation, the tray menu, startup, and adding or editing hotkeys.
+- [Hotkey actions](docs/actions.md) — every action type, its options, system actions, and window actions.
+- [Text and tags](docs/text-and-tags.md) — text insertion, date and user placeholders, and selected-text tools.
+- [Profiles and troubleshooting](docs/profiles-and-troubleshooting.md) — configuration files, moving a profile, recovery, and common problems.
+
 ## Supported systems
 
 Windows 10 and Windows 11 are the target desktop platforms. Continuous integration performs noninteractive syntax and regression checks on the GitHub-hosted Windows Server 2022 image with AutoIt 3.3.18.0. The application is compiled as a 32-bit executable and can run on 64-bit Windows through WOW64.
@@ -65,12 +72,12 @@ The installer offers **Start LeoMoon HotKeyz with Windows for the current user**
 
 The settings interface is the recommended way to create shortcuts. In the INI representation, modifier characters follow AutoIt syntax:
 
-| Modifier | INI character |
-| --- | --- |
-| Ctrl | `^` |
-| Alt | `!` |
-| Shift | `+` |
-| Windows key | `#` |
+| Modifier    | INI character |
+|-------------|---------------|
+| Ctrl        | `^`           |
+| Alt         | `!`           |
+| Shift       | `+`           |
+| Windows key | `#`           |
 
 Named keys use braces, such as `^!{LEFT}` for Ctrl+Alt+Left or `^!{NUMPAD1}` for Ctrl+Alt+Numpad 1. A hotkey must include at least one modifier, and it cannot duplicate the main toggle or another action hotkey. The repository keeps compatibility with version 1.8.12 markers while validating all decoded actions before registration.
 
@@ -82,15 +89,15 @@ The **Advanced command** action runs its value through `cmd.exe /d /c` in a hidd
 
 ## Source layout
 
-| Path | Responsibility |
-| --- | --- |
-| `src/LeoMoon HotKeyz.au3` | Dependency composition, process startup, event loop, and shutdown |
-| `src/core/` | Application constants, action catalogs, typed hotkey records, codecs, validation-independent geometry, and INI persistence |
-| `src/actions/` | Explicit action dispatch plus window, text, process, system, and clipboard operations |
-| `src/app/` | Application composition, tray behavior, global hotkey registration, startup registry access, and user-facing error reporting |
-| `src/gui/` | Main settings window, editor controls, editor model validation, and GUI state |
-| `tests/` | Noninteractive AutoIt assertion runner, fixtures, test doubles, and module smoke test |
-| `scripts/check.ps1` | Strict AutoIt syntax checks and regression-test entry point used by CI |
+| Path                      | Responsibility                                                                                                               |
+|---------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `src/LeoMoon HotKeyz.au3` | Dependency composition, process startup, event loop, and shutdown                                                            |
+| `src/core/`               | Application constants, action catalogs, typed hotkey records, codecs, validation-independent geometry, and INI persistence   |
+| `src/actions/`            | Explicit action dispatch plus window, text, process, system, and clipboard operations                                        |
+| `src/app/`                | Application composition, tray behavior, global hotkey registration, startup registry access, and user-facing error reporting |
+| `src/gui/`                | Main settings window, editor controls, editor model validation, and GUI state                                                |
+| `tests/`                  | Noninteractive AutoIt assertion runner, fixtures, test doubles, and module smoke test                                        |
+| `scripts/check.ps1`       | Strict AutoIt syntax checks and regression-test entry point used by CI                                                       |
 
 ## Third-party code
 

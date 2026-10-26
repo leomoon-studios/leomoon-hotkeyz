@@ -9,6 +9,19 @@
 - Fixed the tray menu Settings command by binding callbacks to their explicit tray item IDs.
 - Hotkey conflicts no longer prevent the application from launching. The app lists unavailable shortcuts and continues with the shortcuts it can register.
 - Changed the default Turn Off Monitors And Lock shortcut from Ctrl + Win + L, which is reserved in Win 11, to Ctrl + Alt + L.
+- Added a Windows installer option to start HotKeyz with Windows for the current user, enabled by default.
+- Added a user guide covering Settings, hotkey actions, text tags, profiles, and troubleshooting.
+- Fixed the Settings window not opening from the tray menu after the GUI refactor.
+- Fixed saving hotkeys when old shortcuts were already unregistered, and improved restoration when registration fails.
+- Fixed a false error when saving with Start with Windows disabled and no startup registry entry present.
+- Fixed a crash when selecting a system action before assigning a complete hotkey.
+- Fixed transparency adjustments on windows that had not previously been made transparent, and corrected Numpad Subtract and Multiply key encoding. Previously saved incorrect spellings are recognized on load.
+- Restored support for the legacy Resize 3x2 and Hide window actions in imported profiles.
+- Fixed tagged folder paths being treated as files before runtime tags such as `<USERNAME>` are expanded.
+- Fixed Unicode profile text being misread, including UTF-8 files without a byte-order mark. Saving now writes a Unicode-compatible INI and retains the previous file as a backup.
+- Fixed file hotkeys to launch with the target file's directory as their working directory, including batch files started after Windows login.
+- Improved missing-target errors to show the affected hotkey and expanded path.
+- Added regression coverage for settings, legacy profiles, Unicode, startup, window actions, and file working directories.
 
 ## 1.8.12 - 2023-06-10
 
