@@ -1,6 +1,8 @@
 #include-once
 
 #include <WinAPIFiles.au3>
+#include <File.au3>
+#include <FileConstants.au3>
 #include "HotkeyCodec.au3"
 
 Global Const $HOTKEY_REPOSITORY_ERROR_READ = 1
@@ -10,6 +12,40 @@ Global Const $HOTKEY_REPOSITORY_ERROR_WRITE = 4
 Global Const $HOTKEY_REPOSITORY_ERROR_VERIFY = 5
 Global Const $HOTKEY_REPOSITORY_ERROR_REPLACE = 6
 Global Const $HOTKEY_REPOSITORY_ERROR_HOTKEY_UNAVAILABLE = 7
+
+; Windows INI APIs treat UTF-8 as the system code page. Convert a copy to
+; UTF-16 for those APIs; never rewrite the original merely to read it.
+Func _HotkeyRepository_CreateUnicodeCopy($sSource, $sDestination)
+    Local $hSource = FileOpen($sSource, $FO_READ + $FO_BINARY)
+    If $hSource = -1 Then Return SetError(1, 0, False)
+    Local $bData = FileRead($hSource)
+    Local $iReadError = @error
+    FileClose($hSource)
+    If $iReadError And $iReadError <> -1 Then Return SetError(2, $iReadError, False)
+    Local $sText, $bContent = $bData
+    If BinaryMid($bData, 1, 2) = Binary("0xFFFE") Then
+        If Mod(BinaryLen($bData) - 2, 2) Then Return SetError(5, 0, False)
+        $sText = BinaryToString(BinaryMid($bData, 3), 2)
+    ElseIf BinaryMid($bData, 1, 2) = Binary("0xFEFF") Then
+        If Mod(BinaryLen($bData) - 2, 2) Then Return SetError(5, 0, False)
+        $sText = BinaryToString(BinaryMid($bData, 3), 3)
+    Else
+        Local $bUtf8Bom = BinaryMid($bData, 1, 3) = Binary("0xEFBBBF")
+        If $bUtf8Bom Then $bContent = BinaryMid($bData, 4)
+        $sText = BinaryToString($bContent, 4)
+        ; Invalid UTF-8 is a legacy ANSI file in the current Windows code page.
+        If StringToBinary($sText, 4) <> $bContent Then
+            If $bUtf8Bom Then Return SetError(5, 0, False)
+            $sText = BinaryToString($bData, 1)
+        EndIf
+    EndIf
+    Local $hDestination = FileOpen($sDestination, $FO_OVERWRITE + $FO_UTF16_LE)
+    If $hDestination = -1 Then Return SetError(3, 0, False)
+    Local $bWritten = FileWrite($hDestination, $sText)
+    FileClose($hDestination)
+    If Not $bWritten Then Return SetError(4, 0, False)
+    Return True
+EndFunc
 
 Func _HotkeyRepository_CreateTable($iCount)
     If Not IsInt($iCount) Or $iCount < 0 Then Return SetError(1, 0, 0)
@@ -47,8 +83,15 @@ EndFunc
 
 Func _HotkeyRepository_Load($sIniFile)
     If Not FileExists($sIniFile) Then Return SetError($HOTKEY_REPOSITORY_ERROR_READ, 0, 0)
-    Local $aSection = IniReadSection($sIniFile, "Hotkeys")
-    If @error Then Return _HotkeyRepository_CreateTable(0)
+    Local $sReadCopy = _TempFile(@TempDir, "hotkeyz-read-", ".ini")
+    If Not _HotkeyRepository_CreateUnicodeCopy($sIniFile, $sReadCopy) Then
+        FileDelete($sReadCopy)
+        Return SetError($HOTKEY_REPOSITORY_ERROR_READ, 0, 0)
+    EndIf
+    Local $aSection = IniReadSection($sReadCopy, "Hotkeys")
+    Local $iReadError = @error
+    FileDelete($sReadCopy)
+    If $iReadError Then Return _HotkeyRepository_CreateTable(0)
     Local $aRecords = _HotkeyRepository_CreateTable($aSection[0][0])
     Local $i, $j, $sPlainAction, $aRecord, $sNormalized
     For $i = 1 To $aSection[0][0]
@@ -72,9 +115,9 @@ Func _HotkeyRepository_Save($sIniFile, ByRef $aRecords)
     Local $sTemporaryFile = $sIniFile & ".tmp"
     Local $sBackupFile = $sIniFile & ".bak"
     FileDelete($sTemporaryFile)
-    If FileExists($sIniFile) And Not FileCopy($sIniFile, $sTemporaryFile, 1) Then Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 1, False)
+    If FileExists($sIniFile) And Not _HotkeyRepository_CreateUnicodeCopy($sIniFile, $sTemporaryFile) Then Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 1, False)
     If Not FileExists($sTemporaryFile) Then
-        Local $hTemporaryFile = FileOpen($sTemporaryFile, 2)
+        Local $hTemporaryFile = FileOpen($sTemporaryFile, $FO_OVERWRITE + $FO_UTF16_LE)
         If $hTemporaryFile = -1 Then Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 2, False)
         FileClose($hTemporaryFile)
     EndIf

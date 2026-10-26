@@ -55,6 +55,8 @@ After the run succeeds, download its artifact with `gh run download RUN_ID`. The
 
 The application stores `LeoMoon HotKeyz.ini` beside the executable. The `[Options]` section contains the main enable or disable shortcut, and the `[Hotkeys]` section contains action shortcuts.
 
+Profiles are read as UTF-8 (with or without a byte-order mark), UTF-16 with a byte-order mark, or the current Windows ANSI code page for byte sequences that are not valid UTF-8. Because unmarked UTF-8 and ANSI can be ambiguous, valid UTF-8 takes precedence. A successful save writes UTF-16 with a byte-order mark so Windows and AutoIt can preserve Unicode text.
+
 Configuration saves use a temporary `LeoMoon HotKeyz.ini.tmp` file. A successful replacement keeps the previous configuration as `LeoMoon HotKeyz.ini.bak` in the same directory. If a save is interrupted or rejected, retain the live file and use the `.bak` file for recovery if needed.
 
 The installer offers **Start LeoMoon HotKeyz with Windows for the current user**, checked by default. It uses the same setting as **Start with Windows** in the app: a value in the current user's `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` registry key. Unchecking the installer option removes that value; uninstalling removes the value created by the installer. Neither requires administrator rights.

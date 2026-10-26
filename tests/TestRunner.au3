@@ -28,6 +28,7 @@ _TestCodecRoundTrips()
 _TestTags()
 _TestTaggedPaths()
 _TestLegacyFixtures()
+_TestIniEncoding()
 _TestLegacyWindowActions()
 _TestRepositoryRecovery()
 _TestActionValidationAndDispatch()
@@ -638,6 +639,75 @@ Func _TestLegacyFixtures()
     Local $iDuplicateError = @error
     _AssertFalse(IsArray($aDuplicate), "reject duplicate hotkeys")
     _AssertEqual($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $iDuplicateError, "duplicate error code")
+EndFunc
+
+Func _TestIniEncoding()
+    Local $sBase = @TempDir & "\hotkeyz-encoding-" & @AutoItPID
+    Local $sUnicode = ChrW(0x00A9) & " 2012 LeoMoon Studios" & ChrW(0x00AE) & " " & ChrW(0x4E16) & ChrW(0x754C)
+    Local $sContent = "[Options]" & @CRLF & "Main=^#," & @CRLF & "Other=" & $sUnicode & @CRLF & "[Hotkeys]" & @CRLF & "^!a=[HkzSndTxt]" & $sUnicode & @CRLF
+    Local $aModes[4] = [$FO_UTF8_NOBOM, $FO_UTF8, $FO_UTF16_LE, $FO_UTF16_BE]
+    Local $i, $sPath, $hFile, $aRecords, $bBefore, $aSaved, $sBackup
+    For $i = 0 To UBound($aModes) - 1
+        $sPath = $sBase & "-" & $i & ".ini"
+        $sBackup = $sPath & ".bak"
+        $hFile = FileOpen($sPath, $FO_OVERWRITE + $aModes[$i])
+        FileWrite($hFile, $sContent)
+        FileClose($hFile)
+        $hFile = FileOpen($sPath, $FO_READ + $FO_BINARY)
+        $bBefore = FileRead($hFile)
+        FileClose($hFile)
+        $aRecords = _HotkeyRepository_Load($sPath)
+        _AssertTrue(IsArray($aRecords), "load Unicode profile encoding " & $i)
+        If IsArray($aRecords) Then
+            _AssertEqual($sUnicode, $aRecords[1][$HOTKEY_FIELD_TARGET], "decode Unicode profile encoding " & $i)
+            $hFile = FileOpen($sPath, $FO_READ + $FO_BINARY)
+            _AssertEqual($bBefore, FileRead($hFile), "loading leaves original bytes unchanged " & $i)
+            FileClose($hFile)
+            _AssertTrue(_HotkeyRepository_Save($sPath, $aRecords), "save Unicode profile encoding " & $i)
+            $aSaved = _HotkeyRepository_Load($sPath)
+            _AssertTrue(IsArray($aSaved), "reload saved Unicode profile " & $i)
+            If IsArray($aSaved) Then _AssertEqual($sUnicode, $aSaved[1][$HOTKEY_FIELD_TARGET], "saved Unicode text survives " & $i)
+            _AssertEqual($sUnicode, IniRead($sPath, "Options", "Other", ""), "other sections survive Unicode migration " & $i)
+            $hFile = FileOpen($sBackup, $FO_READ + $FO_BINARY)
+            _AssertTrue($hFile <> -1, "original profile backup exists " & $i)
+            If $hFile <> -1 Then
+                _AssertEqual($bBefore, FileRead($hFile), "backup preserves original bytes " & $i)
+                FileClose($hFile)
+            EndIf
+        EndIf
+        FileDelete($sPath)
+        FileDelete($sBackup)
+        FileDelete($sPath & ".tmp")
+    Next
+
+    ; An ANSI profile can contain bytes that are invalid UTF-8.
+    $sPath = $sBase & "-ansi.ini"
+    $hFile = FileOpen($sPath, $FO_OVERWRITE + $FO_BINARY)
+    FileWrite($hFile, Binary("0x5B486F746B6579735D0D0A5E21613D5B486B7A536E645478745DE90D0A"))
+    FileClose($hFile)
+    $aRecords = _HotkeyRepository_Load($sPath)
+    _AssertTrue(IsArray($aRecords), "load legacy ANSI profile")
+    If IsArray($aRecords) Then
+        _AssertEqual(BinaryToString(Binary("0xE9"), 1), $aRecords[1][$HOTKEY_FIELD_TARGET], "legacy ANSI uses Windows code page")
+        _AssertTrue(_HotkeyRepository_Save($sPath, $aRecords), "save legacy ANSI profile")
+        $aSaved = _HotkeyRepository_Load($sPath)
+        If IsArray($aSaved) Then
+            _AssertEqual($aRecords[1][$HOTKEY_FIELD_TARGET], $aSaved[1][$HOTKEY_FIELD_TARGET], "legacy ANSI text survives save")
+        Else
+            _AssertTrue(False, "reload saved legacy ANSI profile")
+        EndIf
+    EndIf
+    FileDelete($sPath)
+    FileDelete($sPath & ".bak")
+    FileDelete($sPath & ".tmp")
+
+    $sPath = $sBase & "-invalid.ini"
+    $hFile = FileOpen($sPath, $FO_OVERWRITE + $FO_BINARY)
+    FileWrite($hFile, Binary("0xEFBBBFFF"))
+    FileClose($hFile)
+    $aRecords = _HotkeyRepository_Load($sPath)
+    _AssertFalse(IsArray($aRecords), "reject invalid UTF-8 with a UTF-8 BOM")
+    FileDelete($sPath)
 EndFunc
 
 Func _TestRepositoryRecovery()
