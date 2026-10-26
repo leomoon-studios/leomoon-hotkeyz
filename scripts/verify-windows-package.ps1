@@ -97,8 +97,11 @@ function Invoke-CheckedProcess {
 }
 
 $installerVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($installerPath)
-if ($installerVersion.FileVersion -ne "$Version.0" -or $installerVersion.ProductVersion -ne "$Version.0") {
-    throw "Installer does not contain file and product version $Version.0"
+$expectedInstallerVersion = [System.Version]::Parse("$Version.0")
+$installerFileVersion = [System.Version]::new($installerVersion.FileMajorPart, $installerVersion.FileMinorPart, $installerVersion.FileBuildPart, $installerVersion.FilePrivatePart)
+$installerProductVersion = [System.Version]::new($installerVersion.ProductMajorPart, $installerVersion.ProductMinorPart, $installerVersion.ProductBuildPart, $installerVersion.ProductPrivatePart)
+if ($installerFileVersion -ne $expectedInstallerVersion -or $installerProductVersion -ne $expectedInstallerVersion) {
+    throw "Installer version mismatch. Expected $expectedInstallerVersion, file version $installerFileVersion, product version $installerProductVersion"
 }
 
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) "leomoon-hotkeyz-package-$([System.Guid]::NewGuid().ToString('N'))"
