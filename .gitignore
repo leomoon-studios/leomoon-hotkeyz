@@ -6,5 +6,6 @@
 .vscode/
 
 build/
+dist/
 *.ini
 !tests/fixtures/*.ini

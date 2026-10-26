@@ -28,6 +28,20 @@ On Windows, the same checks can be run directly when an extracted AutoIt toolcha
 & scripts/check.ps1 -ToolchainDirectory C:\path\to\autoit-v3.3.18.0\install
 ```
 
+## Test builds from Linux
+
+The manual [Windows package workflow](.github/workflows/build-release.yml) accepts an `X.Y.Z` version, runs the full regression suite, builds the x86 application, creates a portable ZIP and an unsigned per-user Inno Setup installer, performs a silent install and uninstall test, and uploads one artifact containing the packages, release manifest, and checksums. Manual runs create workflow artifacts only and do not publish a GitHub Release.
+
+From an authenticated GitHub CLI session on Linux, start and follow a test build with:
+
+```bash
+gh workflow run build-release.yml --ref your-branch -f version=1.8.12
+gh run list --workflow build-release.yml --limit 1
+gh run watch
+```
+
+After the run succeeds, download its artifact with `gh run download RUN_ID`. The extracted artifact must contain only the portable ZIP, setup executable, `release-manifest.json`, and `SHA256SUMS`.
+
 ## Configuration and recovery
 
 The application stores `LeoMoon HotKeyz.ini` beside the executable. The `[Options]` section contains the main enable or disable shortcut, and the `[Hotkeys]` section contains action shortcuts.
