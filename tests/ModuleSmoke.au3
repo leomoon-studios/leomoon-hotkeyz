@@ -7,6 +7,7 @@
 #include "..\src\actions\SystemActions.au3"
 #include "..\src\actions\WindowActions.au3"
 #include "..\src\actions\ProcessActions.au3"
+#include "..\src\actions\ActionDispatcher.au3"
 #include "..\src\app\HotkeyRegistry.au3"
 #include "..\src\app\TrayController.au3"
 #include "..\src\gui\HotkeyEditor.au3"

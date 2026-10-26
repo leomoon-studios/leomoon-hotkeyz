@@ -20,7 +20,7 @@ Func _editGui($name)
     $g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT] = GUICtrlCreateInput("", 145, 88, 247, 22)
     $g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX] = GUICtrlCreateCheckbox("Run as admin", 17, 121, 113, 17)
     $g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX] = GUICtrlCreateCheckbox("Singleton", 152, 121, 113, 17)
-    $g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX] = GUICtrlCreateCheckbox("Batch command", 281, 120, 113, 17)
+    $g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX] = GUICtrlCreateCheckbox("Advanced command", 265, 120, 129, 17)
     $g_aGuiState[$GUI_STATE_FOLDER_RADIO] = GUICtrlCreateRadio("Open a folder", 17, 152, 369, 17)
     $g_aGuiState[$GUI_STATE_FOLDER_INPUT] = GUICtrlCreateInput("", 17, 178, 271, 22)
     GUICtrlSetState(-1, $GUI_DISABLE)
@@ -83,7 +83,7 @@ Func _editGui($name)
     GUICtrlSetTip($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX], 'Runs program as administrator.', 'Run as admin', 1)
     GUICtrlSetTip($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX], 'Runs program only if there are no'&@CR& _
                             'process running with that name.', 'Singleton', 1)
-    GUICtrlSetTip($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX], 'Runs batch command in a hidden command prompt.'&@CR& _
+    GUICtrlSetTip($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX], 'Runs an advanced command in a hidden command prompt.'&@CR& _
                             ''&@CR& _
                             'Examples:'&@CR& _
                             'net stop "ServiceName" && net start "ServiceName"'&@CR& _
@@ -150,7 +150,7 @@ Func _cmdCbox()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX], $GUI_UNCHECKED)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX], $GUI_DISABLE)
-        GUICtrlSetData($g_aGuiState[$GUI_STATE_FILE_RADIO], 'Run a Batch command')
+        GUICtrlSetData($g_aGuiState[$GUI_STATE_FILE_RADIO], 'Run an advanced command')
     Else
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT], $GUI_ENABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $GUI_ENABLE)
@@ -395,7 +395,7 @@ Func _add()
             If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) == 1 Then
                 $fileParam = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT])
                 If GUICtrlRead($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX]) == $GUI_CHECKED Then
-                    GUICtrlCreateListViewItem('Command'&'|'&$childRead&'|'&$fileParam&'|'&$opts, $g_aGuiState[$GUI_STATE_LIST_VIEW])
+                    GUICtrlCreateListViewItem('Advanced Command'&'|'&$childRead&'|'&$fileParam&'|'&$opts, $g_aGuiState[$GUI_STATE_LIST_VIEW])
                 Else
                     If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT]) <> '' Then $fileParam = $fileParam&' [Parameters] '&GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT])
                     GUICtrlCreateListViewItem('File'&'|'&$childRead&'|'&$fileParam&'|'&$opts, $g_aGuiState[$GUI_STATE_LIST_VIEW])
@@ -636,7 +636,7 @@ Func _edit()
                 $fileParam = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT])
                 If GUICtrlRead($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX]) == $GUI_CHECKED Then
                     _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $fileParam, 2)
-                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'Command', 0)
+                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'Advanced Command', 0)
                 Else
                     If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT]) <> '' Then $fileParam = $fileParam&' [Parameters] '&GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT])
                     _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $fileParam, 2)

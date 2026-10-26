@@ -32,6 +32,7 @@
 #include <actions\SystemActions.au3>
 #include <actions\WindowActions.au3>
 #include <actions\ProcessActions.au3>
+#include <actions\ActionDispatcher.au3>
 #include <app\HotkeyRegistry.au3>
 #include <app\TrayController.au3>
 #include <gui\HotkeyEditor.au3>

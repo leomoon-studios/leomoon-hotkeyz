@@ -1,4 +1,5 @@
 #include "..\src\core\HotkeyRepository.au3"
+#include "..\src\actions\ActionDispatcher.au3"
 
 Opt("MustDeclareVars", 1)
 
@@ -10,6 +11,7 @@ _TestCodecRoundTrips()
 _TestTags()
 _TestLegacyFixtures()
 _TestRepositoryRecovery()
+_TestActionValidationAndDispatch()
 
 If $g_iFailures Then
     ConsoleWrite("FAILED: " & $g_iFailures & " of " & $g_iAssertions & " assertions" & @CRLF)
@@ -113,6 +115,76 @@ Func _TestRepositoryRecovery()
     FileDelete($sTestFile)
     FileDelete($sBackupFile)
     FileDelete($sTemporaryFile)
+EndFunc
+
+Func _TestActionValidationAndDispatch()
+    Local $aSystemActions[10][2] = [ _
+        ["Empty Recycle Bin", $SYSTEM_ACTION_EMPTY_RECYCLE_BIN], _
+        ["Lock", $SYSTEM_ACTION_LOCK], _
+        ["Log Off", $SYSTEM_ACTION_LOG_OFF], _
+        ["Restart", $SYSTEM_ACTION_RESTART], _
+        ["Shutdown", $SYSTEM_ACTION_SHUTDOWN], _
+        ["Turn Off Monitors", $SYSTEM_ACTION_TURN_OFF_MONITORS], _
+        ["Turn Off Monitors And Lock", $SYSTEM_ACTION_TURN_OFF_MONITORS_AND_LOCK], _
+        ["Start Screensaver", $SYSTEM_ACTION_START_SCREENSAVER], _
+        ["Start Screensaver And Lock", $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK], _
+        ["Empty Clipboard", $SYSTEM_ACTION_EMPTY_CLIPBOARD]]
+    Local $i
+    For $i = 0 To UBound($aSystemActions, 1) - 1
+        _AssertEqual($aSystemActions[$i][1], _SystemActions_GetId($aSystemActions[$i][0]), "allowed system action has fixed handler: " & $aSystemActions[$i][0])
+    Next
+    _AssertEqual($SYSTEM_ACTION_NONE, _SystemActions_GetId("RunAnything"), "unknown system action has no handler")
+    Local $sSystemSource = FileRead(@ScriptDir & "\..\src\actions\SystemActions.au3")
+    _AssertFalse(StringRegExp($sSystemSource, "(?m)^\s*Execute\(") = 1, "system action module has no dynamic Execute call")
+
+    Local $aTamperedTable = _HotkeyRepository_Load(@ScriptDir & "\fixtures\tampered-system.ini")
+    _AssertFalse(@error, "tampered fixture remains parseable legacy data")
+    Local $aTampered = _HotkeyRepository_GetRecord($aTamperedTable, 1)
+    _AssertFalse(_ActionValidator_ValidateRecord($aTampered, False), "tampered system identifier is rejected")
+    Local $aNoTags[1][2] = [["<NONE>", ""]]
+    Local $aPreparedTampered = _ActionDispatcher_Prepare($aTampered, $aNoTags)
+    _AssertFalse(IsArray($aPreparedTampered), "tampered system identifier cannot reach dispatch")
+
+    Local $aActions[8][2] = [ _
+        [$HOTKEY_ACTION_FILE, $ACTION_ROUTE_FILE], _
+        [$HOTKEY_ACTION_FOLDER, $ACTION_ROUTE_FOLDER], _
+        [$HOTKEY_ACTION_URL, $ACTION_ROUTE_URL], _
+        [$HOTKEY_ACTION_TEXT, $ACTION_ROUTE_TEXT], _
+        [$HOTKEY_ACTION_WINDOW, $ACTION_ROUTE_WINDOW], _
+        [$HOTKEY_ACTION_COMMAND, $ACTION_ROUTE_COMMAND], _
+        [$HOTKEY_ACTION_SYSTEM, $ACTION_ROUTE_SYSTEM], _
+        [$HOTKEY_ACTION_MEDIA, $ACTION_ROUTE_MEDIA]]
+    For $i = 0 To UBound($aActions, 1) - 1
+        _AssertEqual($aActions[$i][1], _ActionDispatcher_GetRoute($aActions[$i][0]), "explicit route for action: " & $aActions[$i][0])
+    Next
+    _AssertEqual($ACTION_ROUTE_NONE, _ActionDispatcher_GetRoute("tampered"), "unknown action has no route")
+
+    Local $sSpacedPath = @TempDir & "\HotKeyz Step 4 " & @AutoItPID & ".exe"
+    Local $hSpacedFile = FileOpen($sSpacedPath, 2)
+    _AssertTrue($hSpacedFile <> -1, "create path-with-spaces fixture")
+    If $hSpacedFile <> -1 Then FileClose($hSpacedFile)
+    Local $aFile = _HotkeyModel_Create("^!p", $HOTKEY_ACTION_FILE, $sSpacedPath, '--name "value with spaces"')
+    _AssertTrue(_ActionValidator_ValidateRecord($aFile, True), "existing executable path with spaces is valid")
+    Local $aPreparedFile = _ActionDispatcher_Prepare($aFile, $aNoTags)
+    _AssertTrue(IsArray($aPreparedFile), "path with spaces reaches its fixed route")
+    If IsArray($aPreparedFile) Then
+        _AssertEqual($sSpacedPath, $aPreparedFile[$HOTKEY_FIELD_TARGET], "path with spaces is preserved")
+        _AssertEqual('--name "value with spaces"', $aPreparedFile[$HOTKEY_FIELD_PARAMETERS], "file parameters are preserved exactly")
+    EndIf
+    FileDelete($sSpacedPath)
+
+    _AssertEqual('"C:\Program Files\Tool App\tool.exe"', _ProcessActions_QuoteArgument("C:\Program Files\Tool App\tool.exe"), "argument quoting preserves spaces")
+    _AssertEqual('/d /c echo "hello world" && tool /x', _ProcessActions_BuildCommandArguments('echo "hello world" && tool /x'), "advanced command arguments are exact")
+    _AssertEqual("Advanced Command", _HotkeyModel_ActionLabel($HOTKEY_ACTION_COMMAND), "command action is explicitly labeled advanced")
+    _AssertTrue(_WindowActions_IsValid("Move to -20,30 & Resize to 800x600"), "valid custom geometry")
+    _AssertFalse(_WindowActions_IsValid("Move to 1,2 & Resize to -1x600"), "invalid custom geometry")
+
+    Local $aBadUrl = _HotkeyModel_Create("^!u", $HOTKEY_ACTION_URL, "javascript:alert(1)")
+    _AssertFalse(_ActionValidator_ValidateRecord($aBadUrl, False), "invalid URL scheme is rejected")
+    Local $aBadParameters = _HotkeyModel_Create("^!n", $HOTKEY_ACTION_FILE, "tool.exe", "first" & @LF & "second")
+    _AssertFalse(_ActionValidator_ValidateRecord($aBadParameters, False), "newline in parameters is rejected")
+    Local $aMarker = _HotkeyModel_Create("^!m", $HOTKEY_ACTION_FILE, "tool[HkzExe].exe")
+    _AssertFalse(_ActionValidator_ValidateRecord($aMarker, False), "embedded legacy marker is rejected")
 EndFunc
 
 Func _AssertRecordEqual(ByRef $aExpected, ByRef $aActual, $sName)

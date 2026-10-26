@@ -65,7 +65,7 @@ Func _HotkeyModel_ActionLabel($sAction)
         Case $HOTKEY_ACTION_WINDOW
             Return "Window"
         Case $HOTKEY_ACTION_COMMAND
-            Return "Command"
+            Return "Advanced Command"
         Case $HOTKEY_ACTION_SYSTEM, $HOTKEY_ACTION_MEDIA
             Return "System"
     EndSwitch
@@ -84,7 +84,7 @@ Func _HotkeyModel_ActionFromLabel($sLabel)
             Return $HOTKEY_ACTION_TEXT
         Case "window"
             Return $HOTKEY_ACTION_WINDOW
-        Case "command"
+        Case "command", "advanced command"
             Return $HOTKEY_ACTION_COMMAND
         Case "system"
             Return $HOTKEY_ACTION_SYSTEM

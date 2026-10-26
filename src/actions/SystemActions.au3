@@ -3,10 +3,70 @@
 #include <Clipboard.au3>
 #include <WinAPISys.au3>
 
+Global Enum $SYSTEM_ACTION_NONE = 0, _
+            $SYSTEM_ACTION_EMPTY_RECYCLE_BIN, _
+            $SYSTEM_ACTION_LOCK, _
+            $SYSTEM_ACTION_LOG_OFF, _
+            $SYSTEM_ACTION_RESTART, _
+            $SYSTEM_ACTION_SHUTDOWN, _
+            $SYSTEM_ACTION_TURN_OFF_MONITORS, _
+            $SYSTEM_ACTION_TURN_OFF_MONITORS_AND_LOCK, _
+            $SYSTEM_ACTION_START_SCREENSAVER, _
+            $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK, _
+            $SYSTEM_ACTION_EMPTY_CLIPBOARD
+
+Func _SystemActions_GetId($sTarget)
+    Switch $sTarget
+        Case "Empty Recycle Bin"
+            Return $SYSTEM_ACTION_EMPTY_RECYCLE_BIN
+        Case "Lock"
+            Return $SYSTEM_ACTION_LOCK
+        Case "Log Off"
+            Return $SYSTEM_ACTION_LOG_OFF
+        Case "Restart"
+            Return $SYSTEM_ACTION_RESTART
+        Case "Shutdown"
+            Return $SYSTEM_ACTION_SHUTDOWN
+        Case "Turn Off Monitors"
+            Return $SYSTEM_ACTION_TURN_OFF_MONITORS
+        Case "Turn Off Monitors And Lock"
+            Return $SYSTEM_ACTION_TURN_OFF_MONITORS_AND_LOCK
+        Case "Start Screensaver"
+            Return $SYSTEM_ACTION_START_SCREENSAVER
+        Case "Start Screensaver And Lock"
+            Return $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK
+        Case "Empty Clipboard"
+            Return $SYSTEM_ACTION_EMPTY_CLIPBOARD
+    EndSwitch
+    Return $SYSTEM_ACTION_NONE
+EndFunc
+
 Func _SystemActions_Execute($sTarget)
-    If Not _isKnownSpecialAction($HOTKEY_ACTION_SYSTEM, $sTarget) Then Return SetError(1, 0, False)
-    Execute("_" & StringReplace($sTarget, " ", "") & "()")
-    Return Not @error
+    Switch _SystemActions_GetId($sTarget)
+        Case $SYSTEM_ACTION_EMPTY_RECYCLE_BIN
+            _EmptyRecycleBin()
+        Case $SYSTEM_ACTION_LOCK
+            _Lock()
+        Case $SYSTEM_ACTION_LOG_OFF
+            _LogOff()
+        Case $SYSTEM_ACTION_RESTART
+            _Restart()
+        Case $SYSTEM_ACTION_SHUTDOWN
+            _Shutdown()
+        Case $SYSTEM_ACTION_TURN_OFF_MONITORS
+            _TurnOffMonitors()
+        Case $SYSTEM_ACTION_TURN_OFF_MONITORS_AND_LOCK
+            _TurnOffMonitorsAndLock()
+        Case $SYSTEM_ACTION_START_SCREENSAVER
+            _StartScreensaver()
+        Case $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK
+            _StartScreensaverAndLock()
+        Case $SYSTEM_ACTION_EMPTY_CLIPBOARD
+            _EmptyClipboard()
+        Case Else
+            Return SetError(1, 0, False)
+    EndSwitch
+    Return True
 EndFunc
 
 Func _StartScreensaver()

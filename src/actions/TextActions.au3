@@ -11,6 +11,7 @@ Func _TextActions_Paste($sText)
     ClipPut($sText)
     Send("^v")
     ClipPut($sOldClipboard)
+    Return True
 EndFunc
 
 Func _aTags()

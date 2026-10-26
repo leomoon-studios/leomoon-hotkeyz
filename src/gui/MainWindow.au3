@@ -5,6 +5,7 @@
 #include <GuiListView.au3>
 #include <ListViewConstants.au3>
 #include <WindowsConstants.au3>
+#include "..\actions\ActionValidator.au3"
 
 Func _mainGui()
     ;~ $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
@@ -198,6 +199,7 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         EndIf
         If $type = $HOTKEY_ACTION_TEXT Then $path = StringReplace($path, '[New Line]', @LF)
         $aRecord = _HotkeyModel_Create(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $x, 1)), $type, $path, $parameters, $options)
+        If Not _ActionValidator_ValidateRecord($aRecord, True) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
         If Not _HotkeyRepository_SetRecord($aNewHotkeys, $x + 1, $aRecord) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
     Next
     If Not _HotkeyRepository_Save($iniFile, $aNewHotkeys) Then Return SetError(@error, @extended, False)
