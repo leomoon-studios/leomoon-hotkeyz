@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  autoit-check:
+    name: AutoIt checks
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install pinned AutoIt toolchain
+        id: autoit
+        shell: pwsh
+        env:
+          AUTOIT_URL: https://www.autoitscript.com/autoit3/files/archive/autoit/autoit-v3.3.18.0.zip
+          AUTOIT_SHA256: ceb666a993a9f62621c3a0d4ee602774b2e7f543de1f08ec0380632ee3f89beb
+        run: |
+          $archivePath = Join-Path $env:RUNNER_TEMP "autoit-v3.3.18.0.zip"
+          $extractPath = Join-Path $env:RUNNER_TEMP "autoit-v3.3.18.0"
+          Invoke-WebRequest -Uri $env:AUTOIT_URL -OutFile $archivePath
+          $actualHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:AUTOIT_SHA256) {
+            throw "AutoIt archive checksum mismatch: $actualHash"
+          }
+          Expand-Archive -LiteralPath $archivePath -DestinationPath $extractPath
+          $toolchainDirectory = Join-Path $extractPath "install"
+          if (-not (Test-Path -LiteralPath (Join-Path $toolchainDirectory "Au3Check.exe") -PathType Leaf)) {
+            throw "Au3Check.exe was not found in the AutoIt archive"
+          }
+          "directory=$toolchainDirectory" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Run strict AutoIt checks
+        shell: pwsh
+        run: '& scripts/check.ps1 -ToolchainDirectory "${{ steps.autoit.outputs.directory }}"'

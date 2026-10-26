@@ -30,6 +30,7 @@
 #include <Misc.au3>
 #include <MsgBoxConstants.au3>
 #include <WinAPISys.au3>
+#include <WinAPISysWin.au3>
 #include <resources\ExtMsgBox.au3>
 #include <Date.au3>
 #include <Process.au3>
@@ -37,7 +38,6 @@
 #include <ScreenCapture.au3>
 #include <WinAPIGdi.au3>
 #include <Clipboard.au3>
-#include <Inet.au3>
 ;gui includes
 #include <ButtonConstants.au3>
 #include <ComboConstants.au3>
@@ -49,6 +49,8 @@
 #include <ListViewConstants.au3>
 ; hash stuff
 #include <Crypt.au3>
+
+Opt("MustDeclareVars", 1)
 
 ;TODO
 ;   Open/close the dvd tray?
@@ -68,12 +70,13 @@
 ;       Scroll Lock state
 
 ;global vars
-Global $title = 'LeoMoon HotKeyz'
-Global $ver = '1.8.12'
+Global Const $title = 'LeoMoon HotKeyz'
+Global Const $ver = '1.8.12'
 Global $enabled = False
 Global $winVis = False
 Global $aHotkeys
-Global $ini = @ScriptDir&'\'&$title&'.ini'
+Global Const $ini = @ScriptDir&'\'&$title&'.ini'
+Global $enableTray
 ;global gui vars
 Global $mainGui, $saveBtn, $startupCbox, $cancelBtn, $ctrlCbox, $altCbox, $shiftCbox, $winCbox, $keyDown, $ListView1
 Global $editGui, $ctrlEditCbox, $altEditCbox, $shiftEditCbox, $winEditCbox, $keyEditDown, $okEditBtn, $cancelEditBtn, $specialRdo, $specialDown, $adminCbox, $oneCbox
@@ -83,11 +86,9 @@ Global $fileRdo, $cmdCbox, $fileInp, $fileBrowseBtn, $fileParamLbl, $fileParamIn
 Global $urlRdo, $urlDown, $urlInp
 Global $txtRdo, $txtEdit
 ;window management vars
-Global $hWnd, $wpos[3], $csiz
+Global $wpos[3]
 Global $xf = 0
 Global $yf = 0
-Global $isTop = False
-Global $isGhost = False
 Global $clsid[8][2]
 $clsid[0][0] = 'Libraries'
 $clsid[0][1] = '::{031E4825-7B94-4DC3-B131-E946B44C8DD5}'
@@ -231,20 +232,20 @@ TraySetClick(8)
 
 ;setting up menu
 TraySetOnEvent($TRAY_EVENT_PRIMARYDOUBLE, '_toggle')
-$aboutTray = TrayCreateItem($title&' '&$ver)
+TrayCreateItem($title&' '&$ver)
 TrayItemSetState(-1,$TRAY_DISABLE)
 TrayCreateItem('')
 $enableTray = TrayCreateItem('Enable '&$title)
 TrayItemSetOnEvent(-1, "_toggle")
 TrayItemSetState(-1,$TRAY_CHECKED)
 TrayCreateItem("")
-$settingsTray = TrayCreateItem('Settings...')
+TrayCreateItem('Settings...')
 TrayItemSetOnEvent(-1, "_mainGui")
 TrayCreateItem('')
-$leomoonSiteTray = TrayCreateItem("Visit LeoMoon Studios website")
+TrayCreateItem("Visit LeoMoon Studios website")
 TrayItemSetOnEvent(-1, "_web")
 TrayCreateItem('')
-$exitTray = TrayCreateItem('Exit')
+TrayCreateItem('Exit')
 TrayItemSetOnEvent(-1, "_exit")
 _readHotkey($ini, 'Options', 'Main', $enableTray, 'Enable LeoMoon HotKeyz', '_toggle', '^#,') ;apply main hotkey
 _iniToApply($ini)
@@ -264,10 +265,10 @@ Func _mainGui()
     If $winVis == False Then
         $mainGui = GUICreate($title&" Settings", 682, 666, -1, -1, $WS_SYSMENU)
         GUISetFont(9, 400, 0, "Tahoma")
-        $optionsGrp = GUICtrlCreateGroup("Startup", 8, 8, 658, 57)
+        GUICtrlCreateGroup("Startup", 8, 8, 658, 57)
         $startupCbox = GUICtrlCreateCheckbox("Start with Windows", 17, 32, 289, 17)
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $hotkeyGrp = GUICtrlCreateGroup("HotKeyz main hotkey", 8, 72, 658, 57)
+        GUICtrlCreateGroup("HotKeyz main hotkey", 8, 72, 658, 57)
         $ctrlCbox = GUICtrlCreateCheckbox("Ctrl", 17, 96, 97, 17)
         $altCbox = GUICtrlCreateCheckbox("Alt", 136, 96, 97, 17)
         $shiftCbox = GUICtrlCreateCheckbox("Shift", 256, 96, 97, 17)
@@ -275,10 +276,10 @@ Func _mainGui()
         $keyDown = GUICtrlCreateCombo("", 497, 94, 159, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
         GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Enter|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $customHokeysGrp = GUICtrlCreateGroup("Edit hotkeys", 8, 136, 658, 450)
-        $addBtn = GUICtrlCreateButton("Add New", 16, 160, 209, 33)
-        $editBtn = GUICtrlCreateButton("Edit Selected", 232, 160, 209, 33)
-        $delBtn = GUICtrlCreateButton("Delete Selected", 448, 160, 209, 33)
+        GUICtrlCreateGroup("Edit hotkeys", 8, 136, 658, 450)
+        Local $addBtn = GUICtrlCreateButton("Add New", 16, 160, 209, 33)
+        Local $editBtn = GUICtrlCreateButton("Edit Selected", 232, 160, 209, 33)
+        Local $delBtn = GUICtrlCreateButton("Delete Selected", 448, 160, 209, 33)
         $ListView1 = GUICtrlCreateListView("", 17, 201, 639, 375, BitOR($GUI_SS_DEFAULT_LISTVIEW,$WS_HSCROLL,$WS_VSCROLL), BitOR($WS_EX_CLIENTEDGE,$LVS_EX_FULLROWSELECT))
         GUICtrlCreateGroup("", -99, -99, 1, 1)
         $cancelBtn = GUICtrlCreateButton("Cancel", 449, 592, 209, 33)
@@ -309,12 +310,11 @@ EndFunc
 
 Func WM_NOTIFY($hWnd, $iMsg, $iwParam, $ilParam)
     #forceref $hWnd, $iMsg, $iwParam
-    Local $hWndFrom, $iIDFrom, $iCode, $tNMHDR, $hWndListView, $tInfo
+    Local $hWndFrom, $iCode, $tNMHDR, $hWndListView
     $hWndListView = $ListView1
     If Not IsHWnd($ListView1) Then $hWndListView = GUICtrlGetHandle($ListView1)
     $tNMHDR = DllStructCreate($tagNMHDR, $ilParam)
     $hWndFrom = HWnd(DllStructGetData($tNMHDR, "hWndFrom"))
-    $iIDFrom = DllStructGetData($tNMHDR, "IDFrom")
     $iCode = DllStructGetData($tNMHDR, "Code")
     Switch $hWndFrom
     Case $hWndListView
@@ -327,11 +327,11 @@ Func WM_NOTIFY($hWnd, $iMsg, $iwParam, $ilParam)
     Return $GUI_RUNDEFMSG
 EndFunc
 
-Func _editGui($name, $buttonName)
+Func _editGui($name)
     ;edit gui
     $editGui = GUICreate($name, 418, 706, -1, -1, $WS_EX_TOOLWINDOW, $WS_EX_MDICHILD, $mainGui)
     GUISetFont(9, 400, 0, "Tahoma")
-    $actionEditGrp = GUICtrlCreateGroup("Action", 8, 8, 395, 554)
+    GUICtrlCreateGroup("Action", 8, 8, 395, 554)
     $fileRdo = GUICtrlCreateRadio("Run a program or open a file", 17, 32, 185, 17)
     $fileInp = GUICtrlCreateInput("", 17, 58, 279, 22)
     $fileBrowseBtn = GUICtrlCreateButton("Browse File", 304, 56, 89, 25)
@@ -385,7 +385,7 @@ Func _editGui($name, $buttonName)
     $txtEdit = GUICtrlCreateEdit("", 17, 489, 367, 63, BitOR($ES_AUTOVSCROLL,$ES_WANTRETURN,$WS_VSCROLL))
     GUICtrlSetState(-1, $GUI_DISABLE)
     GUICtrlCreateGroup("", -99, -99, 1, 1)
-    $hotkeyEditGrp = GUICtrlCreateGroup("Assign a hotkey", 8, 568, 395, 58)
+    GUICtrlCreateGroup("Assign a hotkey", 8, 568, 395, 58)
     $ctrlEditCbox = GUICtrlCreateCheckbox("Ctrl", 17, 592, 57, 17)
     $altEditCbox = GUICtrlCreateCheckbox("Alt", 80, 592, 57, 17)
     $shiftEditCbox = GUICtrlCreateCheckbox("Shift", 144, 592, 57, 17)
@@ -434,8 +434,8 @@ Func _editGui($name, $buttonName)
                 "<USERNAME> will paste the name of the current logged in user.", "Predefined Tags", 1)
     GUICtrlSetOnEvent($cancelEditBtn, "_hideChild")
     ;center child window
-    $mpos = WinGetPos($mainGui)
-    $cpos = WinGetPos($editGui)
+    Local $mpos = WinGetPos($mainGui)
+    Local $cpos = WinGetPos($editGui)
     WinMove($editGui, '', $mpos[0]+($mpos[2]/2)-($cpos[2]/2), $mpos[1]+($mpos[3]/2)-($cpos[3]/2))
     Local $aAccelKeys[1][2] = [["{ESC}", $cancelEditBtn]]
     GUISetAccelerators($aAccelKeys)
@@ -443,6 +443,7 @@ Func _editGui($name, $buttonName)
 EndFunc
 
 Func HotKeyPressed()
+    Local $x, $t, $hkzoptadmin, $hkzoptone, $hkzcmd, $moveresize, $move, $resize, $oldClip, $hkzparam, $hkzsplit, $paramPath, $hWnd
     For $x = 1 To UBound($aHotkeys)-1
         If @HotKeyPressed == StringReplace($aHotkeys[$x][0], '{HkzEq}', '{=}') Then
             ;~ ConsoleWrite($hkzparam)
@@ -481,7 +482,7 @@ Func HotKeyPressed()
                     Local $areaHeight = _Max($area[2], $area[3]) - _Min($area[2], $area[3])
                     ;define
                     Select
-                        Case StringInStr($hkzcmd, 'Move to ') Or StringInStr($hkzcmd, 'Resize to ') And Not StringInStr($hkzcmd, 'Monitor')
+                        Case (StringInStr($hkzcmd, 'Move to ') Or StringInStr($hkzcmd, 'Resize to ')) And Not StringInStr($hkzcmd, 'Monitor')
                             If StringInStr($hkzcmd, ' & ') Then
                                 $moveresize = StringSplit(StringReplace(StringReplace($hkzcmd, 'Move to ', ''), 'Resize to ', ''), ' & ', 1)
                                 $move = StringSplit($moveresize[1], ',')
@@ -579,11 +580,11 @@ Func HotKeyPressed()
                         Case $hkzcmd == 'Snap Bottom Left (2x2)'
                             If BitAND(WinGetState($hWnd), 32) Then WinSetState($hWnd, '', @SW_RESTORE)
                             _typeCheck($hWnd)
-                            WinMove($hWnd, '', $area[0]-($xf/2), $areaHeight/2, ($areaWidth/2)+$xf, ($areaHeight/2)+$yf, $anim)
+                            WinMove($hWnd, '', $area[0]-($xf/2), $area[2]+($areaHeight/2), ($areaWidth/2)+$xf, ($areaHeight/2)+$yf, $anim)
                         Case $hkzcmd == 'Snap Bottom Right (2x2)'
                             If BitAND(WinGetState($hWnd), 32) Then WinSetState($hWnd, '', @SW_RESTORE)
                             _typeCheck($hWnd)
-                            WinMove($hWnd, '', ($area[0]+($areaWidth/2))-($xf/2), $areaHeight/2, ($areaWidth/2)+$xf, ($areaHeight/2)+$yf, $anim)
+                            WinMove($hWnd, '', ($area[0]+($areaWidth/2))-($xf/2), $area[2]+($areaHeight/2), ($areaWidth/2)+$xf, ($areaHeight/2)+$yf, $anim)
                         Case $hkzcmd == 'Snap Top Left (3x2)'
                             If BitAND(WinGetState($hWnd), 32) Then WinSetState($hWnd, '', @SW_RESTORE)
                             _typeCheck($hWnd)
@@ -655,100 +656,100 @@ Func HotKeyPressed()
                             WinSetState($hWnd, '', @SW_HIDE)
                         Case $hkzcmd == 'Generate Random Password (Letters)'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             ClipPut(_generator('<RAND_LETTERS>'))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Generate Random Password (Numbers)'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             ClipPut(_generator('<RAND_NUMBERS>'))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Generate Random Password (Letters and Numbers)'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             ClipPut(_generator('<RAND_LETTERS_NUMBERS>'))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Generate Random Password (PPP)'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             ClipPut(_generator('<RAND_PPP>'))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Generate Random UUID'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             ClipPut(uuid())
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Upper Case Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringUpper(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Lower Case Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringLower(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Title Case Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(_StringTitleCase(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Reverse Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringReverse(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'MD5 Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_MD5), 2)))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'SHA1 Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_SHA1), 2)))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'SHA-256 Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_SHA_256), 2)))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'SHA-512 Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(StringLower(StringTrimLeft(_Crypt_HashData(ClipGet(), $CALG_SHA_512), 2)))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Base64 Encode Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(_Base64Encode(ClipGet()))
                             Send('^v')
                             ClipPut($oldClip)
                         Case $hkzcmd == 'Base64 Decode Selected Text'
                             ;~ ConsoleWrite($hkzcmd)
-                            Local $oldClip = ClipGet()
+                            $oldClip = ClipGet()
                             Send('^c')
                             ClipPut(_Base64Decode(ClipGet()))
                             Send('^v')
@@ -757,7 +758,7 @@ Func HotKeyPressed()
                     ;~ WinActivate($hWnd)
                 EndIf
             ElseIf StringInStr($hkzcmd, '[HkzSndTxt]') Then ;paste text to active window
-                Local $oldClip = ClipGet()
+                $oldClip = ClipGet()
                 ;~ $hkzcmd = $aHotkeys[$x][1]
                 ;~ ConsoleWrite($aHotkeys[$x][1]&@LF)
                 ;~ Execute(_aTags())
@@ -770,7 +771,7 @@ Func HotKeyPressed()
                 Send('^v')
                 ClipPut($oldClip)
             Else ;execute program or file
-                Local $hkzparam = ''
+                $hkzparam = ''
                 If StringInStr($hkzcmd, '[HkzParam]') Then
                     $hkzsplit = StringSplit($hkzcmd, '[HkzParam]', 1)
                     If IsArray($hkzsplit) Then
@@ -779,10 +780,10 @@ Func HotKeyPressed()
                     EndIf
                 EndIf
                 ;~ $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
-                If ($hkzoptone And Not ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", ""))) Or Not $hkzoptone Then
+                If (($hkzoptone And Not ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", ""))) Or Not $hkzoptone) Then
                     If $hkzparam <> '' Then
                         If StringInStr($hkzparam, '<GetActiveWindowsExplorerPath>') Then
-                            Local $paramPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
+                            $paramPath = _GetWindowsExplorerPath(WinGetHandle("[ACTIVE]"))
                             $hkzparam = StringReplace($hkzparam, '<GetActiveWindowsExplorerPath>', $paramPath)
                             If FileExists($paramPath) Then ;check if Windows explorer path is real
                                 ShellExecute($hkzcmd, $hkzparam, '', $hkzoptadmin, @SW_HIDE) ;program with <GetActiveWindowsExplorerPath> parameter
@@ -804,6 +805,7 @@ Func HotKeyPressed()
 EndFunc
 
 Func _security($arr, $str)
+    Local $i
     For $i = 0 To Ubound($arr, 1)-1
         If $arr[$i][0] == $str Then
             Return True
@@ -863,7 +865,6 @@ Func _TurnOffMonitors($OnOff = 0)
     Sleep(500)
     ;turns off the monitor by default, but as it happens, monitor comes back on upon user input - keyboard or mouse
     Local $opt = Opt("WinTitleMatchMode", 4)
-    Local $opt
     Local $hWnd
     Local $Param
     Local $SC_MonitorPower
@@ -884,25 +885,23 @@ EndFunc
 Func _shot($hWnd)
     WinActivate($hWnd)
     ;~ $hWnd = WinGetHandle("[ACTIVE]")
-    $img = _ScreenCapture_CaptureWnd('', $hWnd)
     Local Const $sMessage = "Choose a filename."
     Local $sFileSaveDialog = FileSaveDialog($sMessage, "::{450D8FBA-AD25-11D0-98A8-0800361B1103}", "Image as JPG (*.jpg)", $FD_PATHMUSTEXIST)
-    If @error Then
-        ;~ _ExtMsgBox(48, 'OK', 'Oops!', 'No file was saved.'&@CRLF, 0)
+    If @error Then Return SetError(1)
+    Local $sFileName = StringTrimLeft($sFileSaveDialog, StringInStr($sFileSaveDialog, "\", $STR_NOCASESENSEBASIC, -1))
+    Local $iExtension = StringInStr($sFileName, ".", $STR_NOCASESENSEBASIC)
+    If $iExtension Then
+        If Not (StringTrimLeft($sFileName, $iExtension - 1) = ".jpg") Then $sFileSaveDialog &= ".jpg"
     Else
-        Local $sFileName = StringTrimLeft($sFileSaveDialog, StringInStr($sFileSaveDialog, "\", $STR_NOCASESENSEBASIC, -1))
-        Local $iExtension = StringInStr($sFileName, ".", $STR_NOCASESENSEBASIC)
-        If $iExtension Then
-            If Not (StringTrimLeft($sFileName, $iExtension - 1) = ".jpg") Then $sFileSaveDialog &= ".jpg"
-        Else
-            $sFileSaveDialog &= ".jpg"
-        EndIf
+        $sFileSaveDialog &= ".jpg"
     EndIf
     ;~ Sleep(500)
+    Local $img = _ScreenCapture_CaptureWnd('', $hWnd)
     _ScreenCapture_SaveImage($sFileSaveDialog, $img)
 EndFunc
 
 Func _toggle()
+    Local $i
     ;$enabled = Not $enabled
     If $enabled == False Then ;disable it
         For $i = 1 To $aHotkeys[0][0]
@@ -967,7 +966,7 @@ Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default
     ;trayitem id to append the new hotkey
     ;trayitem text to append the new hotkey
     ;function to set hotkey
-    $appHotkey = IniRead($iniFile, $section, $key, '')
+    Local $appHotkey = IniRead($iniFile, $section, $key, '')
     If $appHotkey == '' Then ;default hotkey if key not found in ini file
         IniWrite($iniFile, $section, $key, $default)
         TrayItemSetText($trayItem, $text&@TAB&_decodeHotkey($default))
@@ -978,7 +977,8 @@ Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default
 EndFunc
 
 Func _iniToApply($iniFile)
-    $aHotkeys = IniReadSection($ini, "Hotkeys")
+    Local $i
+    $aHotkeys = IniReadSection($iniFile, "Hotkeys")
     If IsArray($aHotkeys) Then
         For $i = 1 To $aHotkeys[0][0]
             ;~ ConsoleWrite($aHotkeys[$i][1]&' ### '&StringReplace($aHotkeys[$i][0], '{HkzEq}', '{=}')&@LF)
@@ -988,6 +988,7 @@ Func _iniToApply($iniFile)
 EndFunc
 
 Func _iniToGui($iniFile) ;just reads ini and sets the gui
+    Local $i, $hkzcmd, $hkzcmdtest, $t, $c, $s, $type, $u
     ;read main hotkey
     Local $appHotkey = IniRead($iniFile, 'Options', 'Main', '')
     Local $k = StringUpper(StringReplace(StringReplace(StringReplace(StringReplace($appHotkey,'^',''),'!',''),'+',''),'#',''))
@@ -1050,7 +1051,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
                 $type = 'Window'
             ElseIf StringInStr($hkzcmd, '[HkzCmd]') Then
                 $type = 'Command'
-            ElseIf StringInStr($hkzcmd, 'https://') Or StringInStr($hkzcmd, 'http://') Or StringInStr($hkzcmd, 'ftp://') And Not StringInStr($hkzcmd, '[HkzParam]') Then
+            ElseIf (StringInStr($hkzcmd, 'https://') Or StringInStr($hkzcmd, 'http://') Or StringInStr($hkzcmd, 'ftp://')) And Not StringInStr($hkzcmd, '[HkzParam]') Then
                 $type = 'URL'
             ElseIf $special Or StringInStr($hkzcmd, '[HkzExe]') Then
                 $type = 'System'
@@ -1089,6 +1090,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
 EndFunc
 
 Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
+    Local $txt, $i, $x, $c, $s
     ;main hotkey
     Local $oldHotkey = IniRead($iniFile, 'Options', 'Main', '') ;get old hotkey
     Local $appHotkey = ''
@@ -1350,7 +1352,7 @@ Func _web()
 EndFunc
 
 Func _addBtn()
-    _editGui('Add Hotkey', 'OK')
+    _editGui('Add Hotkey')
     GUICtrlSetState($fileRdo, $GUI_CHECKED)
     _fileRdo()
     GUICtrlSetOnEvent($okEditBtn, "_add")
@@ -1359,6 +1361,7 @@ Func _addBtn()
 EndFunc
 
 Func _add()
+    Local $x, $fileParam, $hkztxt
     If GUICtrlRead($fileRdo) == 1 And GUICtrlRead($fileInp) == '' Then
         GUISetState(@SW_DISABLE, $editGui)
         If MsgBox(48, 'Oops!', 'Please select a file.', 0, $editGui) == 1 Then
@@ -1377,10 +1380,10 @@ Func _add()
             GUISetState(@SW_ENABLE, $editGui)
             WinActivate($editGui)
         EndIf
-    ElseIf (GUICtrlRead($windowRdo) == 1 And GUICtrlRead($windowDown) == 'Custom Move and/or Resize') And _
+    ElseIf (GUICtrlRead($windowRdo) == 1 And GUICtrlRead($windowDown) == 'Custom Move and/or Resize') And ( _
         (GUICtrlRead($moveCbox) == $GUI_UNCHECKED And GUICtrlRead($resizeCbox) == $GUI_UNCHECKED) Or _
         (GUICtrlRead($moveCbox) == $GUI_CHECKED And (GUICtrlRead($movexInp) == '' Or GUICtrlRead($moveyInp) == '')) Or _
-        (GUICtrlRead($resizeCbox) == $GUI_CHECKED And (GUICtrlRead($resizewInp) == '' Or GUICtrlRead($resizehInp) == '')) Then
+        (GUICtrlRead($resizeCbox) == $GUI_CHECKED And (GUICtrlRead($resizewInp) == '' Or GUICtrlRead($resizehInp) == ''))) Then
         GUISetState(@SW_DISABLE, $editGui)
         If MsgBox(48, 'Oops!', 'Please select a predefined window action or enter a custom location and/or size.', 0, $editGui) == 1 Then
             GUISetState(@SW_ENABLE, $editGui)
@@ -1392,10 +1395,10 @@ Func _add()
             GUISetState(@SW_ENABLE, $editGui)
             WinActivate($editGui)
         EndIf
-    ElseIf BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 0 And _
+    ElseIf (BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 0 And _
         BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 0 And _
         BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($winEditCbox), $GUI_CHECKED) == 0 Or _
+        BitAND(GUICtrlRead($winEditCbox), $GUI_CHECKED) == 0) Or _
         GUICtrlRead($keyEditDown) == '' Then
             GUISetState(@SW_DISABLE, $editGui)
             If MsgBox(48, 'Oops!', 'Please assign a hotkey.', 0, $editGui) == 1 Then
@@ -1474,14 +1477,12 @@ Func _add()
 EndFunc
 
 Func _editBtn()
-    $hotkey = _GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 1)
+    Local $hotkey = _GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 1)
     ;~ ConsoleWrite($hotkey)
-    $path = _GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 2)
+    Local $path = _GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 2)
     Local $match = False
     Local $special = False
-    Local $window = False
-    Local $url = False
-    Local $sndTxt = False
+    Local $c, $s, $moveresize, $move, $resize, $hkzsplit
     Local $k = _decodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'Ctrl + ',''),'Alt + ',''),'Shift + ',''),'Win + ',''))
     ;~ ConsoleWrite($k)
     ;define clsid list
@@ -1498,7 +1499,7 @@ Func _editBtn()
             ExitLoop
         EndIf
     Next
-    _editGui('Edit Hotkey', 'OK')
+    _editGui('Edit Hotkey')
     If StringInStr(_GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 3), 'Admin') Then GUICtrlSetState($adminCbox, $GUI_CHECKED)
     If StringInStr(_GUICtrlListView_GetItemText($ListView1, Number(_GUICtrlListView_GetSelectedIndices($ListView1)), 3), 'Singleton') Then GUICtrlSetState($oneCbox, $GUI_CHECKED)
     If $special Then
@@ -1557,7 +1558,7 @@ Func _editBtn()
         EndIf
         _windowRdo()
         _windowDown()
-    ElseIf StringInStr($path, 'https://') Or StringInStr($path, 'http://') Or StringInStr($path, 'ftp://') And Not StringInStr($path, '[Parameters]') Then
+    ElseIf (StringInStr($path, 'https://') Or StringInStr($path, 'http://') Or StringInStr($path, 'ftp://')) And Not StringInStr($path, '[Parameters]') Then
         GUICtrlSetState($urlRdo, $GUI_CHECKED)
         If StringInStr($path, 'https://') Then
             _GUICtrlComboBox_SelectString($urlDown, 'https://')
@@ -1599,6 +1600,7 @@ Func _editBtn()
 EndFunc
 
 Func _edit()
+    Local $x, $fileParam, $hkztxt
     If GUICtrlRead($fileRdo) == 1 And GUICtrlRead($fileInp) == '' Then
         GUISetState(@SW_DISABLE, $editGui)
         If MsgBox(48, 'Oops!', 'Please select a file.', 0, $editGui) == 1 Then
@@ -1617,10 +1619,10 @@ Func _edit()
             GUISetState(@SW_ENABLE, $editGui)
             WinActivate($editGui)
         EndIf
-    ElseIf (GUICtrlRead($windowRdo) == 1 And GUICtrlRead($windowDown) == 'Custom Move and/or Resize') And _
+    ElseIf (GUICtrlRead($windowRdo) == 1 And GUICtrlRead($windowDown) == 'Custom Move and/or Resize') And ( _
             (GUICtrlRead($moveCbox) == $GUI_UNCHECKED And GUICtrlRead($resizeCbox) == $GUI_UNCHECKED) Or _
             (GUICtrlRead($moveCbox) == $GUI_CHECKED And (GUICtrlRead($movexInp) == '' Or GUICtrlRead($moveyInp) == '')) Or _
-            (GUICtrlRead($resizeCbox) == $GUI_CHECKED And (GUICtrlRead($resizewInp) == '' Or GUICtrlRead($resizehInp) == '')) Then
+            (GUICtrlRead($resizeCbox) == $GUI_CHECKED And (GUICtrlRead($resizewInp) == '' Or GUICtrlRead($resizehInp) == ''))) Then
             GUISetState(@SW_DISABLE, $editGui)
             If MsgBox(48, 'Oops!', 'Please select a predefined window action or enter a custom location and/or size.', 0, $editGui) == 1 Then
                 GUISetState(@SW_ENABLE, $editGui)
@@ -1632,10 +1634,10 @@ Func _edit()
             GUISetState(@SW_ENABLE, $editGui)
             WinActivate($editGui)
         EndIf
-    ElseIf BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 0 And _
+    ElseIf (BitAND(GUICtrlRead($ctrlEditCbox), $GUI_CHECKED) == 0 And _
         BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 0 And _
         BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($winEditCbox), $GUI_CHECKED) == 0 Or _
+        BitAND(GUICtrlRead($winEditCbox), $GUI_CHECKED) == 0) Or _
         GUICtrlRead($keyEditDown) == '' Then
             GUISetState(@SW_DISABLE, $editGui)
             If MsgBox(48, 'Oops!', 'Please assign a hotkey.', 0, $editGui) == 1 Then
@@ -1757,6 +1759,7 @@ EndFunc
 
 Func _folderBrowse()
     Local $sFolder = FileSelectFolder('Select a folder...', "", Default, '', $editGui)
+    Local $c
     If @error Then
         ;do nothing
     Else
@@ -1862,7 +1865,7 @@ Func _sort()
 EndFunc
 
 Func _WinGetTrans($hWnd, ByRef $Transparency, $asColorRef = False)
-    $i_transcolor = -1
+    Local $i_transcolor = -1
     $Transparency = -1
     Local $aResult = DllCall("user32.dll", "bool", "GetLayeredWindowAttributes", "hwnd", $hWnd, "dword*", $i_transcolor, "byte*", $Transparency, "dword*", 0)
     If @error Then Return SetError(@error, @extended, 0)
@@ -1876,8 +1879,8 @@ EndFunc
 
 Func _transPlus($hWnd)
     Local $o = 17 ;0 to 255
-    Local $iInfo, $iTransparency
-    $iInfo = _WinGetTrans($hWnd, $iTransparency)
+    Local $iTransparency
+    _WinGetTrans($hWnd, $iTransparency)
     If Not @error Then
         If $iTransparency > $o Then
             WinSetTrans($hWnd, '', $iTransparency-$o)
@@ -1889,8 +1892,8 @@ EndFunc
 
 Func _transMinus($hWnd)
     Local $o = 17 ;0 to 255
-    Local $iInfo, $iTransparency
-    $iInfo = _WinGetTrans($hWnd, $iTransparency)
+    Local $iTransparency
+    _WinGetTrans($hWnd, $iTransparency)
     If Not @error Then
         If $iTransparency + $o > 255 Then
             WinSetTrans($hWnd, '', 255)
@@ -1909,6 +1912,7 @@ Func _ghostToggle($hWnd)
 EndFunc
 
 Func _typeCheck($hWnd)
+    Local $csiz
     $wpos = WinGetPos($hWnd)
     $csiz = WinGetClientSize($hWnd)
     ;~ ConsoleWrite($csiz[0]&' '&$wpos[2]&@LF)
@@ -1928,7 +1932,7 @@ Func _typeCheck($hWnd)
 EndFunc
 
 Func _isReal($hWnd)
-    $vWinStyle = _WinAPI_GetWindowLong($hWnd, $GWL_STYLE)
+    Local $vWinStyle = _WinAPI_GetWindowLong($hWnd, $GWL_STYLE)
     If BitAND(WinGetState($hWnd), 4) = 4 _
         And WinGetTitle($hWnd) <> '' _
         And WinGetTitle($hWnd) <> 'Snap Assist' _
@@ -1954,6 +1958,7 @@ Func _setPriority($hWnd, $priority=2)
 EndFunc
 
 Func _GetWindowsExplorerPath($hWnd)
+    Local $i, $oShellApp_Inst
     If Not IsHWnd($hWnd) Then Return SetError(1)
     Local $aWinList = WinList("[REGEXPCLASS:(Explore|Cabinet)WClass]")
     While 1
@@ -1969,7 +1974,6 @@ Func _GetWindowsExplorerPath($hWnd)
     For $oShellApp_Inst In $oShellApp_Windows
         If $oShellApp_Inst.hwnd = $hWnd Then ExitLoop
     Next
-    Local $iShellApp_Inst_SelectedItems_Count = $oShellApp_Inst.Document.SelectedItems.Count
     Local $sShellApp_Inst_LocationURL = $oShellApp_Inst.LocationURL
     Local $aRet = DllCall('shlwapi.dll', 'long', 'PathCreateFromUrlW', 'wstr', $sShellApp_Inst_LocationURL, 'wstr', '', 'dword*', 65534, 'dword', 0)
     If Not @error And $aRet[0] == 0 Then $sShellApp_Inst_LocationURL = $aRet[2]
@@ -1981,6 +1985,7 @@ EndFunc
 
 Func _monitors()
     Local $aPos, $aData = _WinAPI_EnumDisplayMonitors()
+    Local $i, $j
     If IsArray($aData) Then
         ReDim $aData[$aData[0][0] + 1][5]
         For $i = 1 To $aData[0][0]
@@ -1994,6 +1999,7 @@ Func _monitors()
 EndFunc
 
 Func _moveToMonitor($hWnd, $monitors, $dir = False)
+    Local $i, $n
     ;~ For $i = 1 To $monitors[0][0]
     ;~     ConsoleWrite($monitors[$i][0]&': X='&$monitors[$i][1]&' Y='&$monitors[$i][2]&' W='&$monitors[$i][3]&' H='&$monitors[$i][4]&@LF)
     ;~ Next
@@ -2085,7 +2091,7 @@ Func _moveToMonitor($hWnd, $monitors, $dir = False)
 EndFunc
 
 Func _almostEqual($a, $b, $min, $max)
-    $val = $a - $b
+    Local $val = $a - $b
     If Abs($val) <= $max And Abs($val) >= $min Then Return True
 EndFunc
 
@@ -2106,16 +2112,17 @@ Func _getMonitorArea($monitor)
 EndFunc
 
 Func _generator($input)
-    $length = 20
+    Local $length = 20
+    Local $i, $aChars
     Switch $input
         Case '<RAND_PPP>'
-            Local $aChars = StringSplit("!#%+23456789:=?@ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
+            $aChars = StringSplit("!#%+23456789:=?@ABCDEFGHJKLMNPRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "")
         Case '<RAND_LETTERS>'
-            Local $aChars = StringSplit("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
+            $aChars = StringSplit("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
         Case '<RAND_LETTERS_NUMBERS>'
-            Local $aChars = StringSplit("23456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
+            $aChars = StringSplit("23456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "")
         Case '<RAND_NUMBERS>'
-            Local $aChars = StringSplit("0123456789", "")
+            $aChars = StringSplit("0123456789", "")
     EndSwitch
     Local $sString = ''
     For $i = 1 To $length
