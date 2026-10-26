@@ -5,6 +5,64 @@
 #include "ErrorReporter.au3"
 
 Global $aHotkeys = _HotkeyRepository_CreateTable(0)
+Global $g_sHotkeySetHandler = "_HotkeyRegistry_SetBinding"
+
+Func _HotkeyRegistry_ConfigureHotkeyBackend($sHandler)
+    $g_sHotkeySetHandler = $sHandler
+EndFunc
+
+Func _HotkeyRegistry_ResetHotkeyBackend()
+    $g_sHotkeySetHandler = "_HotkeyRegistry_SetBinding"
+EndFunc
+
+Func _HotkeyRegistry_SetBinding($sHotkey, $sHandler = "")
+    If $sHandler = "" Then Return HotKeySet($sHotkey)
+    Return HotKeySet($sHotkey, $sHandler)
+EndFunc
+
+Func _HotkeyRegistry_TrySet($sHotkey, $sHandler = "")
+    Local $vResult = Call($g_sHotkeySetHandler, $sHotkey, $sHandler)
+    If @error Or Not $vResult Then Return SetError(1, @error, False)
+    Return True
+EndFunc
+
+Func _HotkeyRegistry_SetTable(ByRef $aRecords, $sHandler)
+    Local $i
+    For $i = 1 To _HotkeyRepository_Count($aRecords)
+        If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], $sHandler) Then Return SetError(1, $i, False)
+    Next
+    Return True
+EndFunc
+
+Func _HotkeyRegistry_ClearTable(ByRef $aRecords)
+    Local $bSuccess = True, $i
+    For $i = 1 To _HotkeyRepository_Count($aRecords)
+        If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY]) Then $bSuccess = False
+    Next
+    Return $bSuccess
+EndFunc
+
+Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle, ByRef $aNewRecords)
+    If $sOldToggle <> "" And Not _HotkeyRegistry_TrySet($sOldToggle) Then Return SetError(1, 0, False)
+    If Not _HotkeyRegistry_ClearTable($aOldRecords) Then Return SetError(2, 0, False)
+    If Not _HotkeyRegistry_TrySet($sNewToggle, "_toggle") Then
+        _HotkeyRegistry_RestoreBindings($sOldToggle, $aOldRecords)
+        Return SetError(3, 0, False)
+    EndIf
+    If Not _HotkeyRegistry_SetTable($aNewRecords, "HotKeyPressed") Then
+        Local $iFailedRow = @extended
+        _HotkeyRegistry_TrySet($sNewToggle)
+        _HotkeyRegistry_ClearTable($aNewRecords)
+        _HotkeyRegistry_RestoreBindings($sOldToggle, $aOldRecords)
+        Return SetError(4, $iFailedRow, False)
+    EndIf
+    Return True
+EndFunc
+
+Func _HotkeyRegistry_RestoreBindings($sToggle, ByRef $aRecords)
+    If $sToggle <> "" And Not _HotkeyRegistry_TrySet($sToggle, "_toggle") Then Return False
+    Return _HotkeyRegistry_SetTable($aRecords, "HotKeyPressed")
+EndFunc
 
 Func _HotkeyRegistry_Initialize($sIniFile)
     _iniCheck($sIniFile)
@@ -15,10 +73,11 @@ EndFunc
 Func _HotkeyRegistry_Shutdown()
     Local $i
     For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-        HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY])
+        If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then Return False
     Next
     Local $sToggleHotkey = IniRead($APP_INI_PATH, "Options", "Main", "")
-    If $sToggleHotkey <> "" Then HotKeySet($sToggleHotkey)
+    If $sToggleHotkey <> "" And Not _HotkeyRegistry_TrySet($sToggleHotkey) Then Return False
+    Return True
 EndFunc
 
 Func _HotkeyRegistry_IsStartupEnabled()
@@ -113,6 +172,7 @@ Func _iniToApply($iniFile)
         Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, False)
     EndIf
     If IsArray($aHotkeys) Then
+        Local $sToggleHotkey = _HotkeyCodec_NormalizeHotkey(IniRead($iniFile, "Options", "Main", ""))
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
             $aRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
             If Not _ActionValidator_ValidateRecord($aRecord, False) Then
@@ -120,7 +180,17 @@ Func _iniToApply($iniFile)
                 _AppError_Report("One or more action values are not allowed; no action hotkeys were registered", $HOTKEY_REPOSITORY_ERROR_INVALID, $i)
                 Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, False)
             EndIf
-            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed")
+            If $sToggleHotkey = _HotkeyCodec_NormalizeHotkey($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then
+                _AppError_Report("The main toggle hotkey conflicts with an action hotkey", $HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i)
+                Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, False)
+            EndIf
+        Next
+        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then
+                _HotkeyRegistry_ClearTable($aHotkeys)
+                _AppError_Report("Hotkey registration failed because Windows or another application already uses the shortcut", 1, $i)
+                Return SetError(1, $i, False)
+            EndIf
         Next
     Endif
 EndFunc

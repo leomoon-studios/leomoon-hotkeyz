@@ -8,6 +8,7 @@ Global Const $HOTKEY_CODEC_PARAMETER = "[HkzParam]"
 Global Const $HOTKEY_CODEC_NEWLINE = "[HkzNL]"
 Global Const $HOTKEY_CODEC_OPTION_ADMIN = "[HkzOptAdmin]"
 Global Const $HOTKEY_CODEC_OPTION_SINGLETON = "[HkzOptOne]"
+Global Const $HOTKEY_CODEC_KEY_NAMES = "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|'|,|.|/|Space|Backspace|Enter|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add"
 
 Func _HotkeyCodec_EncodeKey($sKey)
     If StringLen($sKey) > 1 Then

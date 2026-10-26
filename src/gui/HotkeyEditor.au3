@@ -7,6 +7,9 @@
 #include <GuiComboBox.au3>
 #include <GuiListView.au3>
 #include <WindowsConstants.au3>
+#include "HotkeyEditorModel.au3"
+
+Global $g_bHotkeyEditorUpdating = False
 
 Func _editGui($name)
     ;edit gui
@@ -28,11 +31,11 @@ Func _editGui($name)
     GUICtrlSetState(-1, $GUI_DISABLE)
     $g_aGuiState[$GUI_STATE_SPECIAL_RADIO] = GUICtrlCreateRadio("Run a system action", 17, 216, 369, 17)
     $g_aGuiState[$GUI_STATE_SPECIAL_COMBO] = GUICtrlCreateCombo("", 17, 242, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Control Panel (Category View)|Control Panel (Icon View)|Windows Settings|Fonts Folder|Network Places|Network Connections|Printers and Faxes|Recycle Bin|Empty Recycle Bin|Empty Clipboard|Volume Up|Volume Down|Volume Mute|Media Play/Pause|Media Next|Media Previous|Media Stop|Turn Off Monitors|Turn Off Monitors And Lock|Start Screensaver|Start Screensaver And Lock|Lock|Log Off|Restart|Shutdown")
+    GUICtrlSetData(-1, _ActionCatalog_SpecialLabels())
     GUICtrlSetState(-1, $GUI_DISABLE)
     $g_aGuiState[$GUI_STATE_WINDOW_RADIO] = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
     $g_aGuiState[$GUI_STATE_WINDOW_COMBO] = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
-    GUICtrlSetData(-1, "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Custom Move and/or Resize|Generate Random Password (PPP)|Generate Random Password (Letters)|Generate Random Password (Numbers)|Generate Random Password (Letters and Numbers)|Generate Random UUID|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|MD5 Selected Text|SHA1 Selected Text|SHA-256 Selected Text|SHA-512 Selected Text|Base64 Encode Selected Text|Base64 Decode Selected Text")
+    GUICtrlSetData(-1, _ActionCatalog_WindowLabels())
     GUICtrlSetState(-1, $GUI_DISABLE)
     $g_aGuiState[$GUI_STATE_MOVE_CHECKBOX] = GUICtrlCreateCheckbox("Move active window", 17, 336, 177, 17)
     GUICtrlSetState(-1, $GUI_CHECKED)
@@ -72,7 +75,7 @@ Func _editGui($name)
     $g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX] = GUICtrlCreateCheckbox("Shift", 144, 592, 57, 17)
     $g_aGuiState[$GUI_STATE_EDITOR_WIN_CHECKBOX] = GUICtrlCreateCheckbox("Win", 208, 592, 57, 17)
     $g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO] = GUICtrlCreateCombo("", 273, 590, 119, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-    GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Enter|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+    GUICtrlSetData(-1, $HOTKEY_CODEC_KEY_NAMES)
     GUICtrlCreateGroup("", -99, -99, 1, 1)
     $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON] = GUICtrlCreateButton("Cancel", 209, 632, 193, 33)
     $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON] = GUICtrlCreateButton("OK", 8, 632, 193, 33)
@@ -123,6 +126,7 @@ Func _editGui($name)
     Local $aAccelKeys[1][2] = [["{ESC}", $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON]]]
     GUISetAccelerators($aAccelKeys)
     WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    _HotkeyEditor_UpdateOkState()
 EndFunc
 
 Func _fileRdo()
@@ -222,7 +226,7 @@ Func _windowRdo()
 EndFunc
 
 Func _windowDown()
-    If GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == 'Custom Move and/or Resize' And BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_WINDOW_COMBO]), $GUI_ENABLE) Then
+    If GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == $ACTION_CATALOG_CUSTOM_WINDOW And BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_WINDOW_COMBO]), $GUI_ENABLE) Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX], $GUI_ENABLE)
         _moveCbox()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX], $GUI_ENABLE)
@@ -236,7 +240,7 @@ Func _windowDown()
 EndFunc
 
 Func _moveCbox()
-    If GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_CHECKED And BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]), $GUI_ENABLE) And GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == 'Custom Move and/or Resize' Then
+    If GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_CHECKED And BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]), $GUI_ENABLE) And GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == $ACTION_CATALOG_CUSTOM_WINDOW Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_X_LABEL], $GUI_ENABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_MOVE_X_INPUT], $GUI_ENABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_Y_LABEL], $GUI_ENABLE)
@@ -250,7 +254,7 @@ Func _moveCbox()
 EndFunc
 
 Func _resizeCbox()
-    If GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_CHECKED And BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]), $GUI_ENABLE) And GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == 'Custom Move and/or Resize' Then
+    If GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_CHECKED And BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]), $GUI_ENABLE) And GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == $ACTION_CATALOG_CUSTOM_WINDOW Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_WIDTH_LABEL], $GUI_ENABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT], $GUI_ENABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_HEIGHT_LABEL], $GUI_ENABLE)
@@ -300,11 +304,19 @@ Func _txtRdo()
 EndFunc
 
 Func _delBtn()
+    Local $iSelected = _HotkeyEditor_SelectedIndex()
+    If @error Then Return False
     If MsgBox(48+4, 'Confirmation', 'Delete the selected hotkey?', 0, $g_aGuiState[$GUI_STATE_MAIN_WINDOW]) == 6 Then
-        _GUICtrlListView_DeleteItemsSelected($g_aGuiState[$GUI_STATE_LIST_VIEW])
-        _GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], 1)
-        _GUICtrlListView_SetItemFocused($g_aGuiState[$GUI_STATE_LIST_VIEW], 1)
+        If Not _GUICtrlListView_DeleteItem($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected) Then Return False
+        Local $iCount = _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW])
+        If $iCount Then
+            If $iSelected >= $iCount Then $iSelected = $iCount - 1
+            _GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected)
+            _GUICtrlListView_SetItemFocused($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected)
+        EndIf
+        _MainWindow_UpdateSaveState()
     EndIf
+    Return True
 EndFunc
 
 Func _addBtn()
@@ -314,128 +326,16 @@ Func _addBtn()
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], "_add")
     GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
     GUISetState(@SW_SHOW, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-EndFunc
-
-Func _add()
-    Local $x, $fileParam, $hkztxt
-    If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please select a file.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please select a folder.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please select an option.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf (GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == 'Custom Move and/or Resize') And ( _
-        (GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_UNCHECKED And GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_UNCHECKED) Or _
-        (GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_CHECKED And (GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT]) == '' Or GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT]) == '')) Or _
-        (GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_CHECKED And (GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT]) == '' Or GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT]) == ''))) Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please select a predefined window action or enter a custom location and/or size.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_URL_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_URL_INPUT]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please enter a URL.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf (BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX]), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_ALT_CHECKBOX]), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX]), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_WIN_CHECKBOX]), $GUI_CHECKED) == 0) Or _
-        GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO]) == '' Then
-            GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            If MsgBox(48, 'Oops!', 'Please assign a hotkey.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-                GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-                WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            EndIf
-    Else
-        Local $childRead = ''
-        Local $error = False
-        Local $opts = ''
-        If GUICtrlRead($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX]) == 1 Then $opts &= 'Admin'
-        If GUICtrlRead($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX]) == 1 Then
-            If $opts == 'Admin' Then $opts &= ', '
-            $opts &= 'Singleton'
-        EndIf
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_ALT_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_WIN_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Win + '
-        $childRead &= _HotkeyCodec_DecodeKey(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO]))
-        For $x = 0 To _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) - 1
-            If $childRead == _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $x, 1) Then
-                $error = True
-                ExitLoop
-            EndIf
-        Next
-        If $error Or $childRead == _returnToggleHotkey() Then
-            GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            If MsgBox(48, 'Oops!', 'Hotkey alreay assigned. Please choose another hotkey.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-                $error = False
-                GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-                WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            EndIf
-        ElseIf Not StringRegExp(GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT]), '^[\d-]?\d*?$') Or Not StringRegExp(GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT]), '^[\d-]?\d*?$') Then
-            If MsgBox(48, 'Oops!', 'X and Y fields must be an integer.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-                GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-                WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            EndIf
-        Else
-            If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) == 1 Then
-                $fileParam = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT])
-                If GUICtrlRead($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX]) == $GUI_CHECKED Then
-                    GUICtrlCreateListViewItem('Advanced Command'&'|'&$childRead&'|'&$fileParam&'|'&$opts, $g_aGuiState[$GUI_STATE_LIST_VIEW])
-                Else
-                    If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT]) <> '' Then $fileParam = $fileParam&' [Parameters] '&GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT])
-                    GUICtrlCreateListViewItem('File'&'|'&$childRead&'|'&$fileParam&'|'&$opts, $g_aGuiState[$GUI_STATE_LIST_VIEW])
-                EndIf
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_RADIO]) == 1 Then
-                GUICtrlCreateListViewItem('Folder|'&$childRead&'|'&GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]), $g_aGuiState[$GUI_STATE_LIST_VIEW])
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) == 1 Then
-                GUICtrlCreateListViewItem('System|'&$childRead&'|'&GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]), $g_aGuiState[$GUI_STATE_LIST_VIEW])
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) == 1 Then
-                If GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == 'Custom Move and/or Resize' Then
-                    Local $m = ''
-                    Local $r = ''
-                    If GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_CHECKED Then $m = 'Move to '&GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT])&','&GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT])
-                    If GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_CHECKED Then $r = 'Resize to '&GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT])&'x'&GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT])
-                    If $m <> '' and $r <> '' Then
-                        $m = $m&' & '&$r
-                    Else
-                        $m = $m&$r
-                    EndIf
-                    GUICtrlCreateListViewItem('Window|'&$childRead&'|'&$m, $g_aGuiState[$GUI_STATE_LIST_VIEW])
-                Else
-                    GUICtrlCreateListViewItem('Window|'&$childRead&'|'&GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]), $g_aGuiState[$GUI_STATE_LIST_VIEW])
-                EndIf
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_URL_RADIO]) == 1 Then
-                GUICtrlCreateListViewItem('URL|'&$childRead&'|'&GUICtrlRead($g_aGuiState[$GUI_STATE_URL_COMBO])&GUICtrlRead($g_aGuiState[$GUI_STATE_URL_INPUT]), $g_aGuiState[$GUI_STATE_LIST_VIEW])
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_RADIO]) == 1 Then
-                $hkztxt = StringReplace(GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_EDIT]), @CRLF, '[New Line]')
-                GUICtrlCreateListViewItem('Text|'&$childRead&'|'&$hkztxt, $g_aGuiState[$GUI_STATE_LIST_VIEW])
-            EndIf
-            _hideChild()
-        EndIf
-    EndIf
+    _HotkeyEditor_UpdateOkState()
 EndFunc
 
 Func _editBtn()
-    Local $hotkey = _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 1)
+    Local $iSelected = _HotkeyEditor_SelectedIndex()
+    If @error Then Return False
+    Local $hotkey = _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected, 1)
     ;~ ConsoleWrite($hotkey)
-    Local $path = _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 2)
+    Local $path = _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected, 2)
+    If $path = $ACTION_CATALOG_LEGACY_HIGH Then $path = "Set Process Priority to High"
     Local $match = False
     Local $special = False
     Local $c, $s, $moveresize, $move, $resize, $hkzsplit
@@ -473,7 +373,7 @@ Func _editBtn()
     ElseIf _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 0) == 'Window' Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_WINDOW_RADIO], $GUI_CHECKED)
         If StringInStr($path, 'Move to ') Or StringInStr($path, 'Resize to ') Then
-            _GUICtrlComboBox_SelectString($g_aGuiState[$GUI_STATE_WINDOW_COMBO], 'Custom Move and/or Resize')
+            _GUICtrlComboBox_SelectString($g_aGuiState[$GUI_STATE_WINDOW_COMBO], $ACTION_CATALOG_CUSTOM_WINDOW)
             If StringInStr($path, 'Move to ') Then
                 GUICtrlSetState($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX], $GUI_CHECKED)
             Else
@@ -553,132 +453,192 @@ Func _editBtn()
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], "_edit")
     GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
     GUISetState(@SW_SHOW, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    _HotkeyEditor_UpdateOkState()
+EndFunc
+
+Func _add()
+    Return _HotkeyEditor_Commit(-1)
 EndFunc
 
 Func _edit()
-    Local $x, $fileParam, $hkztxt
-    If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please select a file.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please select a folder.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please select an option.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf (GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == 'Custom Move and/or Resize') And ( _
-            (GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_UNCHECKED And GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_UNCHECKED) Or _
-            (GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_CHECKED And (GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT]) == '' Or GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT]) == '')) Or _
-            (GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_CHECKED And (GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT]) == '' Or GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT]) == ''))) Then
-            GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            If MsgBox(48, 'Oops!', 'Please select a predefined window action or enter a custom location and/or size.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-                GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-                WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            EndIf
-    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_URL_RADIO]) == 1 And GUICtrlRead($g_aGuiState[$GUI_STATE_URL_INPUT]) == '' Then
-        GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        If MsgBox(48, 'Oops!', 'Please enter a URL.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-            GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-        EndIf
-    ElseIf (BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX]), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_ALT_CHECKBOX]), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX]), $GUI_CHECKED) == 0 And _
-        BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_WIN_CHECKBOX]), $GUI_CHECKED) == 0) Or _
-        GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO]) == '' Then
-            GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            If MsgBox(48, 'Oops!', 'Please assign a hotkey.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-                GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-                WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            EndIf
+    Local $iSelected = _HotkeyEditor_SelectedIndex()
+    If @error Then Return _HotkeyEditor_ShowError("Select a hotkey before editing it")
+    Return _HotkeyEditor_Commit($iSelected)
+EndFunc
+
+Func _HotkeyEditor_Commit($iListIndex)
+    Local $aRecord = _HotkeyEditor_ReadRecord()
+    If @error Then Return _HotkeyEditor_ShowError(_HotkeyEditor_ErrorMessage(@error, @extended))
+    If _HotkeyEditor_HasDuplicate($aRecord[$HOTKEY_FIELD_HOTKEY], $iListIndex) Then Return _HotkeyEditor_ShowError("That hotkey is already assigned")
+    Local $sRow = _HotkeyEditor_RecordRow($aRecord)
+    If @error Then Return _HotkeyEditor_ShowError("The selected action could not be displayed")
+    If $iListIndex < 0 Then
+        If GUICtrlCreateListViewItem($sRow, $g_aGuiState[$GUI_STATE_LIST_VIEW]) = 0 Then Return _HotkeyEditor_ShowError("The hotkey could not be added")
     Else
-        Local $childRead = ''
-        Local $error = False
-        Local $opts = ''
-        If GUICtrlRead($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX]) == 1 Then $opts &= 'Admin'
-        If GUICtrlRead($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX]) == 1 Then
-            If $opts == 'Admin' Then $opts &= ', '
-            $opts &= 'Singleton'
-        EndIf
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Ctrl + '
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_ALT_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
-        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_WIN_CHECKBOX]), $GUI_CHECKED) == 1 Then $childRead &= 'Win + '
-        $childRead &= GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO])
-        For $x = 0 To _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) - 1
-            If $x <> Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])) And $childRead == _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $x, 1) Then
-                $error = True
-                ExitLoop
-            EndIf
+        Local $aColumns = StringSplit($sRow, "|", 1)
+        If Not IsArray($aColumns) Or $aColumns[0] <> 4 Then Return _HotkeyEditor_ShowError("The hotkey row is malformed")
+        Local $i
+        For $i = 1 To 4
+            If Not _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iListIndex, $aColumns[$i], $i - 1) Then Return _HotkeyEditor_ShowError("The hotkey could not be updated")
         Next
-        If $error Or $childRead == _returnToggleHotkey() Then
-            GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            If MsgBox(48, 'Oops!', 'Hotkey alreay assigned. Please choose another hotkey.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-                $error = False
-                GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-                WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            EndIf
-        ElseIf Not StringRegExp(GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT]), '^[\d-]?\d*?$') Or Not StringRegExp(GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT]), '^[\d-]?\d*?$') Then
-            If MsgBox(48, 'Oops!', 'X and Y fields must be an integer.', 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) == 1 Then
-                GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-                WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-            EndIf
-        Else
-            _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $childRead, 1)
-            If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) == 1 Then
-                $fileParam = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT])
-                If GUICtrlRead($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX]) == $GUI_CHECKED Then
-                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $fileParam, 2)
-                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'Advanced Command', 0)
-                Else
-                    If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT]) <> '' Then $fileParam = $fileParam&' [Parameters] '&GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT])
-                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $fileParam, 2)
-                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'File', 0)
-                EndIf
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_RADIO]) == 1 Then
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]), 2)
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'Folder', 0)
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) == 1 Then
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]), 2)
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'System', 0)
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) == 1 Then
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'Window', 0)
-                If GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]) == 'Custom Move and/or Resize' Then
-                    Local $m = ''
-                    Local $r = ''
-                    If GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) == $GUI_CHECKED Then $m = 'Move to '&GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT])&','&GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT])
-                    If GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) == $GUI_CHECKED Then $r = 'Resize to '&GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT])&'x'&GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT])
-                    If $m <> '' and $r <> '' Then
-                        $m = $m&' & '&$r
-                    Else
-                        $m = $m&$r
-                    EndIf
-                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $m, 2)
-                Else
-                    _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO]), 2)
-                EndIf
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_URL_RADIO]) == 1 Then
-                GUICtrlSetData($g_aGuiState[$GUI_STATE_URL_INPUT], StringReplace(StringReplace(StringReplace(GUICtrlRead($g_aGuiState[$GUI_STATE_URL_INPUT]), 'https://', ''), 'http://', ''), 'ftp://', ''))
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), GUICtrlRead($g_aGuiState[$GUI_STATE_URL_COMBO])&GUICtrlRead($g_aGuiState[$GUI_STATE_URL_INPUT]), 2)
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'URL', 0)
-            ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_RADIO]) == 1 Then
-                $hkztxt = StringReplace(GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_EDIT]), @CRLF, '[New Line]')
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $hkztxt, 2)
-                _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 'Text', 0)
-            EndIf
-            _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), $opts, 3)
-            _hideChild()
-        EndIf
     EndIf
+    _MainWindow_UpdateSaveState()
+    _hideChild()
+    Return True
+EndFunc
+
+Func _HotkeyEditor_ReadRecord()
+    Local $sHotkey = ""
+    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX]), $GUI_CHECKED) Then $sHotkey &= "Ctrl + "
+    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_ALT_CHECKBOX]), $GUI_CHECKED) Then $sHotkey &= "Alt + "
+    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX]), $GUI_CHECKED) Then $sHotkey &= "Shift + "
+    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_WIN_CHECKBOX]), $GUI_CHECKED) Then $sHotkey &= "Win + "
+    $sHotkey &= GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO])
+    Local $sAction = "", $sTarget = "", $sParameters = ""
+    Local $iOptions = $HOTKEY_OPTION_NONE
+    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX]), $GUI_CHECKED) Then $iOptions = BitOR($iOptions, $HOTKEY_OPTION_ADMIN)
+    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX]), $GUI_CHECKED) Then $iOptions = BitOR($iOptions, $HOTKEY_OPTION_SINGLETON)
+    If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) = $GUI_CHECKED Then
+        $sTarget = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT])
+        If GUICtrlRead($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX]) = $GUI_CHECKED Then
+            $sAction = $HOTKEY_ACTION_COMMAND
+        Else
+            $sAction = $HOTKEY_ACTION_FILE
+            $sParameters = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT])
+        EndIf
+    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_RADIO]) = $GUI_CHECKED Then
+        $sAction = $HOTKEY_ACTION_FOLDER
+        $sTarget = _HotkeyEditor_ResolveFolder(GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]))
+    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED Then
+        Local $aSpecial = _HotkeyEditor_ResolveSpecial(_HotkeyCodec_EncodeHotkey($sHotkey), GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]))
+        If @error Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
+        Local $aSpecialValues = _HotkeyEditorModel_CreateValues($aSpecial[$HOTKEY_FIELD_HOTKEY], $aSpecial[$HOTKEY_FIELD_ACTION], $aSpecial[$HOTKEY_FIELD_TARGET], $aSpecial[$HOTKEY_FIELD_PARAMETERS], $iOptions)
+        Return _HotkeyEditorModel_ToRecord($aSpecialValues, True)
+    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) = $GUI_CHECKED Then
+        $sAction = $HOTKEY_ACTION_WINDOW
+        $sTarget = GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO])
+    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_URL_RADIO]) = $GUI_CHECKED Then
+        $sAction = $HOTKEY_ACTION_URL
+        $sTarget = GUICtrlRead($g_aGuiState[$GUI_STATE_URL_COMBO]) & StringRegExpReplace(GUICtrlRead($g_aGuiState[$GUI_STATE_URL_INPUT]), "(?i)^(?:https?|ftp)://", "")
+    ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_RADIO]) = $GUI_CHECKED Then
+        $sAction = $HOTKEY_ACTION_TEXT
+        $sTarget = StringReplace(GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_EDIT]), @CRLF, @LF)
+    Else
+        Return SetError($EDITOR_MODEL_ERROR_INPUT, 0, 0)
+    EndIf
+    Local $aValues = _HotkeyEditorModel_CreateValues(_HotkeyCodec_EncodeHotkey($sHotkey), $sAction, $sTarget, $sParameters, $iOptions, GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) = $GUI_CHECKED, GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) = $GUI_CHECKED, GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT]))
+    Return _HotkeyEditorModel_ToRecord($aValues, True)
+EndFunc
+
+Func _HotkeyEditor_ResolveFolder($sDisplay)
+    Local $i
+    For $i = 0 To UBound($clsid, 1) - 1
+        If $sDisplay = $clsid[$i][0] Then Return $clsid[$i][1]
+    Next
+    Return $sDisplay
+EndFunc
+
+Func _HotkeyEditor_ResolveSpecial($sHotkey, $sLabel)
+    Local $i
+    For $i = 0 To UBound($sPaths, 1) - 1
+        If $sLabel = $sPaths[$i][0] Then Return _HotkeyCodec_DecodeLegacy($sHotkey, StringReplace($sPaths[$i][1], " [Parameters] ", $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$i][1]))
+    Next
+    Return SetError(1, 0, 0)
+EndFunc
+
+Func _HotkeyEditor_HasDuplicate($sHotkey, $iExcludeIndex)
+    Local $sNormalized = _HotkeyCodec_NormalizeHotkey($sHotkey)
+    Local $i
+    For $i = 0 To _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) - 1
+        If $i <> $iExcludeIndex And $sNormalized = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 1))) Then Return True
+    Next
+    Return $sNormalized = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_returnToggleHotkey()))
+EndFunc
+
+Func _HotkeyEditor_RecordRow(ByRef $aRecord)
+    Local $sType = _HotkeyModel_ActionLabel($aRecord[$HOTKEY_FIELD_ACTION])
+    Local $sItem = $aRecord[$HOTKEY_FIELD_TARGET]
+    Local $i
+    For $i = 0 To UBound($clsid, 1) - 1
+        If $sItem = $clsid[$i][1] Then
+            $sItem = $clsid[$i][0]
+            ExitLoop
+        EndIf
+    Next
+    For $i = 0 To UBound($sPaths, 1) - 1
+        Local $aSpecial = _HotkeyEditor_ResolveSpecial($aRecord[$HOTKEY_FIELD_HOTKEY], $sPaths[$i][0])
+        If IsArray($aSpecial) And $aRecord[$HOTKEY_FIELD_ACTION] = $aSpecial[$HOTKEY_FIELD_ACTION] And $aRecord[$HOTKEY_FIELD_TARGET] = $aSpecial[$HOTKEY_FIELD_TARGET] And $aRecord[$HOTKEY_FIELD_PARAMETERS] = $aSpecial[$HOTKEY_FIELD_PARAMETERS] Then
+            $sType = "System"
+            $sItem = $sPaths[$i][0]
+            ExitLoop
+        EndIf
+    Next
+    If $aRecord[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE And $aRecord[$HOTKEY_FIELD_PARAMETERS] <> "" Then $sItem &= " [Parameters] " & $aRecord[$HOTKEY_FIELD_PARAMETERS]
+    If $aRecord[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_TEXT Then $sItem = StringReplace($sItem, @LF, "[New Line]")
+    Local $sOptions = ""
+    If _HotkeyModel_HasOption($aRecord, $HOTKEY_OPTION_ADMIN) Then $sOptions = "Admin"
+    If _HotkeyModel_HasOption($aRecord, $HOTKEY_OPTION_SINGLETON) Then
+        If $sOptions <> "" Then $sOptions &= ", "
+        $sOptions &= "Singleton"
+    EndIf
+    Return $sType & "|" & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY]) & "|" & $sItem & "|" & $sOptions
+EndFunc
+
+Func _HotkeyEditor_SelectedIndex()
+    Local $sSelected = _GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])
+    If $sSelected = "" Then Return SetError(1, 0, -1)
+    Local $aSelected = StringSplit($sSelected, "|")
+    Local $iSelected = Number($aSelected[1])
+    If $iSelected < 0 Or $iSelected >= _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) Then Return SetError(2, 0, -1)
+    Return $iSelected
+EndFunc
+
+Func _HotkeyEditor_ErrorMessage($iError, $iExtended)
+    #forceref $iExtended
+    Switch $iError
+        Case $EDITOR_MODEL_ERROR_HOTKEY
+            Return "Assign a hotkey with at least one modifier"
+        Case $EDITOR_MODEL_ERROR_NUMBER
+            Return "Custom window coordinates must be integers and sizes must be positive integers"
+        Case $EDITOR_MODEL_ERROR_DUPLICATE
+            Return "That hotkey is already assigned"
+    EndSwitch
+    Return "Complete the selected action with valid values"
+EndFunc
+
+Func _HotkeyEditor_ShowError($sMessage)
+    MsgBox(48, "Invalid hotkey", $sMessage, 0, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    Return False
+EndFunc
+
+Func _HotkeyEditor_UpdateOkState()
+    If $g_bHotkeyEditorUpdating Or Not IsHWnd($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Or Not $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON] Then Return False
+    $g_bHotkeyEditorUpdating = True
+    Local $aRecord = _HotkeyEditor_ReadRecord()
+    Local $bValid = IsArray($aRecord)
+    If $bValid Then
+        Local $iExclude = -1
+        If WinGetTitle($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) = "Edit Hotkey" Then $iExclude = _HotkeyEditor_SelectedIndex()
+        If _HotkeyEditor_HasDuplicate($aRecord[$HOTKEY_FIELD_HOTKEY], $iExclude) Then $bValid = False
+    EndIf
+    If $bValid Then
+        GUICtrlSetState($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], $GUI_ENABLE)
+    Else
+        GUICtrlSetState($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], $GUI_DISABLE)
+    EndIf
+    $g_bHotkeyEditorUpdating = False
+    Return $bValid
+EndFunc
+
+Func _HotkeyEditor_WM_COMMAND($hWnd, $iMsg, $iwParam, $ilParam)
+    #forceref $iMsg, $iwParam, $ilParam
+    If $hWnd = $g_aGuiState[$GUI_STATE_EDITOR_WINDOW] Then
+        _HotkeyEditor_UpdateOkState()
+    ElseIf $hWnd = $g_aGuiState[$GUI_STATE_MAIN_WINDOW] Then
+        _MainWindow_UpdateSaveState()
+    EndIf
+    Return $GUI_RUNDEFMSG
 EndFunc
 
 Func _hideChild()

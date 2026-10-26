@@ -1,6 +1,9 @@
 #include "..\src\core\HotkeyRepository.au3"
+#include "..\src\core\AppConstants.au3"
 #include "..\src\actions\ActionDispatcher.au3"
 #include "..\src\app\ErrorReporter.au3"
+#include "..\src\app\HotkeyRegistry.au3"
+#include "..\src\gui\HotkeyEditorModel.au3"
 
 Opt("MustDeclareVars", 1)
 
@@ -11,6 +14,7 @@ Global $g_iClipboardWaitCalls = 0
 Global $g_bClipboardWriteFails = False
 Global $g_bClipboardWaitFails = False
 Global $g_sClipboardWritten = ""
+Global $g_sUnavailableHotkey = ""
 
 _TestSpecialKeys()
 _TestCodecRoundTrips()
@@ -22,6 +26,8 @@ _TestGeometry()
 _TestWindowsFailurePaths()
 _TestClipboardTransactions()
 _TestTextAndCrypto()
+_TestEditorModel()
+_TestUnavailableHotkey()
 
 If $g_iFailures Then
     ConsoleWrite("FAILED: " & $g_iFailures & " of " & $g_iAssertions & " assertions" & @CRLF)
@@ -127,6 +133,66 @@ Func _TestTextAndCrypto()
     _AssertEqual(20, StringLen($sPpp), "PPP password length constraint")
     _AssertTrue(StringRegExp($sPpp, "^[!#%+2-9:=?@A-HJ-NP-ZA-Za-z]{20}$") = 1, "PPP password character constraint")
     _AssertFalse(StringRegExp($sPpp, "[IOQl]") = 1, "PPP password excludes ambiguous characters")
+EndFunc
+
+Func _TestEditorModel()
+    Local $aEmpty = _HotkeyRepository_CreateTable(0)
+    Local $aUrlValues = _HotkeyEditorModel_CreateValues("!^a", $HOTKEY_ACTION_URL, "https://example.com")
+    Local $aUrl = _HotkeyEditorModel_ToRecord($aUrlValues)
+    _AssertTrue(IsArray($aUrl), "editor model creates a valid add record")
+    _AssertEqual("^!a", $aUrl[$HOTKEY_FIELD_HOTKEY], "editor model canonicalizes modifier order")
+    Local $aAdded = _HotkeyEditorModel_Upsert($aEmpty, $aUrl)
+    _AssertEqual(1, _HotkeyRepository_Count($aAdded), "editor model adds a record")
+
+    Local $aTextValues = _HotkeyEditorModel_CreateValues("^!b", $HOTKEY_ACTION_TEXT, "replacement")
+    Local $aText = _HotkeyEditorModel_ToRecord($aTextValues)
+    Local $aEdited = _HotkeyEditorModel_Upsert($aAdded, $aText, 1)
+    _AssertEqual(1, _HotkeyRepository_Count($aEdited), "editor model edits without adding a row")
+    Local $aEditedRecord = _HotkeyRepository_GetRecord($aEdited, 1)
+    _AssertEqual("replacement", $aEditedRecord[$HOTKEY_FIELD_TARGET], "editor model replaces the selected row")
+    Local $aCancelled = _HotkeyEditorModel_Cancel($aAdded)
+    _AssertTrue(_HotkeyRepository_TablesEqual($aAdded, $aCancelled), "cancel leaves the original editor table unchanged")
+
+    Local $aDuplicate = _HotkeyEditorModel_Upsert($aEdited, $aText)
+    _AssertFalse(IsArray($aDuplicate), "duplicate editor hotkey is rejected")
+    Local $aDeleted = _HotkeyEditorModel_Delete($aEdited, 1)
+    Local $iDeleteSelection = @extended
+    _AssertEqual(0, _HotkeyRepository_Count($aDeleted), "editor model deletes the selected row")
+    _AssertEqual(0, $iDeleteSelection, "deleting the final row leaves no invalid selection")
+    _AssertFalse(IsArray(_HotkeyEditorModel_Delete($aDeleted, 1)), "delete from an empty list is guarded")
+
+    Local $aBadNumberValues = _HotkeyEditorModel_CreateValues("^!c", $HOTKEY_ACTION_WINDOW, $ACTION_CATALOG_CUSTOM_WINDOW, "", 0, True, "1-2", "3")
+    _AssertFalse(IsArray(_HotkeyEditorModel_ToRecord($aBadNumberValues)), "invalid custom coordinate is rejected")
+    Local $aBadSizeValues = _HotkeyEditorModel_CreateValues("^!c", $HOTKEY_ACTION_WINDOW, $ACTION_CATALOG_CUSTOM_WINDOW, "", 0, False, "", "", True, "0", "600")
+    _AssertFalse(IsArray(_HotkeyEditorModel_ToRecord($aBadSizeValues)), "nonpositive custom size is rejected")
+    Local $aBadUrlValues = _HotkeyEditorModel_CreateValues("^!u", $HOTKEY_ACTION_URL, "javascript:alert(1)")
+    _AssertFalse(IsArray(_HotkeyEditorModel_ToRecord($aBadUrlValues)), "invalid editor URL is rejected")
+    _AssertFalse(_HotkeyEditorModel_ValidateToggle("!^b", $aEdited), "main toggle cannot duplicate an action hotkey")
+    _AssertTrue(_HotkeyEditorModel_ValidateToggle("^!z", $aEdited), "distinct modified main toggle is valid")
+    _AssertFalse(_HotkeyEditorModel_ValidateToggle("^", $aEdited), "modifier without a key is invalid")
+    _AssertFalse(_HotkeyEditorModel_ShouldCloseSettings(False, True), "save failure keeps settings open")
+    _AssertFalse(_HotkeyEditorModel_ShouldCloseSettings(True, False), "startup decision failure keeps settings open")
+    _AssertTrue(_HotkeyEditorModel_ShouldCloseSettings(True, True), "successful save and startup decision close settings")
+    _AssertTrue(_HotkeyEditorModel_StartupEnabled(1), "checked startup state enables startup")
+    _AssertFalse(_HotkeyEditorModel_StartupEnabled(4), "unchecked startup state disables startup")
+    _AssertTrue(_WindowActions_IsValid("Set Process Priority to High"), "canonical priority label reaches the dispatcher")
+    _AssertFalse(StringInStr(_ActionCatalog_WindowLabels(), "Hight") > 0, "window action labels omit the legacy typo")
+EndFunc
+
+Func _TestUnavailableHotkey()
+    Local $aEmpty = _HotkeyRepository_CreateTable(0)
+    Local $aValues = _HotkeyEditorModel_CreateValues("^!x", $HOTKEY_ACTION_TEXT, "test")
+    Local $aRecord = _HotkeyEditorModel_ToRecord($aValues)
+    Local $aNew = _HotkeyEditorModel_Upsert($aEmpty, $aRecord)
+    $g_sUnavailableHotkey = "^!x"
+    _HotkeyRegistry_ConfigureHotkeyBackend("_TestHotkeySet")
+    _AssertFalse(_HotkeyRegistry_ApplyBindings("^!z", $aEmpty, "^!y", $aNew), "unavailable action hotkey aborts registration")
+    _HotkeyRegistry_ResetHotkeyBackend()
+EndFunc
+
+Func _TestHotkeySet($sHotkey, $sHandler)
+    If $sHandler <> "" And $sHotkey = $g_sUnavailableHotkey Then Return False
+    Return True
 EndFunc
 
 Func _TestCaptureFails($sUnused, $hWnd)

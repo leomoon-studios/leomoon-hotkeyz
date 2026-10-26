@@ -24,7 +24,7 @@ Func _TrayController_Initialize($sIniFile)
     TrayCreateItem("")
     TrayCreateItem("Exit")
     TrayItemSetOnEvent(-1, "_exit")
-    _readHotkey($sIniFile, "Options", "Main", $enableTray, "Enable " & $APP_TITLE, "_toggle", $APP_DEFAULT_TOGGLE_HOTKEY)
+    If Not _readHotkey($sIniFile, "Options", "Main", $enableTray, "Enable " & $APP_TITLE, "_toggle", $APP_DEFAULT_TOGGLE_HOTKEY) Then Return False
     TraySetToolTip($APP_TITLE & " is enabled.")
     Return True
 EndFunc
@@ -34,7 +34,7 @@ Func _toggle()
     ;$enabled = Not $enabled
     If $enabled == False Then ;disable it
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY])
+            If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then Return _AppError_Report("A hotkey could not be disabled", 1, $i)
         Next
         $enabled = True
         TraySetIcon(@ScriptFullPath, 202)
@@ -42,7 +42,7 @@ Func _toggle()
         TraySetToolTip($APP_TITLE&" is disabled.")
     Else
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed")
+            If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then Return _AppError_Report("A hotkey is unavailable because Windows or another application uses it", 1, $i)
         Next
         $enabled = False
         TraySetIcon(@ScriptFullPath, 201)
@@ -60,12 +60,12 @@ Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default
     ;function to set hotkey
     Local $appHotkey = IniRead($iniFile, $section, $key, '')
     If $appHotkey == '' Then ;default hotkey if key not found in ini file
-        IniWrite($iniFile, $section, $key, $default)
-        TrayItemSetText($trayItem, $text&@TAB&_HotkeyCodec_DecodeHotkey($default))
-    Else
-        HotKeySet($appHotkey, $function)
-        TrayItemSetText($trayItem, $text&@TAB&_HotkeyCodec_DecodeHotkey($appHotkey))
+        $appHotkey = $default
+        If Not IniWrite($iniFile, $section, $key, $appHotkey) Then Return _AppError_Report("The default main toggle hotkey could not be saved", 1, 0)
     EndIf
+    If Not _HotkeyRegistry_TrySet($appHotkey, $function) Then Return _AppError_Report("The main toggle hotkey is unavailable", 1, 0)
+    TrayItemSetText($trayItem, $text&@TAB&_HotkeyCodec_DecodeHotkey($appHotkey))
+    Return True
 EndFunc
 
 Func _web()

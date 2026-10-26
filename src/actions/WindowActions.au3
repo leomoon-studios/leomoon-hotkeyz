@@ -7,14 +7,14 @@
 #include <WinAPISysWin.au3>
 #include <WindowsConstants.au3>
 #include "..\core\Geometry.au3"
+#include "..\core\ActionCatalog.au3"
 #include "TextActions.au3"
 #include "ClipboardTransaction.au3"
 
-Global Const $WINDOW_ACTION_NAMES = "|Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to Hight|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Generate Random Password (PPP)|Generate Random Password (Letters)|Generate Random Password (Numbers)|Generate Random Password (Letters and Numbers)|Generate Random UUID|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|MD5 Selected Text|SHA1 Selected Text|SHA-256 Selected Text|SHA-512 Selected Text|Base64 Encode Selected Text|Base64 Decode Selected Text|"
 Global $g_iWindowActionsComError = 0
 
 Func _WindowActions_IsValid($sAction)
-    If StringInStr($WINDOW_ACTION_NAMES, "|" & $sAction & "|", 1) Then Return True
+    If _ActionCatalog_IsWindowAction($sAction) Then Return True
     Return StringRegExp($sAction, "^(?:Move to -?\d+,-?\d+(?: & Resize to [1-9]\d*x[1-9]\d*)?|Resize to [1-9]\d*x[1-9]\d*)$") = 1
 EndFunc
 
@@ -269,7 +269,7 @@ Func _WindowActions_Execute($sAction)
             Return _setPriority($hWnd, 2)
         Case "Set Process Priority to Above Normal"
             Return _setPriority($hWnd, 3)
-        Case "Set Process Priority to Hight"
+        Case "Set Process Priority to High", $ACTION_CATALOG_LEGACY_HIGH
             Return _setPriority($hWnd, 4)
         Case "Set Process Priority to Realtime"
             Return _setPriority($hWnd, 5)

@@ -7,6 +7,7 @@
 #include <WindowsConstants.au3>
 #include "..\actions\ActionValidator.au3"
 #include "..\app\ErrorReporter.au3"
+#include "HotkeyEditorModel.au3"
 
 Func _mainGui()
     ;~ $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
@@ -19,11 +20,16 @@ Func _mainGui()
         GUICtrlCreateGroup("", -99, -99, 1, 1)
         GUICtrlCreateGroup("HotKeyz main hotkey", 8, 72, 658, 57)
         $g_aGuiState[$GUI_STATE_CTRL_CHECKBOX] = GUICtrlCreateCheckbox("Ctrl", 17, 96, 97, 17)
+        GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
         $g_aGuiState[$GUI_STATE_ALT_CHECKBOX] = GUICtrlCreateCheckbox("Alt", 136, 96, 97, 17)
+        GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
         $g_aGuiState[$GUI_STATE_SHIFT_CHECKBOX] = GUICtrlCreateCheckbox("Shift", 256, 96, 97, 17)
+        GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
         $g_aGuiState[$GUI_STATE_WIN_CHECKBOX] = GUICtrlCreateCheckbox("Win", 376, 96, 97, 17)
+        GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
         $g_aGuiState[$GUI_STATE_KEY_COMBO] = GUICtrlCreateCombo("", 497, 94, 159, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-        GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/|Space|Backspace|Enter|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+        GUICtrlSetData(-1, $HOTKEY_CODEC_KEY_NAMES)
+        GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
         GUICtrlCreateGroup("", -99, -99, 1, 1)
         GUICtrlCreateGroup("Edit hotkeys", 8, 136, 658, 450)
         Local $addBtn = GUICtrlCreateButton("Add New", 16, 160, 209, 33)
@@ -47,7 +53,9 @@ Func _mainGui()
         _GUICtrlListView_AddColumn($g_aGuiState[$GUI_STATE_LIST_VIEW], 'Item')
         _GUICtrlListView_AddColumn($g_aGuiState[$GUI_STATE_LIST_VIEW], 'Options')
         _iniToGui($APP_INI_PATH) ;set gui from ini file
+        _MainWindow_UpdateSaveState()
         GUIRegisterMsg($WM_NOTIFY, "WM_NOTIFY")
+        GUIRegisterMsg($WM_COMMAND, "_HotkeyEditor_WM_COMMAND")
         _GUICtrlListView_RegisterSortCallBack($g_aGuiState[$GUI_STATE_LIST_VIEW])
         GUISetState(@SW_SHOW)
         WinActivate($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
@@ -115,6 +123,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             Local $opts = ''
             Local $special = False
             $item = $aArray[$i][$HOTKEY_FIELD_TARGET]
+            If $item = $ACTION_CATALOG_LEGACY_HIGH Then $item = "Set Process Priority to High"
             $type = _HotkeyModel_ActionLabel($aArray[$i][$HOTKEY_FIELD_ACTION])
             For $c = 0 To UBound($clsid, 1)-1
                 If _strCompare($item, $clsid[$c][1]) Then
@@ -154,11 +163,11 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
         _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1, 160)
     EndIf
     _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 2, ControlGetPos($g_aGuiState[$GUI_STATE_MAIN_WINDOW], '', $g_aGuiState[$GUI_STATE_LIST_VIEW])[2]-(_GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)+_GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1)+_GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 3)+25))
-    _GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], 0) ;select first item
+    If _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) Then _GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)
 EndFunc
 
 Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
-    Local $txt, $i, $x, $c, $s, $type, $path, $parameters, $options, $aRecord
+    Local $txt, $x, $c, $s, $type, $path, $parameters, $options, $aRecord
     ;main hotkey
     Local $oldHotkey = IniRead($iniFile, 'Options', 'Main', '') ;get old hotkey
     Local $appHotkey = ''
@@ -203,27 +212,40 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         If Not _ActionValidator_ValidateRecord($aRecord, True) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
         If Not _HotkeyRepository_SetRecord($aNewHotkeys, $x + 1, $aRecord) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
     Next
-    If Not _HotkeyRepository_Save($iniFile, $aNewHotkeys) Then Return SetError(@error, @extended, False)
-    If Not IniWrite($iniFile, 'Options', 'Main', $appHotkey) Then Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 0, False)
-    HotKeySet($oldHotkey) ;unset old hotkey
-    HotKeySet($appHotkey, '_toggle') ;set new hotkey
+    If Not _HotkeyEditorModel_ValidateToggle($appHotkey, $aNewHotkeys) Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, @error, False)
+    If Not _HotkeyRegistry_ApplyBindings($oldHotkey, $aHotkeys, $appHotkey, $aNewHotkeys) Then Return SetError($HOTKEY_REPOSITORY_ERROR_HOTKEY_UNAVAILABLE, @extended, False)
+    If Not _HotkeyRepository_Save($iniFile, $aNewHotkeys) Then
+        Local $iSaveError = @error
+        Local $iSaveExtended = @extended
+        _HotkeyRegistry_ApplyBindings($appHotkey, $aNewHotkeys, $oldHotkey, $aHotkeys)
+        Return SetError($iSaveError, $iSaveExtended, False)
+    EndIf
+    If Not IniWrite($iniFile, 'Options', 'Main', $appHotkey) Then
+        _HotkeyRegistry_ApplyBindings($appHotkey, $aNewHotkeys, $oldHotkey, $aHotkeys)
+        Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 0, False)
+    EndIf
+    $aHotkeys = $aNewHotkeys
     $txt = _HotkeyCodec_DecodeHotkey($appHotkey) ;decode hotkey to text
     TrayItemSetText($enableTray, 'Enable '&$APP_TITLE&@TAB&$txt) ;change menu entry to new hotkey
-    If IsArray($aHotkeys) Then
-        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY])
-        Next
-    EndIf
     Return True
 EndFunc
 
 Func _saveBtn()
+    If Not _MainWindow_IsHotkeyLayoutValid() Then
+        _AppError_Report("The main hotkey is incomplete or conflicts with an action hotkey", $EDITOR_MODEL_ERROR_DUPLICATE, 0)
+        Return False
+    EndIf
     If Not _guiToIni($APP_INI_PATH) Then
-        _AppError_Report("The hotkey settings could not be validated and saved; the previous file is still available as a backup", @error, @extended)
+        Local $iSaveError = @error
+        Local $iSaveExtended = @extended
+        If $iSaveError = $HOTKEY_REPOSITORY_ERROR_HOTKEY_UNAVAILABLE Then
+            _AppError_Report("A hotkey is unavailable because Windows or another application already uses it", $iSaveError, $iSaveExtended)
+        Else
+            _AppError_Report("The hotkey settings could not be validated and saved; the previous file is still available as a backup", $iSaveError, $iSaveExtended)
+        EndIf
         Return
     EndIf
-    If Not _iniToApply($APP_INI_PATH) Then Return
-    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_STARTUP_CHECKBOX]), $GUI_CHECKED) == 1 Then
+    If _HotkeyEditorModel_StartupEnabled(GUICtrlRead($g_aGuiState[$GUI_STATE_STARTUP_CHECKBOX])) Then
         If Not _HotkeyRegistry_SetStartupEnabled(True) Then
             _AppError_Report("The Windows startup registry entry could not be written", @error, @extended)
             Return
@@ -234,8 +256,11 @@ Func _saveBtn()
             Return
         EndIf
     EndIf
-    GUIDelete($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
-    $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = False
+    If _HotkeyEditorModel_ShouldCloseSettings(True, True) Then
+        GUIDelete($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
+        $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = False
+    EndIf
+    Return True
 EndFunc
 
 Func _guiDel()
@@ -251,6 +276,30 @@ Func _returnToggleHotkey()
     If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_WIN_CHECKBOX]), $GUI_CHECKED) == 1 Then $appHotkey &= 'Win + '
     $appHotkey &= GUICtrlRead($g_aGuiState[$GUI_STATE_KEY_COMBO])
     Return($appHotkey)
+EndFunc
+
+Func _MainWindow_IsHotkeyLayoutValid()
+    Local $sToggle = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_returnToggleHotkey()))
+    If Not _HotkeyEditorModel_IsModifiedHotkey($sToggle) Then Return False
+    Local $i, $j, $sHotkey
+    For $i = 0 To _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) - 1
+        $sHotkey = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 1)))
+        If $sHotkey = $sToggle Then Return False
+        For $j = 0 To $i - 1
+            If $sHotkey = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $j, 1))) Then Return False
+        Next
+    Next
+    Return True
+EndFunc
+
+Func _MainWindow_UpdateSaveState()
+    If Not $g_aGuiState[$GUI_STATE_SAVE_BUTTON] Then Return False
+    If _MainWindow_IsHotkeyLayoutValid() Then
+        GUICtrlSetState($g_aGuiState[$GUI_STATE_SAVE_BUTTON], $GUI_ENABLE)
+        Return True
+    EndIf
+    GUICtrlSetState($g_aGuiState[$GUI_STATE_SAVE_BUTTON], $GUI_DISABLE)
+    Return False
 EndFunc
 
 Func _strCompare($string1, $string2)

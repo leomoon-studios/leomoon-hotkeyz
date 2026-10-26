@@ -9,6 +9,7 @@ Global Const $HOTKEY_REPOSITORY_ERROR_DUPLICATE = 3
 Global Const $HOTKEY_REPOSITORY_ERROR_WRITE = 4
 Global Const $HOTKEY_REPOSITORY_ERROR_VERIFY = 5
 Global Const $HOTKEY_REPOSITORY_ERROR_REPLACE = 6
+Global Const $HOTKEY_REPOSITORY_ERROR_HOTKEY_UNAVAILABLE = 7
 
 Func _HotkeyRepository_CreateTable($iCount)
     If Not IsInt($iCount) Or $iCount < 0 Then Return SetError(1, 0, 0)
