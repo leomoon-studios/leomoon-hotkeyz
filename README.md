@@ -10,7 +10,7 @@ Linux can be used for repository maintenance, editing, Git operations, and trigg
 
 ## Validation from Linux
 
-Every push and pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml). The workflow can also be started manually from the GitHub Actions page by selecting **CI**, choosing **Run workflow**, and selecting the branch to test.
+Every branch push and pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml). The workflow can also be started manually from the GitHub Actions page by selecting **CI**, choosing **Run workflow**, and selecting the branch to test.
 
 With the GitHub CLI installed and authenticated, a Linux maintainer can run:
 
@@ -28,19 +28,20 @@ On Windows, the same checks can be run directly when an extracted AutoIt toolcha
 & scripts/check.ps1 -ToolchainDirectory C:\path\to\autoit-v3.3.18.0\install
 ```
 
-## Test builds from Linux
+## Tagged builds from Linux
 
-The manual [Windows package workflow](.github/workflows/build-release.yml) accepts an `X.Y.Z` version, runs the full regression suite, builds the x86 application, creates a portable ZIP and an unsigned per-user Inno Setup installer, performs a silent install and uninstall test, and uploads one artifact containing the packages, release manifest, and checksums. Manual runs create workflow artifacts only and do not publish a GitHub Release.
+Pushing an exact `vX.Y.Z` tag starts the [Windows package workflow](.github/workflows/build-release.yml). Its check job validates the tag and runs the full regression suite. Only after those checks pass does the dependent build job compile the x86 application, create a portable ZIP and an unsigned per-user Inno Setup installer, perform a silent install and uninstall test, and upload one artifact containing the packages, release manifest, and checksums. Branch pushes and pull requests run CI checks but never build packages.
 
-From an authenticated GitHub CLI session on Linux, start and follow a test build with:
+From Linux, create and push a release tag, then follow its build with:
 
 ```bash
-gh workflow run build-release.yml --ref your-branch -f version=1.8.12
+git tag v1.8.13
+git push origin v1.8.13
 gh run list --workflow build-release.yml --limit 1
 gh run watch
 ```
 
-After the run succeeds, download its artifact with `gh run download RUN_ID`. The extracted artifact must contain only the portable ZIP, setup executable, `release-manifest.json`, and `SHA256SUMS`.
+After the run succeeds, download its artifact with `gh run download RUN_ID`. The extracted artifact must contain only the portable ZIP, setup executable, `release-manifest.json`, and `SHA256SUMS`. The tag workflow currently uploads a workflow artifact and does not create a GitHub Release.
 
 ## Configuration and recovery
 

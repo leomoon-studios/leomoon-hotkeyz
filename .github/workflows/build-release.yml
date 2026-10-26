@@ -1,40 +1,39 @@
 name: Build Windows packages
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Version for the test packages in X.Y.Z form
-        required: true
-        default: "1.8.12"
-        type: string
+  push:
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: read
 
 concurrency:
   group: build-windows-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  build-windows:
-    name: Build and verify Windows packages
+  check:
+    name: Check release tag and source
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      release_date: ${{ steps.metadata.outputs.release_date }}
     steps:
       - name: Check out source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - name: Validate build version
+      - name: Validate release tag
         id: metadata
         shell: pwsh
         env:
-          BUILD_VERSION: ${{ inputs.version }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          $version = $env:BUILD_VERSION
-          if ($version -notmatch '^\d+\.\d+\.\d+$') {
-            throw "Version must use exact X.Y.Z numeric form"
+          if ($env:RELEASE_TAG -notmatch '^v(\d+\.\d+\.\d+)$') {
+            throw "Release tag must use exact vX.Y.Z numeric form"
           }
+          "version=$($env:RELEASE_TAG.Substring(1))" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "release_date=$([DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Install checksum-pinned build tools
@@ -48,10 +47,24 @@ jobs:
           AUTOIT_DIRECTORY: ${{ steps.tools.outputs.autoit_directory }}
         run: '& scripts/check.ps1 -ToolchainDirectory $env:AUTOIT_DIRECTORY'
 
+  build:
+    name: Build and verify Windows packages
+    needs: check
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install checksum-pinned build tools
+        id: tools
+        shell: pwsh
+        run: '& scripts/install-build-tools.ps1 -ToolsDirectory "$env:RUNNER_TEMP\leomoon-hotkeyz-tools"'
+
       - name: Build x86 application
         shell: pwsh
         env:
-          BUILD_VERSION: ${{ inputs.version }}
+          BUILD_VERSION: ${{ needs.check.outputs.version }}
           AUTOIT_DIRECTORY: ${{ steps.tools.outputs.autoit_directory }}
           AUTOIT3WRAPPER_PATH: ${{ steps.tools.outputs.autoit3wrapper_path }}
         run: '& scripts/build-windows.ps1 -Version $env:BUILD_VERSION -AutoItDirectory $env:AUTOIT_DIRECTORY -AutoIt3WrapperPath $env:AUTOIT3WRAPPER_PATH'
@@ -59,16 +72,16 @@ jobs:
       - name: Package and verify portable and installer artifacts
         shell: pwsh
         env:
-          BUILD_VERSION: ${{ inputs.version }}
+          BUILD_VERSION: ${{ needs.check.outputs.version }}
           ISCC_PATH: ${{ steps.tools.outputs.iscc_path }}
-          RELEASE_DATE: ${{ steps.metadata.outputs.release_date }}
+          RELEASE_DATE: ${{ needs.check.outputs.release_date }}
           COMMIT_SHA: ${{ github.sha }}
         run: '& scripts/package-windows.ps1 -Version $env:BUILD_VERSION -StageDirectory "build\windows\output" -DistDirectory "dist" -IsccPath $env:ISCC_PATH -ReleaseDate $env:RELEASE_DATE -Commit $env:COMMIT_SHA'
 
       - name: Upload verified Windows packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: leomoon-hotkeyz-${{ inputs.version }}-windows-x86-${{ github.sha }}
+          name: leomoon-hotkeyz-${{ needs.check.outputs.version }}-windows-x86-${{ github.sha }}
           path: dist/
           if-no-files-found: error
           retention-days: 14
