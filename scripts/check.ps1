@@ -8,7 +8,10 @@ param(
 $ErrorActionPreference = "Stop"
 $repositoryDirectory = Split-Path -Parent $PSScriptRoot
 $sourcePath = Join-Path $repositoryDirectory "src\LeoMoon HotKeyz.au3"
-$testPath = Join-Path $repositoryDirectory "tests\TestRunner.au3"
+$testPaths = @(
+    (Join-Path $repositoryDirectory "tests\TestRunner.au3"),
+    (Join-Path $repositoryDirectory "tests\ModuleSmoke.au3")
+)
 $toolchainPath = (Resolve-Path -LiteralPath $ToolchainDirectory).Path
 $checkerPath = Join-Path $toolchainPath "Au3Check.exe"
 $autoItPath = Join-Path $toolchainPath "AutoIt3.exe"
@@ -26,7 +29,7 @@ if (-not (Test-Path -LiteralPath $autoItPath -PathType Leaf)) {
 }
 
 # ExtMsgBox.au3 explicitly disables warning 7 because it intentionally passes expressions to ByRef parameters.
-$checkTargets = @($sourcePath, $testPath)
+$checkTargets = @($sourcePath) + $testPaths
 foreach ($checkTarget in $checkTargets) {
     if (-not (Test-Path -LiteralPath $checkTarget -PathType Leaf)) {
         throw "The AutoIt source was not found at $checkTarget"
@@ -51,9 +54,11 @@ foreach ($checkTarget in $checkTargets) {
     }
 }
 
-& $autoItPath /ErrorStdOut $testPath
-if ($LASTEXITCODE -ne 0) {
-    throw "AutoIt tests failed with exit code $LASTEXITCODE"
+foreach ($testPath in $testPaths) {
+    & $autoItPath /ErrorStdOut $testPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "AutoIt test failed for $testPath with exit code $LASTEXITCODE"
+    }
 }
 
 Write-Host "Au3Check and AutoIt tests completed successfully."
