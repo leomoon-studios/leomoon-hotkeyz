@@ -2,6 +2,16 @@
 
 #include "..\core\HotkeyModel.au3"
 
+Global $g_sShellExecuteHandler = "_ProcessActions_ShellExecuteNative"
+
+Func _ProcessActions_ConfigureShellBackend($sHandler)
+    $g_sShellExecuteHandler = $sHandler
+EndFunc
+
+Func _ProcessActions_ResetShellBackend()
+    $g_sShellExecuteHandler = "_ProcessActions_ShellExecuteNative"
+EndFunc
+
 Func _ProcessActions_ExecuteMedia($sTarget)
     If Not _ProcessActions_IsMediaTarget($sTarget) Then Return SetError(1, 0, False)
     Send("{" & StringUpper(StringReplace($sTarget, " ", "_")) & "}")
@@ -42,6 +52,12 @@ Func _ProcessActions_ExecuteTarget($sTarget, $sParameters, $sVerb, $bSingleton)
 EndFunc
 
 Func _ProcessActions_ShellExecute($sTarget, $sParameters = "", $sWorkingDirectory = "", $sVerb = "", $iShowFlag = @SW_SHOWNORMAL)
+    Local $vResult = Call($g_sShellExecuteHandler, $sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag)
+    If @error Or Not $vResult Then Return SetError(1, @error, False)
+    Return True
+EndFunc
+
+Func _ProcessActions_ShellExecuteNative($sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag)
     Local $iPid = ShellExecute($sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag)
     If @error Or $iPid = 0 Then Return SetError(1, @error, False)
     Return True

@@ -12,6 +12,39 @@
 #include "ClipboardTransaction.au3"
 
 Global $g_iWindowActionsComError = 0
+Global $g_sMonitorEnumHandler = "_WinAPI_EnumDisplayMonitors"
+Global $g_sMonitorInfoHandler = "_WinAPI_GetMonitorInfo"
+Global $g_sComCreateHandler = "_WindowActions_ObjCreate"
+Global $g_sLayeredAttributesHandler = "_WindowActions_GetLayeredAttributes"
+Global $g_sPathFromUrlHandler = "_WindowActions_PathFromUrl"
+
+Func _WindowActions_ConfigureBackends($sMonitorEnum, $sMonitorInfo, $sComCreate, $sLayeredAttributes, $sPathFromUrl)
+    $g_sMonitorEnumHandler = $sMonitorEnum
+    $g_sMonitorInfoHandler = $sMonitorInfo
+    $g_sComCreateHandler = $sComCreate
+    $g_sLayeredAttributesHandler = $sLayeredAttributes
+    $g_sPathFromUrlHandler = $sPathFromUrl
+EndFunc
+
+Func _WindowActions_ResetBackends()
+    _WindowActions_ConfigureBackends("_WinAPI_EnumDisplayMonitors", "_WinAPI_GetMonitorInfo", "_WindowActions_ObjCreate", "_WindowActions_GetLayeredAttributes", "_WindowActions_PathFromUrl")
+EndFunc
+
+Func _WindowActions_ObjCreate($sProgramId)
+    Return ObjCreate($sProgramId)
+EndFunc
+
+Func _WindowActions_CreateComObject($sProgramId)
+    Return Call($g_sComCreateHandler, $sProgramId)
+EndFunc
+
+Func _WindowActions_GetLayeredAttributes($hWnd, $iColor, $iTransparency)
+    Return DllCall("user32.dll", "bool", "GetLayeredWindowAttributes", "hwnd", $hWnd, "dword*", $iColor, "byte*", $iTransparency, "dword*", 0)
+EndFunc
+
+Func _WindowActions_PathFromUrl($sUrl)
+    Return DllCall("shlwapi.dll", "long", "PathCreateFromUrlW", "wstr", $sUrl, "wstr", "", "dword*", 65534, "dword", 0)
+EndFunc
 
 Func _WindowActions_IsValid($sAction)
     If _ActionCatalog_IsWindowAction($sAction) Then Return True
@@ -44,7 +77,7 @@ EndFunc
 Func _WinGetTrans($hWnd, ByRef $iTransparency, $bAsColorRef = False)
     Local $iColor = -1
     $iTransparency = -1
-    Local $aResult = DllCall("user32.dll", "bool", "GetLayeredWindowAttributes", "hwnd", $hWnd, "dword*", $iColor, "byte*", $iTransparency, "dword*", 0)
+    Local $aResult = Call($g_sLayeredAttributesHandler, $hWnd, $iColor, $iTransparency)
     If @error Or Not IsArray($aResult) Or Not $aResult[0] Then Return SetError(1, @error, 0)
     If Not $bAsColorRef Then $aResult[2] = Int(BinaryMid($aResult[2], 3, 1) & BinaryMid($aResult[2], 2, 1) & BinaryMid($aResult[2], 1, 1))
     $iTransparency = $aResult[3]
@@ -108,7 +141,7 @@ Func _GetWindowsExplorerPath($hWnd)
         EndIf
     Next
     If Not $bFound Then Return SetError(3, 0, "")
-    Local $oShell = ObjCreate("Shell.Application")
+    Local $oShell = _WindowActions_CreateComObject("Shell.Application")
     If Not IsObj($oShell) Then Return SetError(4, 0, "")
     $g_iWindowActionsComError = 0
     Local $oComError = ObjEvent("AutoIt.Error", "_WindowActions_ComError")
@@ -127,7 +160,7 @@ Func _GetWindowsExplorerPath($hWnd)
     Next
     $oComError = 0
     If $g_iWindowActionsComError Or $sUrl = "" Then Return SetError(7, $g_iWindowActionsComError, "")
-    Local $aResult = DllCall("shlwapi.dll", "long", "PathCreateFromUrlW", "wstr", $sUrl, "wstr", "", "dword*", 65534, "dword", 0)
+    Local $aResult = Call($g_sPathFromUrlHandler, $sUrl)
     If @error Or Not IsArray($aResult) Or $aResult[0] <> 0 Then Return SetError(8, @error, "")
     Return $aResult[2]
 EndFunc
@@ -138,7 +171,7 @@ EndFunc
 
 Func _getMonitorArea($hMonitor)
     If Not $hMonitor Then Return SetError(1, 0, 0)
-    Local $aInfo = _WinAPI_GetMonitorInfo($hMonitor)
+    Local $aInfo = Call($g_sMonitorInfoHandler, $hMonitor)
     If @error Or Not IsArray($aInfo) Or Not IsDllStruct($aInfo[1]) Then Return SetError(2, @error, 0)
     Local $aArea = _Geometry_CreateWorkArea(DllStructGetData($aInfo[1], 1), DllStructGetData($aInfo[1], 2), DllStructGetData($aInfo[1], 3), DllStructGetData($aInfo[1], 4))
     If @error Then Return SetError(3, 0, 0)
@@ -146,7 +179,7 @@ Func _getMonitorArea($hMonitor)
 EndFunc
 
 Func _monitors()
-    Local $aDisplay = _WinAPI_EnumDisplayMonitors()
+    Local $aDisplay = Call($g_sMonitorEnumHandler)
     If @error Or Not IsArray($aDisplay) Or $aDisplay[0][0] < 1 Then Return SetError(1, @error, 0)
     Local $aMonitors[$aDisplay[0][0] + 1][5]
     $aMonitors[0][0] = $aDisplay[0][0]

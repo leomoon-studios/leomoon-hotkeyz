@@ -15,6 +15,7 @@ Global $g_bClipboardWriteFails = False
 Global $g_bClipboardWaitFails = False
 Global $g_sClipboardWritten = ""
 Global $g_sUnavailableHotkey = ""
+Global $g_iShellCalls = 0
 
 _TestSpecialKeys()
 _TestCodecRoundTrips()
@@ -28,6 +29,8 @@ _TestClipboardTransactions()
 _TestTextAndCrypto()
 _TestEditorModel()
 _TestUnavailableHotkey()
+_TestMaintenanceFixtures()
+_TestSideEffectBackends()
 
 If $g_iFailures Then
     ConsoleWrite("FAILED: " & $g_iFailures & " of " & $g_iAssertions & " assertions" & @CRLF)
@@ -188,6 +191,90 @@ Func _TestUnavailableHotkey()
     _HotkeyRegistry_ConfigureHotkeyBackend("_TestHotkeySet")
     _AssertFalse(_HotkeyRegistry_ApplyBindings("^!z", $aEmpty, "^!y", $aNew), "unavailable action hotkey aborts registration")
     _HotkeyRegistry_ResetHotkeyBackend()
+EndFunc
+
+Func _TestMaintenanceFixtures()
+    Local $aEmpty = _HotkeyRepository_Load(@ScriptDir & "\fixtures\empty.ini")
+    _AssertFalse(@error, "empty fixture loads")
+    _AssertEqual(0, _HotkeyRepository_Count($aEmpty), "empty fixture has no hotkeys")
+    Local $aValid = _HotkeyRepository_Load(@ScriptDir & "\fixtures\valid.ini")
+    _AssertFalse(@error, "valid fixture loads")
+    _AssertEqual(3, _HotkeyRepository_Count($aValid), "valid fixture entry count")
+    Local $aUnicode = _HotkeyRepository_Load(@ScriptDir & "\fixtures\unicode.ini")
+    _AssertFalse(@error, "Unicode fixture loads")
+    Local $aUnicodeRecord = _HotkeyRepository_GetRecord($aUnicode, 1)
+    _AssertTrue(StringInStr($aUnicodeRecord[$HOTKEY_FIELD_TARGET], ChrW(0x4E16) & ChrW(0x754C)) > 0, "Unicode fixture preserves non-ASCII text")
+    _AssertEqual("ABC", _TextActions_Transform("Upper Case Selected Text", "abc"), "uppercase text transform")
+    _AssertEqual("cba", _TextActions_Transform("Reverse Selected Text", "abc"), "reverse text transform")
+EndFunc
+
+Func _TestSideEffectBackends()
+    $g_iShellCalls = 0
+    _ProcessActions_ConfigureShellBackend("_TestShellExecute")
+    _AssertFalse(_ProcessActions_ShellExecute("missing.exe"), "shell execution failure is testable without launching a process")
+    _AssertEqual(1, $g_iShellCalls, "shell test double receives the request")
+    _ProcessActions_ResetShellBackend()
+
+    _HotkeyRegistry_ConfigureRegistryBackend("_TestRegistryRead", "_TestRegistryWrite", "_TestRegistryDelete")
+    _AssertTrue(_HotkeyRegistry_IsStartupEnabled(), "registry read test double controls startup state")
+    _AssertFalse(_HotkeyRegistry_SetStartupEnabled(True), "registry write failure is testable without persistent changes")
+    _AssertFalse(_HotkeyRegistry_SetStartupEnabled(False), "registry delete failure is testable without persistent changes")
+    _HotkeyRegistry_ResetRegistryBackend()
+
+    _WindowActions_ConfigureBackends("_TestMonitorEnum", "_TestMonitorInfo", "_TestComCreate", "_TestLayeredAttributes", "_TestPathFromUrl")
+    Local $aMonitors = _monitors()
+    _AssertFalse(IsArray($aMonitors), "monitor enumeration failure is testable")
+    Local $aMonitorArea = _getMonitorArea(1)
+    _AssertFalse(IsArray($aMonitorArea), "monitor information failure is testable")
+    _AssertFalse(IsObj(_WindowActions_CreateComObject("Shell.Application")), "COM creation failure is testable")
+    Local $iTransparency
+    _AssertFalse(_WinGetTrans(1, $iTransparency), "DLL call failure is testable")
+    _WindowActions_ResetBackends()
+EndFunc
+
+Func _TestShellExecute($sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag)
+    #forceref $sTarget, $sParameters, $sWorkingDirectory, $sVerb, $iShowFlag
+    $g_iShellCalls += 1
+    Return False
+EndFunc
+
+Func _TestRegistryRead($sKey, $sValue)
+    #forceref $sKey, $sValue
+    Return "configured"
+EndFunc
+
+Func _TestRegistryWrite($sKey, $sValue, $sType, $sData)
+    #forceref $sKey, $sValue, $sType, $sData
+    Return False
+EndFunc
+
+Func _TestRegistryDelete($sKey, $sValue)
+    #forceref $sKey, $sValue
+    Return False
+EndFunc
+
+Func _TestMonitorEnum()
+    Return SetError(1, 0, 0)
+EndFunc
+
+Func _TestMonitorInfo($hMonitor)
+    #forceref $hMonitor
+    Return SetError(1, 0, 0)
+EndFunc
+
+Func _TestComCreate($sProgramId)
+    #forceref $sProgramId
+    Return 0
+EndFunc
+
+Func _TestLayeredAttributes($hWnd, $iColor, $iTransparency)
+    #forceref $hWnd, $iColor, $iTransparency
+    Return 0
+EndFunc
+
+Func _TestPathFromUrl($sUrl)
+    #forceref $sUrl
+    Return 0
 EndFunc
 
 Func _TestHotkeySet($sHotkey, $sHandler)

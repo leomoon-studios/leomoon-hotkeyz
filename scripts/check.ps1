@@ -17,6 +17,20 @@ $checkerPath = Join-Path $toolchainPath "Au3Check.exe"
 $autoItPath = Join-Path $toolchainPath "AutoIt3.exe"
 $includePath = Join-Path $toolchainPath "Include"
 $projectIncludePath = Join-Path $repositoryDirectory "src"
+$startupRegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+$startupRegistryName = "LeoMoon HotKeyz"
+
+function Get-StartupRegistryValue {
+    try {
+        return Get-ItemPropertyValue -LiteralPath $startupRegistryPath -Name $startupRegistryName -ErrorAction Stop
+    }
+    catch [System.Management.Automation.ItemNotFoundException] {
+        return $null
+    }
+    catch [System.Management.Automation.PSArgumentException] {
+        return $null
+    }
+}
 
 if (-not (Test-Path -LiteralPath $checkerPath -PathType Leaf)) {
     throw "Au3Check.exe was not found at $checkerPath"
@@ -54,11 +68,29 @@ foreach ($checkTarget in $checkTargets) {
     }
 }
 
+$startupValueBeforeTests = Get-StartupRegistryValue
+$worktreeBeforeTests = @(& git -C $repositoryDirectory status --porcelain)
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to capture the repository worktree before tests"
+}
 foreach ($testPath in $testPaths) {
     & $autoItPath /ErrorStdOut $testPath
     if ($LASTEXITCODE -ne 0) {
         throw "AutoIt test failed for $testPath with exit code $LASTEXITCODE"
     }
+}
+
+$startupValueAfterTests = Get-StartupRegistryValue
+if ($startupValueBeforeTests -ne $startupValueAfterTests) {
+    throw "Tests modified the persistent LeoMoon HotKeyz startup registry value"
+}
+
+$worktreeAfterTests = @(& git -C $repositoryDirectory status --porcelain)
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to verify the repository worktree after tests"
+}
+if (($worktreeBeforeTests -join "`n") -ne ($worktreeAfterTests -join "`n")) {
+    throw "Tests modified the repository worktree"
 }
 
 Write-Host "Au3Check and AutoIt tests completed successfully."

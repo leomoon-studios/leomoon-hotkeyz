@@ -6,6 +6,9 @@
 
 Global $aHotkeys = _HotkeyRepository_CreateTable(0)
 Global $g_sHotkeySetHandler = "_HotkeyRegistry_SetBinding"
+Global $g_sRegistryReadHandler = "_HotkeyRegistry_RegRead"
+Global $g_sRegistryWriteHandler = "_HotkeyRegistry_RegWrite"
+Global $g_sRegistryDeleteHandler = "_HotkeyRegistry_RegDelete"
 
 Func _HotkeyRegistry_ConfigureHotkeyBackend($sHandler)
     $g_sHotkeySetHandler = $sHandler
@@ -13,6 +16,28 @@ EndFunc
 
 Func _HotkeyRegistry_ResetHotkeyBackend()
     $g_sHotkeySetHandler = "_HotkeyRegistry_SetBinding"
+EndFunc
+
+Func _HotkeyRegistry_ConfigureRegistryBackend($sReadHandler, $sWriteHandler, $sDeleteHandler)
+    $g_sRegistryReadHandler = $sReadHandler
+    $g_sRegistryWriteHandler = $sWriteHandler
+    $g_sRegistryDeleteHandler = $sDeleteHandler
+EndFunc
+
+Func _HotkeyRegistry_ResetRegistryBackend()
+    _HotkeyRegistry_ConfigureRegistryBackend("_HotkeyRegistry_RegRead", "_HotkeyRegistry_RegWrite", "_HotkeyRegistry_RegDelete")
+EndFunc
+
+Func _HotkeyRegistry_RegRead($sKey, $sValue)
+    Return RegRead($sKey, $sValue)
+EndFunc
+
+Func _HotkeyRegistry_RegWrite($sKey, $sValue, $sType, $sData)
+    Return RegWrite($sKey, $sValue, $sType, $sData)
+EndFunc
+
+Func _HotkeyRegistry_RegDelete($sKey, $sValue)
+    Return RegDelete($sKey, $sValue)
 EndFunc
 
 Func _HotkeyRegistry_SetBinding($sHotkey, $sHandler = "")
@@ -81,19 +106,19 @@ Func _HotkeyRegistry_Shutdown()
 EndFunc
 
 Func _HotkeyRegistry_IsStartupEnabled()
-    Local $sValue = RegRead($APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
+    Local $sValue = Call($g_sRegistryReadHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
     If @error Then Return False
     Return $sValue <> ""
 EndFunc
 
 Func _HotkeyRegistry_SetStartupEnabled($bEnabled)
     If $bEnabled Then
-        If Not RegWrite($APP_STARTUP_REGISTRY_KEY, $APP_TITLE, "REG_SZ", '"' & @ScriptFullPath & '"') Then Return SetError(1, @error, False)
+        If Not Call($g_sRegistryWriteHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE, "REG_SZ", '"' & @ScriptFullPath & '"') Then Return SetError(1, @error, False)
         Return True
     EndIf
-    RegRead($APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
+    Call($g_sRegistryReadHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE)
     If @error Then Return True
-    If Not RegDelete($APP_STARTUP_REGISTRY_KEY, $APP_TITLE) Then Return SetError(2, @error, False)
+    If Not Call($g_sRegistryDeleteHandler, $APP_STARTUP_REGISTRY_KEY, $APP_TITLE) Then Return SetError(2, @error, False)
     Return True
 EndFunc
 
