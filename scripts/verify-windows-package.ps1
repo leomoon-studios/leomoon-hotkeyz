@@ -122,6 +122,12 @@ try {
         if (Get-Process -Name "LeoMoon HotKeyz" -ErrorAction SilentlyContinue) {
             throw "LeoMoon HotKeyz is already running, so installer isolation cannot be verified"
         }
+        $startupRegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+        $startupRegistryName = "LeoMoon HotKeyz"
+        $startupKey = Get-Item -LiteralPath $startupRegistryPath -ErrorAction SilentlyContinue
+        if ($null -ne $startupKey -and $startupKey.GetValueNames() -contains $startupRegistryName) {
+            throw "The startup entry already exists; refusing to modify an existing user setting during the installer test"
+        }
         $installLog = Join-Path $temporaryRoot "install.log"
         $uninstallLog = Join-Path $temporaryRoot "uninstall.log"
         $installArguments = @(
@@ -129,7 +135,6 @@ try {
             "/VERYSILENT",
             "/SUPPRESSMSGBOXES",
             "/NORESTART",
-            "/TASKS=`"`"",
             "/LOG=`"$installLog`"",
             "/DIR=`"$installDirectory`""
         )
@@ -137,6 +142,10 @@ try {
         $installedApplication = Join-Path $installDirectory "LeoMoon HotKeyz.exe"
         if (-not (Test-Path -LiteralPath $installedApplication -PathType Leaf)) {
             throw "Silent installation did not install LeoMoon HotKeyz.exe"
+        }
+        $startupValue = Get-ItemPropertyValue -LiteralPath $startupRegistryPath -Name $startupRegistryName -ErrorAction SilentlyContinue
+        if ($startupValue -ne "`"$installedApplication`"") {
+            throw "Default installation did not create the expected current-user startup value"
         }
         if (Get-Process -Name "LeoMoon HotKeyz" -ErrorAction SilentlyContinue) {
             throw "Silent installation unexpectedly launched LeoMoon HotKeyz"
@@ -156,6 +165,27 @@ try {
         while (Test-Path -LiteralPath $installDirectory) {
             if ([DateTime]::UtcNow -ge $deadline) {
                 throw "Installation directory remains after uninstall"
+            }
+            Start-Sleep -Milliseconds 200
+        }
+        $startupKey = Get-Item -LiteralPath $startupRegistryPath -ErrorAction SilentlyContinue
+        if ($null -ne $startupKey -and $startupKey.GetValueNames() -contains $startupRegistryName) {
+            throw "Uninstall did not remove the current-user startup value"
+        }
+
+        $uninstallCompleted = $false
+        $uncheckedArguments = $installArguments + '/TASKS=""'
+        Invoke-CheckedProcess -FilePath $installerPath -Arguments $uncheckedArguments
+        $startupKey = Get-Item -LiteralPath $startupRegistryPath -ErrorAction SilentlyContinue
+        if ($null -ne $startupKey -and $startupKey.GetValueNames() -contains $startupRegistryName) {
+            throw "Installation with startup unchecked unexpectedly created a startup value"
+        }
+        Invoke-CheckedProcess -FilePath $uninstaller -Arguments @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
+        $uninstallCompleted = $true
+        $deadline = [DateTime]::UtcNow.AddSeconds(60)
+        while (Test-Path -LiteralPath $installDirectory) {
+            if ([DateTime]::UtcNow -ge $deadline) {
+                throw "Installation directory remains after unchecked-startup uninstall"
             }
             Start-Sleep -Milliseconds 200
         }

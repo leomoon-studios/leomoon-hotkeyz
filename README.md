@@ -57,7 +57,7 @@ The application stores `LeoMoon HotKeyz.ini` beside the executable. The `[Option
 
 Configuration saves use a temporary `LeoMoon HotKeyz.ini.tmp` file. A successful replacement keeps the previous configuration as `LeoMoon HotKeyz.ini.bak` in the same directory. If a save is interrupted or rejected, retain the live file and use the `.bak` file for recovery if needed.
 
-The optional **Start with Windows** setting writes only the current user's `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` registry key. It does not require administrator rights.
+The installer offers **Start LeoMoon HotKeyz with Windows for the current user**, checked by default. It uses the same setting as **Start with Windows** in the app: a value in the current user's `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` registry key. Unchecking the installer option removes that value; uninstalling removes the value created by the installer. Neither requires administrator rights.
 
 ## Hotkey syntax
 
