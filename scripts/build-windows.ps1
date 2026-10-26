@@ -86,9 +86,15 @@ $wrapperArguments = @(
     "/comp", "4",
     "/AutoIt3Dir", $autoItRoot
 )
-& $autoItExe @wrapperArguments
-if ($LASTEXITCODE -ne 0) {
-    throw "AutoIt3Wrapper failed with exit code $LASTEXITCODE"
+Push-Location $stageSource
+try {
+    & $autoItExe @wrapperArguments
+    $wrapperExitCode = $LASTEXITCODE
+} finally {
+    Pop-Location
+}
+if ($null -ne $wrapperExitCode -and $wrapperExitCode -ne 0) {
+    throw "AutoIt3Wrapper failed with exit code $wrapperExitCode"
 }
 if (-not (Test-Path -LiteralPath $applicationPath -PathType Leaf)) {
     throw "AutoIt3Wrapper did not create $applicationPath"
