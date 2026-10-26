@@ -49,6 +49,7 @@
 #include <ListViewConstants.au3>
 ; hash stuff
 #include <Crypt.au3>
+#include <core\HotkeyRepository.au3>
 
 Opt("MustDeclareVars", 1)
 
@@ -186,28 +187,6 @@ Func _aTags()
     $aTags[12][0] = '<YYYY-MM-DD>'
     $aTags[12][1] = @YEAR&'-'&@MON&'-'&@MDAY
 EndFunc
-Global $aCleanup[10][2]
-$aCleanup[0][0] = '[HkzEq]'
-$aCleanup[0][1] = ''
-$aCleanup[1][0] = '[HkzSysSnd]'
-$aCleanup[1][1] = ''
-$aCleanup[2][0] = '[HkzSndTxt]'
-$aCleanup[2][1] = ''
-$aCleanup[3][0] = '[HkzExe]'
-$aCleanup[3][1] = ''
-$aCleanup[4][0] = '[HkzWM]'
-$aCleanup[4][1] = ''
-$aCleanup[5][0] = '[HkzOptAdmin]'
-$aCleanup[5][1] = ''
-$aCleanup[6][0] = '[HkzOptOne]'
-$aCleanup[6][1] = ''
-$aCleanup[7][0] = '[HkzCmd]'
-$aCleanup[7][1] = ''
-$aCleanup[8][0] = '[HkzParam]'
-$aCleanup[8][1] = ' [Parameters] '
-$aCleanup[9][0] = '[HkzNL]'
-$aCleanup[9][1] = '[New Line]'
-
 If @OSArch <> 'X86' Then _WinAPI_Wow64EnableWow64FsRedirection(False)
 
 AutoItSetOption("ExpandEnvStrings", 1)
@@ -443,36 +422,26 @@ Func _editGui($name)
 EndFunc
 
 Func HotKeyPressed()
-    Local $x, $t, $hkzoptadmin, $hkzoptone, $hkzcmd, $moveresize, $move, $resize, $oldClip, $hkzparam, $hkzsplit, $paramPath, $hWnd
-    For $x = 1 To UBound($aHotkeys)-1
-        If @HotKeyPressed == StringReplace($aHotkeys[$x][0], '{HkzEq}', '{=}') Then
-            ;~ ConsoleWrite($hkzparam)
-            Execute(_aTags())
+    Local $x, $hkzoptadmin, $hkzoptone, $hkzcmd, $hkzaction, $moveresize, $move, $resize, $oldClip, $hkzparam, $paramPath, $hWnd
+    For $x = 1 To _HotkeyRepository_Count($aHotkeys)
+        If @HotKeyPressed == $aHotkeys[$x][$HOTKEY_FIELD_HOTKEY] Then
+            _aTags()
             $hkzoptadmin = ''
-            $hkzoptone = False
-            $hkzcmd = $aHotkeys[$x][1]
-            $hkzcmd = StringReplace($hkzcmd, '[HkzEq]', '=') ;replace HkzEq with real equal sign before applying hotkeys
-            for $t = 0 To UBound($aTags, 1) -1
-                $hkzcmd = StringReplace($hkzcmd, $aTags[$t][0], $aTags[$t][1])
-            Next
-            If StringInStr($hkzcmd, '[HkzOptAdmin]') Then
-                $hkzoptadmin = 'runas'
-                $hkzcmd = StringReplace($hkzcmd, '[HkzOptAdmin]', '')
-            EndIf
-            If StringInStr($hkzcmd, '[HkzOptOne]') Then
-                $hkzoptone = True
-                $hkzcmd = StringReplace($hkzcmd, '[HkzOptOne]', '')
-            EndIf
-            If StringInStr($hkzcmd, '[HkzSysSnd]') Then ;execute special volume and media tasks
-                If _security($sPaths, StringReplace($hkzcmd, '[HkzSysSnd]', '')) Then Send('{'&StringUpper(StringReplace(StringReplace($hkzcmd, '[HkzSysSnd]', ''), ' ', '_'))&'}')
-            ElseIf StringInStr($hkzcmd, '[HkzCmd]') Then ;run special dos commands
+            If BitAND($aHotkeys[$x][$HOTKEY_FIELD_OPTIONS], $HOTKEY_OPTION_ADMIN) Then $hkzoptadmin = 'runas'
+            $hkzoptone = BitAND($aHotkeys[$x][$HOTKEY_FIELD_OPTIONS], $HOTKEY_OPTION_SINGLETON) <> 0
+            $hkzaction = $aHotkeys[$x][$HOTKEY_FIELD_ACTION]
+            $hkzcmd = _HotkeyCodec_ExpandTags($aHotkeys[$x][$HOTKEY_FIELD_TARGET], $aTags)
+            $hkzparam = _HotkeyCodec_ExpandTags($aHotkeys[$x][$HOTKEY_FIELD_PARAMETERS], $aTags)
+            If $hkzaction = $HOTKEY_ACTION_MEDIA Then ;execute special volume and media tasks
+                If _isKnownSpecialAction($hkzaction, $hkzcmd) Then Send('{'&StringUpper(StringReplace($hkzcmd, ' ', '_'))&'}')
+            ElseIf $hkzaction = $HOTKEY_ACTION_COMMAND Then ;run special dos commands
                 ;~ _RunDos(StringReplace($hkzcmd, '[HkzCmd]', '')) ;dont use _rundos. it waits until process if finished!
-                ShellExecute(@ComSpec, " /k "&StringReplace($hkzcmd, '[HkzCmd]', ''), '', $hkzoptadmin, @SW_HIDE)
-            ElseIf StringInStr($hkzcmd, '[HkzExe]') Then ;execute commands as is
-                If _security($sPaths, StringReplace($hkzcmd, '[HkzExe]', '')) Then Execute('_'&StringReplace(StringReplace($hkzcmd, '[HkzExe]', ''), ' ', '')&'()')
-            ElseIf StringInStr($hkzcmd, '[HkzWM]') Then ;window manager
+                ShellExecute(@ComSpec, " /k "&$hkzcmd, '', $hkzoptadmin, @SW_HIDE)
+            ElseIf $hkzaction = $HOTKEY_ACTION_SYSTEM Then ;execute commands as is
+                If _isKnownSpecialAction($hkzaction, $hkzcmd) Then Execute('_'&StringReplace($hkzcmd, ' ', '')&'()')
+            ElseIf $hkzaction = $HOTKEY_ACTION_WINDOW Then ;window manager
                 ;parse cmd: x,y,width,height,center,opacity,top
-                $hkzcmd = StringStripWS(StringReplace($hkzcmd, '[HkzWM]', ''),7)
+                $hkzcmd = StringStripWS($hkzcmd, 7)
                 $hWnd = WinGetHandle("[ACTIVE]")
                 If _isReal($hWnd) Then ;if is a real window
                     ;pos, size
@@ -757,28 +726,13 @@ Func HotKeyPressed()
                     EndSelect
                     ;~ WinActivate($hWnd)
                 EndIf
-            ElseIf StringInStr($hkzcmd, '[HkzSndTxt]') Then ;paste text to active window
+            ElseIf $hkzaction = $HOTKEY_ACTION_TEXT Then ;paste text to active window
                 $oldClip = ClipGet()
-                ;~ $hkzcmd = $aHotkeys[$x][1]
-                ;~ ConsoleWrite($aHotkeys[$x][1]&@LF)
-                ;~ Execute(_aTags())
-                ;~ for $t = 0 To UBound($aTags, 1) -1
-                ;~     $hkzcmd = StringReplace($hkzcmd, $aTags[$t][0], $aTags[$t][1])
-                ;~ Next
-                ;~ ConsoleWrite($hkzcmd)
-                $hkzcmd = StringReplace($hkzcmd, '[HkzSndTxt]', '')
                 ClipPut($hkzcmd)
                 Send('^v')
                 ClipPut($oldClip)
             Else ;execute program or file
-                $hkzparam = ''
-                If StringInStr($hkzcmd, '[HkzParam]') Then
-                    $hkzsplit = StringSplit($hkzcmd, '[HkzParam]', 1)
-                    If IsArray($hkzsplit) Then
-                        $hkzcmd = $hkzsplit[1]
-                        If $hkzsplit[0] == 2 Then $hkzparam = StringStripWS($hkzsplit[2], 7)
-                    EndIf
-                EndIf
+                $hkzparam = StringStripWS($hkzparam, 7)
                 ;~ $hkzcmd = StringReplace($hkzcmd, '<USERNAME>', @UserName)
                 If (($hkzoptone And Not ProcessExists(StringRegExpReplace($hkzcmd, "^.*\\", ""))) Or Not $hkzoptone) Then
                     If $hkzparam <> '' Then
@@ -804,14 +758,13 @@ Func HotKeyPressed()
     Next
 EndFunc
 
-Func _security($arr, $str)
-    Local $i
-    For $i = 0 To Ubound($arr, 1)-1
-        If $arr[$i][0] == $str Then
-            Return True
-            ExitLoop
-        EndIf
+Func _isKnownSpecialAction($sAction, $sTarget)
+    Local $i, $aSpecialRecord
+    For $i = 0 To UBound($sPaths, 1) - 1
+        $aSpecialRecord = _HotkeyCodec_DecodeLegacy("^!a", StringReplace($sPaths[$i][1], ' [Parameters] ', $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$i][1]))
+        If IsArray($aSpecialRecord) And $aSpecialRecord[$HOTKEY_FIELD_ACTION] = $sAction And $aSpecialRecord[$HOTKEY_FIELD_TARGET] = $sTarget Then Return True
     Next
+    Return False
 EndFunc
 
 Func _StartScreensaver()
@@ -904,16 +857,16 @@ Func _toggle()
     Local $i
     ;$enabled = Not $enabled
     If $enabled == False Then ;disable it
-        For $i = 1 To $aHotkeys[0][0]
-            HotKeySet(StringReplace($aHotkeys[$i][0], '{HkzEq}', '{=}'))
+        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY])
         Next
         $enabled = True
         TraySetIcon(@ScriptFullPath, 202)
         TrayItemSetState($enableTray, $TRAY_UNCHECKED)
         TraySetToolTip($title&" is disabled.")
     Else
-        For $i = 1 To $aHotkeys[0][0]
-            HotKeySet(StringReplace($aHotkeys[$i][0], '{HkzEq}', '{=}'), "HotKeyPressed")
+        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed")
         Next
         $enabled = False
         TraySetIcon(@ScriptFullPath, 201)
@@ -969,30 +922,34 @@ Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default
     Local $appHotkey = IniRead($iniFile, $section, $key, '')
     If $appHotkey == '' Then ;default hotkey if key not found in ini file
         IniWrite($iniFile, $section, $key, $default)
-        TrayItemSetText($trayItem, $text&@TAB&_decodeHotkey($default))
+        TrayItemSetText($trayItem, $text&@TAB&_HotkeyCodec_DecodeHotkey($default))
     Else
         HotKeySet($appHotkey, $function)
-        TrayItemSetText($trayItem, $text&@TAB&_decodeHotkey($appHotkey))
+        TrayItemSetText($trayItem, $text&@TAB&_HotkeyCodec_DecodeHotkey($appHotkey))
     EndIf
 EndFunc
 
 Func _iniToApply($iniFile)
     Local $i
-    $aHotkeys = IniReadSection($iniFile, "Hotkeys")
+    $aHotkeys = _HotkeyRepository_Load($iniFile)
+    If @error Then
+        $aHotkeys = _HotkeyRepository_CreateTable(0)
+        _ExtMsgBox(48, 'OK', 'Invalid hotkey settings', 'One or more hotkey entries are malformed or duplicated. No action hotkeys were registered.', 0)
+        Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, False)
+    EndIf
     If IsArray($aHotkeys) Then
-        For $i = 1 To $aHotkeys[0][0]
-            ;~ ConsoleWrite($aHotkeys[$i][1]&' ### '&StringReplace($aHotkeys[$i][0], '{HkzEq}', '{=}')&@LF)
-            HotKeySet(StringReplace($aHotkeys[$i][0], '{HkzEq}', '{=}'), "HotKeyPressed")
+        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed")
         Next
     Endif
 EndFunc
 
 Func _iniToGui($iniFile) ;just reads ini and sets the gui
-    Local $i, $hkzcmd, $hkzcmdtest, $t, $c, $s, $type, $u
+    Local $i, $c, $s, $type, $item
     ;read main hotkey
     Local $appHotkey = IniRead($iniFile, 'Options', 'Main', '')
     Local $k = StringUpper(StringReplace(StringReplace(StringReplace(StringReplace($appHotkey,'^',''),'!',''),'+',''),'#',''))
-    $k = _decodeKey($k)
+    $k = _HotkeyCodec_DecodeKey($k)
     If StringInStr($appHotkey,'^') Then
         GUICtrlSetState($ctrlCbox, $GUI_CHECKED)
     Else
@@ -1020,57 +977,36 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     Else
         GUICtrlSetState($startupCbox, $GUI_CHECKED)
     EndIf
-    Local $aArray = IniReadSection($iniFile, "Hotkeys")
-    If Not @error Then
-        For $i = 1 To $aArray[0][0]
+    Local $aArray = _HotkeyRepository_Load($iniFile)
+    If IsArray($aArray) Then
+        For $i = 1 To _HotkeyRepository_Count($aArray)
             Local $opts = ''
             Local $special = False
-            Local $sPath = False
-            $hkzcmd = $aArray[$i][1]
-            $hkzcmdtest = $hkzcmd
-            for $t = 0 To UBound($aTags, 1) -1
-                $hkzcmdtest = StringReplace($hkzcmdtest, $aTags[$t][0], $aTags[$t][1])
-            Next
+            $item = $aArray[$i][$HOTKEY_FIELD_TARGET]
+            $type = _HotkeyModel_ActionLabel($aArray[$i][$HOTKEY_FIELD_ACTION])
             For $c = 0 To UBound($clsid, 1)-1
-                If _strCompare($hkzcmd, $clsid[$c][1]) Then
-                    $hkzcmd = $clsid[$c][0]
-                    $sPath = True
+                If _strCompare($item, $clsid[$c][1]) Then
+                    $item = $clsid[$c][0]
                     ExitLoop
                 EndIf
             Next
             For $s = 0 To UBound($sPaths, 1)-1
-                If _strCompare($hkzcmd, $sPaths[$s][1]) Then
-                    $hkzcmd = $sPaths[$s][0]
+                Local $aSpecialRecord = _HotkeyCodec_DecodeLegacy($aArray[$i][$HOTKEY_FIELD_HOTKEY], StringReplace($sPaths[$s][1], ' [Parameters] ', $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$s][1]))
+                If IsArray($aSpecialRecord) And _strCompare($aArray[$i][$HOTKEY_FIELD_ACTION], $aSpecialRecord[$HOTKEY_FIELD_ACTION]) And _strCompare($aArray[$i][$HOTKEY_FIELD_TARGET], $aSpecialRecord[$HOTKEY_FIELD_TARGET]) And _strCompare($aArray[$i][$HOTKEY_FIELD_PARAMETERS], $aSpecialRecord[$HOTKEY_FIELD_PARAMETERS]) Then
+                    $item = $sPaths[$s][0]
                     $special = True
                     ExitLoop
                 EndIf
             Next
-            If StringInStr($hkzcmd, '[HkzSndTxt]') Then
-                $type = 'Text'
-            ElseIf StringInStr($hkzcmd, '[HkzWM]') Then
-                $type = 'Window'
-            ElseIf StringInStr($hkzcmd, '[HkzCmd]') Then
-                $type = 'Command'
-            ElseIf (StringInStr($hkzcmd, 'https://') Or StringInStr($hkzcmd, 'http://') Or StringInStr($hkzcmd, 'ftp://')) And Not StringInStr($hkzcmd, '[HkzParam]') Then
-                $type = 'URL'
-            ElseIf $special Or StringInStr($hkzcmd, '[HkzExe]') Then
-                $type = 'System'
-            ElseIf StringInStr(FileGetAttrib($hkzcmdtest), 'D') Or $sPath Then
-                $type = 'Folder'
-            Else
-                $type = 'File'
-            EndIf
-            If StringInStr($hkzcmd, '[HkzOptAdmin]') Then $opts &= 'Admin'
-            If StringInStr($hkzcmd, '[HkzOptOne]') Then
+            If $special Then $type = 'System'
+            If $aArray[$i][$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE And $aArray[$i][$HOTKEY_FIELD_PARAMETERS] <> '' Then $item &= ' [Parameters] ' & $aArray[$i][$HOTKEY_FIELD_PARAMETERS]
+            If $aArray[$i][$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_TEXT Then $item = StringReplace($item, @LF, '[New Line]')
+            If BitAND($aArray[$i][$HOTKEY_FIELD_OPTIONS], $HOTKEY_OPTION_ADMIN) Then $opts &= 'Admin'
+            If BitAND($aArray[$i][$HOTKEY_FIELD_OPTIONS], $HOTKEY_OPTION_SINGLETON) Then
                 If $opts == 'Admin' Then $opts &= ', '
                 $opts &= 'Singleton'
             EndIf
-            ;~ ConsoleWrite($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$hkzcmd&@LF)
-            ;cleanups
-            for $u = 0 To UBound($aCleanup, 1) -1
-                $hkzcmd = StringReplace($hkzcmd, $aCleanup[$u][0], $aCleanup[$u][1])
-            Next
-            GUICtrlCreateListViewItem($type&'|'&_decodeHotkey($aArray[$i][0])&'|'&$hkzcmd&'|'&$opts, $ListView1)
+            GUICtrlCreateListViewItem($type&'|'&_HotkeyCodec_DecodeHotkey($aArray[$i][$HOTKEY_FIELD_HOTKEY])&'|'&$item&'|'&$opts, $ListView1)
         Next
     EndIf
     ;~ GUICtrlSendMsg($ListView1, $LVM_SETCOLUMNWIDTH, 1, -1)
@@ -1090,7 +1026,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
 EndFunc
 
 Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
-    Local $txt, $i, $x, $c, $s
+    Local $txt, $i, $x, $c, $s, $type, $path, $parameters, $options, $aRecord
     ;main hotkey
     Local $oldHotkey = IniRead($iniFile, 'Options', 'Main', '') ;get old hotkey
     Local $appHotkey = ''
@@ -1098,71 +1034,54 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
     If BitAND(GUICtrlRead($altCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '!'
     If BitAND(GUICtrlRead($shiftCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '+'
     If BitAND(GUICtrlRead($winCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '#'
-    $appHotkey &= _encodeKey(GUICtrlRead($keyDown))
-    IniWrite($iniFile, 'Options', 'Main', $appHotkey) ;write the new hotkey
-    HotKeySet($oldHotkey) ;unset old hotkey
-    HotKeySet($appHotkey, '_toggle') ;set new hotkey
-    $txt = _decodeHotkey($appHotkey) ;decode hotkey to text
-    TrayItemSetText($enableTray, 'Enable LeoMoon HotKeyz'&@TAB&$txt) ;change menu entry to new hotkey
-    ;rest of settings
-    ;unset old hotkeys
-    If IsArray($aHotkeys) Then
-        For $i = 1 To $aHotkeys[0][0]
-            HotKeySet($aHotkeys[$i][0])
-        Next
-    EndIf
-    ;delete all hotkeys
-    IniDelete($iniFile, 'Hotkeys')
-    ;save new hotkeys
+    $appHotkey &= _HotkeyCodec_EncodeKey(GUICtrlRead($keyDown))
+    Local $aNewHotkeys = _HotkeyRepository_CreateTable(_GUICtrlListView_GetItemCount($ListView1))
     For $x = 0 To _GUICtrlListView_GetItemCount($ListView1) - 1
-        ;~ ConsoleWrite(_GUICtrlListView_GetItemText($ListView1, $x, 1)&', '&_GUICtrlListView_GetItemText($ListView1, $x, 2)&@LF)
-        Local $path = _GUICtrlListView_GetItemText($ListView1, $x, 2)
-        ;~ Local $type = _GUICtrlListView_GetItemText($ListView1, $x, 0)
-        ;define clsid list
+        $type = _HotkeyModel_ActionFromLabel(_GUICtrlListView_GetItemText($ListView1, $x, 0))
+        $path = _GUICtrlListView_GetItemText($ListView1, $x, 2)
+        $parameters = ''
+        $options = $HOTKEY_OPTION_NONE
+        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'Admin') Then $options = BitOR($options, $HOTKEY_OPTION_ADMIN)
+        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'Singleton') Then $options = BitOR($options, $HOTKEY_OPTION_SINGLETON)
         For $c = 0 To UBound($clsid, 1)-1
             If _strCompare($path, $clsid[$c][0]) Then
                 $path = $clsid[$c][1]
+                $type = $HOTKEY_ACTION_FOLDER
                 ExitLoop
             EndIf
         Next
         For $s = 0 To UBound($sPaths, 1)-1
             If _strCompare($path, $sPaths[$s][0]) Then
-                $path = $sPaths[$s][1]
+                $aRecord = _HotkeyCodec_DecodeLegacy(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($ListView1, $x, 1)), StringReplace($sPaths[$s][1], ' [Parameters] ', $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$s][1]))
+                $type = $aRecord[$HOTKEY_FIELD_ACTION]
+                $path = $aRecord[$HOTKEY_FIELD_TARGET]
+                $parameters = $aRecord[$HOTKEY_FIELD_PARAMETERS]
                 ExitLoop
             EndIf
         Next
-        ;reversals
-        $path = StringReplace($path, '=', '[HkzEq]')
-        If _GUICtrlListView_GetItemText($ListView1, $x, 0) == 'Text' Then $path = '[HkzSndTxt]'&$path
-        If _GUICtrlListView_GetItemText($ListView1, $x, 0) == 'Window' Then $path = '[HkzWM]'&$path
-        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 0), 'Command') Then $path = '[HkzCmd]'&$path
-        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'Admin') Then $path = $path&'[HkzOptAdmin]'
-        If StringInStr(_GUICtrlListView_GetItemText($ListView1, $x, 3), 'Singleton') Then $path = $path&'[HkzOptOne]'
-        $path = StringReplace($path, ' [Parameters] ', '[HkzParam]')
-        $path = StringReplace($path, '[New Line]', '[HkzNL]')
-        IniWrite($iniFile, 'Hotkeys', _encodeHotkey(_GUICtrlListView_GetItemText($ListView1, $x, 1)), $path)
-        ;~ ConsoleWrite($path&' '&_GUICtrlListView_GetItemText($ListView1, $x, 0)&@LF)
+        If $type = $HOTKEY_ACTION_FILE And StringInStr($path, ' [Parameters] ') Then
+            Local $aParameterParts = StringSplit($path, ' [Parameters] ', 1)
+            If IsArray($aParameterParts) And $aParameterParts[0] = 2 Then
+                $path = $aParameterParts[1]
+                $parameters = $aParameterParts[2]
+            EndIf
+        EndIf
+        If $type = $HOTKEY_ACTION_TEXT Then $path = StringReplace($path, '[New Line]', @LF)
+        $aRecord = _HotkeyModel_Create(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($ListView1, $x, 1)), $type, $path, $parameters, $options)
+        If Not _HotkeyRepository_SetRecord($aNewHotkeys, $x + 1, $aRecord) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
     Next
-EndFunc
-
-Func _decodeHotkey($hotkey)
-    Local $decode = ''
-    If StringInStr($hotkey,'^') Then $decode &= 'Ctrl + '
-    If StringInStr($hotkey,'!') Then $decode &= 'Alt + '
-    If StringInStr($hotkey,'+') Then $decode &= 'Shift + '
-    If StringInStr($hotkey,'#') Then $decode &= 'Win + '
-    $decode &= _decodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'^',''),'!',''),'+',''),'#','')) ;get the last key
-    Return($decode)
-EndFunc
-
-Func _encodeHotkey($hotkey)
-    Local $encode = ''
-    If StringInStr($hotkey,'Ctrl + ') Then $encode &= '^'
-    If StringInStr($hotkey,'Alt + ') Then $encode &= '!'
-    If StringInStr($hotkey,'Shift + ') Then $encode &= '+'
-    If StringInStr($hotkey,'Win + ') Then $encode &= '#'
-    $encode &= _encodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'Ctrl + ',''),'Alt + ',''),'Shift + ',''),'Win + ','')) ;get the last key
-    Return($encode)
+    If Not _HotkeyRepository_Save($iniFile, $aNewHotkeys) Then Return SetError(@error, @extended, False)
+    If Not IniWrite($iniFile, 'Options', 'Main', $appHotkey) Then Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 0, False)
+    HotKeySet($oldHotkey) ;unset old hotkey
+    HotKeySet($appHotkey, '_toggle') ;set new hotkey
+    $txt = _HotkeyCodec_DecodeHotkey($appHotkey) ;decode hotkey to text
+    TrayItemSetText($enableTray, 'Enable LeoMoon HotKeyz'&@TAB&$txt) ;change menu entry to new hotkey
+    If IsArray($aHotkeys) Then
+        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            HotKeySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY])
+        Next
+    EndIf
+    Return True
 EndFunc
 
 Func _fileRdo()
@@ -1418,7 +1337,7 @@ Func _add()
         If BitAND(GUICtrlRead($altEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Alt + '
         If BitAND(GUICtrlRead($shiftEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Shift + '
         If BitAND(GUICtrlRead($winEditCbox), $GUI_CHECKED) == 1 Then $childRead &= 'Win + '
-        $childRead &= _decodeKey(GUICtrlRead($keyEditDown))
+        $childRead &= _HotkeyCodec_DecodeKey(GUICtrlRead($keyEditDown))
         For $x = 0 To _GUICtrlListView_GetItemCount($ListView1) - 1
             If $childRead == _GUICtrlListView_GetItemText($ListView1, $x, 1) Then
                 $error = True
@@ -1483,7 +1402,7 @@ Func _editBtn()
     Local $match = False
     Local $special = False
     Local $c, $s, $moveresize, $move, $resize, $hkzsplit
-    Local $k = _decodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'Ctrl + ',''),'Alt + ',''),'Shift + ',''),'Win + ',''))
+    Local $k = _HotkeyCodec_DecodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'Ctrl + ',''),'Alt + ',''),'Shift + ',''),'Win + ',''))
     ;~ ConsoleWrite($k)
     ;define clsid list
     For $c = 0 To UBound($clsid, 1)-1
@@ -1726,7 +1645,10 @@ Func _edit()
 EndFunc
 
 Func _saveBtn()
-    _guiToIni($ini)
+    If Not _guiToIni($ini) Then
+        _ExtMsgBox(48, 'OK', 'Unable to save', 'The hotkey settings could not be validated and saved. The previous file is still available as a backup.', 0, $mainGui)
+        Return
+    EndIf
     _iniToApply($ini)
     If BitAND(GUICtrlRead($startupCbox), $GUI_CHECKED) == 1 Then
         RegWrite("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", $title, "REG_SZ", '"'&@ScriptFullPath&'"')
@@ -1776,70 +1698,6 @@ EndFunc
 
 Func _exit()
     Exit
-EndFunc
-
-Func _encodeKey($k)
-    If StringLen($k) > 1 Then
-        If $k == 'Escape' Then $k = 'ESCAPE'
-        If $k == 'Print Screen key' Then $k = 'PRINTSCREEN'
-        If $k == 'Pause key' Then $k = 'PAUSE'
-        If $k == 'Page Up' Then $k = 'PGUP'
-        If $k == 'Page Down' Then $k = 'PGDN'
-        If $k == 'Numpad 1' Then $k = 'NUMPAD1'
-        If $k == 'Numpad 2' Then $k = 'NUMPAD2'
-        If $k == 'Numpad 3' Then $k = 'NUMPAD3'
-        If $k == 'Numpad 4' Then $k = 'NUMPAD4'
-        If $k == 'Numpad 5' Then $k = 'NUMPAD5'
-        If $k == 'Numpad 6' Then $k = 'NUMPAD6'
-        If $k == 'Numpad 7' Then $k = 'NUMPAD7'
-        If $k == 'Numpad 8' Then $k = 'NUMPAD8'
-        If $k == 'Numpad 9' Then $k = 'NUMPAD9'
-        If $k == 'Numpad 0' Then $k = 'NUMPAD0'
-        If $k == 'Numpad Dot' Then $k = 'NUMPADDOT'
-        If $k == 'Numpad Divide' Then $k = 'NUMPADDIV'
-        If $k == 'Numpad Multiply' Then $k = 'NUMPADMULT'
-        If $k == 'Numpad Subtract' Then $k = 'NUMPADSUB'
-        If $k == 'Numpad Add' Then $k = 'NUMPADADD'
-        $k = '{'&StringUpper($k)&'}'
-    ElseIf $k == '=' Then
-        $k = '{HkzEq}'
-    Else
-        $k = StringLower($k)
-    EndIf
-    ;~ ConsoleWrite('encode: '&$k&@LF)
-    Return $k
-EndFunc
-
-Func _decodeKey($k)
-    If StringLen($k) > 1 Then
-        If $k == '{ESCAPE}' Then $k = 'Escape'
-        If $k == '{PRINTSCREEN}' Then $k = 'Print Screen key'
-        If $k == '{PAUSE}' Then $k = 'Pause key'
-        If $k == '{PGUP}' Then $k = 'Page Up'
-        If $k == '{PGDN}' Then $k = 'Page Down'
-        If $k == '{NUMPAD1}' Then $k = 'Numpad 1'
-        If $k == '{NUMPAD2}' Then $k = 'Numpad 2'
-        If $k == '{NUMPAD3}' Then $k = 'Numpad 3'
-        If $k == '{NUMPAD4}' Then $k = 'Numpad 4'
-        If $k == '{NUMPAD5}' Then $k = 'Numpad 5'
-        If $k == '{NUMPAD6}' Then $k = 'Numpad 6'
-        If $k == '{NUMPAD7}' Then $k = 'Numpad 7'
-        If $k == '{NUMPAD8}' Then $k = 'Numpad 8'
-        If $k == '{NUMPAD9}' Then $k = 'Numpad 9'
-        If $k == '{NUMPAD0}' Then $k = 'Numpad 0'
-        If $k == '{NUMPADDOT}' Then $k = 'Numpad Dot'
-        If $k == '{NUMPADDIV}' Then $k = 'Numpad Divide'
-        If $k == '{NUMPADMULT}' Then $k = 'Numpad Multiply'
-        If $k == '{NUMPADSUB}' Then $k = 'Numpad Subtract'
-        If $k == '{NUMPADADD}' Then $k = 'Numpad Add'
-        If $k == '{HkzEq}' Then $k = '='
-        $k = _StringTitleCase($k)
-    Else
-        $k = StringUpper($k)
-    EndIf
-    $k = StringReplace(StringReplace($k, '{', ''), '}', '')
-    ;~ ConsoleWrite('decode: '&$k&@LF)
-    Return $k
 EndFunc
 
 Func _returnToggleHotkey()
