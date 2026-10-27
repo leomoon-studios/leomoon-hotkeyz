@@ -3,6 +3,7 @@
 ## 2.0.0 - 2026-10-26
 
 - Added a Windows release workflow that validates source, runs strict checks, builds the x86 app, and packages portable and installer artifacts.
+- Added tag-based GitHub Release publishing with the verified Windows files and generated commit notes.
 - Added a manual no-tag build trigger for validating Windows packages before a release tag is created.
 - Updated the installer to use Inno Setup's default setup icon.
 - Fixed Windows build version metadata injection for CRLF source files.

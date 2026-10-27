@@ -45,7 +45,7 @@ This creates disposable windows, checks incomplete editor selections, and fires 
 
 ## Tagged builds from Linux
 
-Pushing an exact `vX.Y.Z` tag starts the [Windows package workflow](.github/workflows/build-release.yml). Its check job validates the tag and runs the full regression suite. Only after those checks pass does the dependent build job compile the x86 application, create a portable ZIP and an unsigned per-user Inno Setup installer, perform a silent install and uninstall test, and upload one artifact containing the packages, release manifest, and checksums. Branch pushes and pull requests run CI checks but never build packages.
+Pushing an exact `vX.Y.Z` tag starts the [Windows package workflow](.github/workflows/build-release.yml). Its check job validates the tag and runs the full regression suite. Only after those checks pass does the dependent build job compile the x86 application, create a portable ZIP and an unsigned per-user Inno Setup installer, perform a silent install and uninstall test, and publish a GitHub Release with the packages, release manifest, and checksums attached. Branch pushes and pull requests run CI checks but never build packages.
 
 From Linux, create and push a release tag, then follow its build with:
 
@@ -56,7 +56,7 @@ gh run list --workflow build-release.yml --limit 1
 gh run watch
 ```
 
-After the run succeeds, download its artifact with `gh run download RUN_ID`. The extracted artifact must contain only the portable ZIP, setup executable, `release-manifest.json`, and `SHA256SUMS`. The tag workflow currently uploads a workflow artifact and does not create a GitHub Release.
+After the run succeeds, download the files from the GitHub Release for that tag. The release contains the portable ZIP, setup executable, `release-manifest.json`, and `SHA256SUMS`. A workflow artifact containing the same files is retained for 14 days.
 
 ## Configuration and recovery
 
