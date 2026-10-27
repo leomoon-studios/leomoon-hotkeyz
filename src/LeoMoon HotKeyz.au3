@@ -43,7 +43,7 @@
 Opt("MustDeclareVars", 1)
 AutoItSetOption("ExpandEnvStrings", 1)
 Opt("TrayMenuMode", 3)
-Opt("TrayOnEventMode", 1)
+Opt("TrayOnEventMode", 0)
 Opt("TrayAutoPause", 0)
 Opt("GUIOnEventMode", 1)
 Opt("GUICloseOnESC", 0)
@@ -64,6 +64,7 @@ Func _Application_Main()
         Exit 1
     EndIf
     While 1
-        Sleep(100)
+        _TrayController_ProcessEvents()
+        Sleep(10)
     WEnd
 EndFunc
