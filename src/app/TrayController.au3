@@ -8,8 +8,19 @@ Global $enableTray
 Global $g_iSettingsTrayItem
 Global $g_iWebsiteTrayItem
 Global $g_iExitTrayItem
+Global Const $APP_DEBUG_LOG_PATH = @TempDir & "\\LeoMoon-HotKeyz-debug.log"
+
+Func _Debug_Log($sMessage)
+    Local $hLog = FileOpen($APP_DEBUG_LOG_PATH, 1)
+    If $hLog = -1 Then Return False
+    FileWrite($hLog, @YEAR & "-" & @MON & "-" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & " | " & $sMessage & @CRLF)
+    FileClose($hLog)
+    Return True
+EndFunc
 
 Func _TrayController_Initialize($sIniFile)
+    FileDelete($APP_DEBUG_LOG_PATH)
+    _Debug_Log("Tray initialization started")
     TraySetClick(8)
     TrayCreateItem($APP_TITLE & " " & $APP_VERSION)
     TrayItemSetState(-1, $TRAY_DISABLE)
@@ -22,20 +33,30 @@ Func _TrayController_Initialize($sIniFile)
     $g_iWebsiteTrayItem = TrayCreateItem("Visit LeoMoon Studios website")
     TrayCreateItem("")
     $g_iExitTrayItem = TrayCreateItem("Exit")
+    _Debug_Log("Tray item IDs: toggle=" & $enableTray & ", settings=" & $g_iSettingsTrayItem & ", website=" & $g_iWebsiteTrayItem & ", exit=" & $g_iExitTrayItem)
     If Not _readHotkey($sIniFile, "Options", "Main", $enableTray, "Enable " & $APP_TITLE, "_toggle", $APP_DEFAULT_TOGGLE_HOTKEY) Then Return False
     TraySetToolTip($APP_TITLE & " is enabled.")
+    _Debug_Log("Tray initialization completed")
     Return True
 EndFunc
 
 Func _TrayController_ProcessEvents()
-    Switch TrayGetMsg()
+    Local $iTrayMessage = TrayGetMsg()
+    If $iTrayMessage = 0 Then Return
+    _Debug_Log("Tray message received: " & $iTrayMessage)
+    Switch $iTrayMessage
         Case $enableTray
+            _Debug_Log("Toggle menu item selected")
             _toggle()
         Case $g_iSettingsTrayItem
+            _Debug_Log("Settings menu item selected")
             _mainGui()
+            _Debug_Log("Settings menu handler returned")
         Case $g_iWebsiteTrayItem
+            _Debug_Log("Website menu item selected")
             _web()
         Case $g_iExitTrayItem
+            _Debug_Log("Exit menu item selected")
             _exit()
     EndSwitch
 EndFunc

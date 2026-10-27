@@ -10,10 +10,12 @@
 #include "HotkeyEditorModel.au3"
 
 Func _mainGui()
+    _Debug_Log("Settings window requested; visible=" & $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE])
     ;~ $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
     ;~ $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate("Hotkey Settings", 386, 242, -1, -1, BitOR($WS_SYSMENU,$WS_POPUP)) ;frame only
     If $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] == False Then
         $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate($APP_TITLE&" Settings", 682, 666, -1, -1, $WS_SYSMENU)
+        _Debug_Log("Settings GUI created; handle=" & $g_aGuiState[$GUI_STATE_MAIN_WINDOW] & ", error=" & @error)
         GUISetFont(9, 400, 0, "Tahoma")
         GUICtrlCreateGroup("Startup", 8, 8, 658, 57)
         $g_aGuiState[$GUI_STATE_STARTUP_CHECKBOX] = GUICtrlCreateCheckbox("Start with Windows", 17, 32, 289, 17)
@@ -53,15 +55,19 @@ Func _mainGui()
         _GUICtrlListView_AddColumn($g_aGuiState[$GUI_STATE_LIST_VIEW], 'Item')
         _GUICtrlListView_AddColumn($g_aGuiState[$GUI_STATE_LIST_VIEW], 'Options')
         _iniToGui($APP_INI_PATH) ;set gui from ini file
+        _Debug_Log("Settings data loaded; error=" & @error)
         _MainWindow_UpdateSaveState()
         GUIRegisterMsg($WM_NOTIFY, "WM_NOTIFY")
         GUIRegisterMsg($WM_COMMAND, "_HotkeyEditor_WM_COMMAND")
         _GUICtrlListView_RegisterSortCallBack($g_aGuiState[$GUI_STATE_LIST_VIEW])
         GUISetState(@SW_SHOW)
+        _Debug_Log("Settings GUI shown; error=" & @error)
         WinActivate($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
         $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = True
+        _Debug_Log("Settings GUI activation completed; error=" & @error)
     Else
         WinActivate($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
+        _Debug_Log("Existing settings GUI activated; error=" & @error)
     EndIf
 EndFunc
 
