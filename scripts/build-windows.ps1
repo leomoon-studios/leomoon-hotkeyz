@@ -50,8 +50,8 @@ $runtimeVersion = $Version
 $fileVersion = "$Version.0"
 $constantsPath = Join-Path $stageSource "core\AppConstants.au3"
 $constants = Get-Content -LiteralPath $constantsPath -Raw
-$constants = $constants -replace '(?m)^Global Const \$APP_VERSION = "[^"]+"$', "Global Const `$APP_VERSION = `"$runtimeVersion`""
-$constants = $constants -replace '(?m)^Global Const \$APP_FILE_VERSION = "[^"]+"$', "Global Const `$APP_FILE_VERSION = `"$fileVersion`""
+$constants = $constants -replace '(?m)^Global Const \$APP_VERSION = "[^"]+"\r?$', "Global Const `$APP_VERSION = `"$runtimeVersion`""
+$constants = $constants -replace '(?m)^Global Const \$APP_FILE_VERSION = "[^"]+"\r?$', "Global Const `$APP_FILE_VERSION = `"$fileVersion`""
 if ($constants -notmatch [regex]::Escape("Global Const `$APP_VERSION = `"$runtimeVersion`"") -or $constants -notmatch [regex]::Escape("Global Const `$APP_FILE_VERSION = `"$fileVersion`"")) {
     throw "Unable to inject runtime version metadata into AppConstants.au3"
 }
@@ -59,9 +59,9 @@ Set-Content -LiteralPath $constantsPath -Value $constants -Encoding utf8NoBOM
 
 $mainSource = Join-Path $stageSource "LeoMoon HotKeyz.au3"
 $main = Get-Content -LiteralPath $mainSource -Raw
-$main = $main -replace '(?m)^#pragma compile\(Out,.*$', '; Output is supplied by scripts/build-windows.ps1.'
-$main = $main -replace '(?m)^#pragma compile\(FileVersion,.*$', "#pragma compile(FileVersion, $fileVersion)"
-$main = $main -replace '(?m)^#pragma compile\(ProductVersion,.*$', "#pragma compile(ProductVersion, $fileVersion)"
+$main = $main -replace '(?m)^#pragma compile\(Out,.*\r?$', '; Output is supplied by scripts/build-windows.ps1.'
+$main = $main -replace '(?m)^#pragma compile\(FileVersion,.*\r?$', "#pragma compile(FileVersion, $fileVersion)"
+$main = $main -replace '(?m)^#pragma compile\(ProductVersion,.*\r?$', "#pragma compile(ProductVersion, $fileVersion)"
 if ($main -match '(?m)^#pragma compile\(Out,' -or $main -notmatch [regex]::Escape("#pragma compile(FileVersion, $fileVersion)") -or $main -notmatch [regex]::Escape("#pragma compile(ProductVersion, $fileVersion)")) {
     throw "Unable to inject Windows version metadata into LeoMoon HotKeyz.au3"
 }
