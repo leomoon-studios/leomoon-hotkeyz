@@ -7,23 +7,24 @@ Global $enabled = False
 Global $enableTray
 
 Func _TrayController_Initialize($sIniFile)
+    Local $iSettingsTrayItem, $iWebsiteTrayItem, $iExitTrayItem
     TraySetClick(8)
     TraySetOnEvent($TRAY_EVENT_PRIMARYDOUBLE, "_toggle")
     TrayCreateItem($APP_TITLE & " " & $APP_VERSION)
     TrayItemSetState(-1, $TRAY_DISABLE)
     TrayCreateItem("")
     $enableTray = TrayCreateItem("Enable " & $APP_TITLE)
-    TrayItemSetOnEvent(-1, "_toggle")
+    TrayItemSetOnEvent($enableTray, "_toggle")
     TrayItemSetState(-1, $TRAY_CHECKED)
     TrayCreateItem("")
-    TrayCreateItem("Settings...")
-    TrayItemSetOnEvent(-1, "_mainGui")
+    $iSettingsTrayItem = TrayCreateItem("Settings...")
+    TrayItemSetOnEvent($iSettingsTrayItem, "_mainGui")
     TrayCreateItem("")
-    TrayCreateItem("Visit LeoMoon Studios website")
-    TrayItemSetOnEvent(-1, "_web")
+    $iWebsiteTrayItem = TrayCreateItem("Visit LeoMoon Studios website")
+    TrayItemSetOnEvent($iWebsiteTrayItem, "_web")
     TrayCreateItem("")
-    TrayCreateItem("Exit")
-    TrayItemSetOnEvent(-1, "_exit")
+    $iExitTrayItem = TrayCreateItem("Exit")
+    TrayItemSetOnEvent($iExitTrayItem, "_exit")
     If Not _readHotkey($sIniFile, "Options", "Main", $enableTray, "Enable " & $APP_TITLE, "_toggle", $APP_DEFAULT_TOGGLE_HOTKEY) Then Return False
     TraySetToolTip($APP_TITLE & " is enabled.")
     Return True
