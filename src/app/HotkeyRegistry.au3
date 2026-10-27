@@ -153,7 +153,7 @@ EndFunc
 Func _iniCheck($iniFile)
     If Not FileExists($iniFile) Then
         IniWrite($iniFile, 'Options', 'Main', $APP_DEFAULT_TOGGLE_HOTKEY)
-        IniWrite($iniFile, 'Hotkeys', '^#l', '[HkzExe]Turn Off Monitors And Lock')
+        IniWrite($iniFile, 'Hotkeys', '^!l', '[HkzExe]Turn Off Monitors And Lock')
         IniWrite($iniFile, 'Hotkeys', '^+e', 'C:\Windows\System32\notepad.exe')
         IniWrite($iniFile, 'Hotkeys', '^+i', 'C:\Program Files (x86)\Internet Explorer\iexplore.exe[HkzParam]https://leomoon.com')
         IniWrite($iniFile, 'Hotkeys', '^!c', '::{20d04fe0-3aea-1069-a2d8-08002b30309d}')
