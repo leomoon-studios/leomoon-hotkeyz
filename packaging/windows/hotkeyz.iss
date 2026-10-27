@@ -14,9 +14,6 @@
 #ifndef OutputDir
   #error OutputDir must be passed with /DOutputDir.
 #endif
-#ifndef IconFile
-  #error IconFile must be passed with /DIconFile.
-#endif
 
 [Setup]
 AppId={#AppId}
@@ -34,7 +31,6 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir={#OutputDir}
 OutputBaseFilename=leomoon-hotkeyz-{#AppVersion}-windows-x86-setup
-SetupIconFile={#IconFile}
 Compression=lzma2/ultra64
 SolidCompression=yes
 CloseApplications=yes

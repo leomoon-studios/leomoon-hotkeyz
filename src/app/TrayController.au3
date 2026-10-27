@@ -63,7 +63,11 @@ Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default
         $appHotkey = $default
         If Not IniWrite($iniFile, $section, $key, $appHotkey) Then Return _AppError_Report("The default main toggle hotkey could not be saved", 1, 0)
     EndIf
-    If Not _HotkeyRegistry_TrySet($appHotkey, $function) Then Return _AppError_Report("The main toggle hotkey is unavailable", 1, 0)
+    If Not _HotkeyRegistry_TrySet($appHotkey, $function) Then
+        TrayItemSetText($trayItem, $text & @TAB & "Shortcut unavailable")
+        _AppWarning_Report("The main toggle hotkey is already in use. LeoMoon HotKeyz is still running, and you can choose another hotkey in Settings.")
+        Return True
+    EndIf
     TrayItemSetText($trayItem, $text&@TAB&_HotkeyCodec_DecodeHotkey($appHotkey))
     Return True
 EndFunc

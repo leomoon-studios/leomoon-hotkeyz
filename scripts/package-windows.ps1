@@ -60,9 +60,8 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory($portableStage, $portablePath, [System.IO.Compression.CompressionLevel]::Optimal, $false)
 
 $installerScript = Join-Path $repositoryDirectory "packaging\windows\hotkeyz.iss"
-$iconPath = Join-Path $repositoryDirectory "src\resources\main.ico"
 $fileVersion = "$Version.0"
-& $iscc "/Qp" "/DAppVersion=$Version" "/DAppFileVersion=$fileVersion" "/DStageDir=$stage" "/DOutputDir=$dist" "/DIconFile=$iconPath" $installerScript
+& $iscc "/Qp" "/DAppVersion=$Version" "/DAppFileVersion=$fileVersion" "/DStageDir=$stage" "/DOutputDir=$dist" $installerScript
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup failed with exit code $LASTEXITCODE"
 }

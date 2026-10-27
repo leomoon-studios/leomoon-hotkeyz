@@ -10,3 +10,9 @@ Func _AppError_Report($sContext, $iError = 1, $iExtended = 0, $bShowMessage = Tr
     If $bShowMessage Then _ExtMsgBox(48, "OK", "LeoMoon HotKeyz error", $g_sLastApplicationError, 0)
     Return SetError($iError, $iExtended, False)
 EndFunc
+
+Func _AppWarning_Report($sMessage)
+    ConsoleWrite("WARNING: " & $sMessage & @CRLF)
+    _ExtMsgBox(48, "OK", "LeoMoon HotKeyz", $sMessage, 0)
+    Return True
+EndFunc

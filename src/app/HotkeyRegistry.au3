@@ -91,8 +91,7 @@ EndFunc
 
 Func _HotkeyRegistry_Initialize($sIniFile)
     _iniCheck($sIniFile)
-    _iniToApply($sIniFile)
-    Return Not @error
+    Return _iniToApply($sIniFile)
 EndFunc
 
 Func _HotkeyRegistry_Shutdown()
@@ -189,33 +188,40 @@ Func _iniCheck($iniFile)
 EndFunc
 
 Func _iniToApply($iniFile)
-    Local $i, $aRecord
-    $aHotkeys = _HotkeyRepository_Load($iniFile)
+    Local $i, $aRecord, $iRegistered = 0, $sUnavailable = ""
+    Local $aConfiguredHotkeys = _HotkeyRepository_Load($iniFile)
     If @error Then
         $aHotkeys = _HotkeyRepository_CreateTable(0)
         _AppError_Report("One or more hotkey entries are malformed or duplicated; no action hotkeys were registered", $HOTKEY_REPOSITORY_ERROR_INVALID, 0)
         Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, False)
     EndIf
-    If IsArray($aHotkeys) Then
+    If IsArray($aConfiguredHotkeys) Then
         Local $sToggleHotkey = _HotkeyCodec_NormalizeHotkey(IniRead($iniFile, "Options", "Main", ""))
-        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-            $aRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
+        For $i = 1 To _HotkeyRepository_Count($aConfiguredHotkeys)
+            $aRecord = _HotkeyRepository_GetRecord($aConfiguredHotkeys, $i)
             If Not _ActionValidator_ValidateRecord($aRecord, False) Then
                 $aHotkeys = _HotkeyRepository_CreateTable(0)
                 _AppError_Report("One or more action values are not allowed; no action hotkeys were registered", $HOTKEY_REPOSITORY_ERROR_INVALID, $i)
                 Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, False)
             EndIf
-            If $sToggleHotkey = _HotkeyCodec_NormalizeHotkey($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then
+            If $sToggleHotkey = _HotkeyCodec_NormalizeHotkey($aConfiguredHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then
                 _AppError_Report("The main toggle hotkey conflicts with an action hotkey", $HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i)
                 Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, False)
             EndIf
         Next
-        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-            If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then
-                _HotkeyRegistry_ClearTable($aHotkeys)
-                _AppError_Report("Hotkey registration failed because Windows or another application already uses the shortcut", 1, $i)
-                Return SetError(1, $i, False)
+        $aHotkeys = _HotkeyRepository_CreateTable(_HotkeyRepository_Count($aConfiguredHotkeys))
+        For $i = 1 To _HotkeyRepository_Count($aConfiguredHotkeys)
+            $aRecord = _HotkeyRepository_GetRecord($aConfiguredHotkeys, $i)
+            If _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then
+                $iRegistered += 1
+                _HotkeyRepository_SetRecord($aHotkeys, $iRegistered, $aRecord)
+            Else
+                $sUnavailable &= "- " & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY]) & @CRLF
             EndIf
         Next
+        ReDim $aHotkeys[$iRegistered + 1][$HOTKEY_FIELD_COUNT]
+        $aHotkeys[0][$HOTKEY_FIELD_HOTKEY] = $iRegistered
+        If $sUnavailable <> "" Then _AppWarning_Report("These hotkeys are already in use and could not be registered:" & @CRLF & @CRLF & $sUnavailable & @CRLF & "LeoMoon HotKeyz is still running. You can change or remove these hotkeys in Settings.")
     Endif
+    Return True
 EndFunc
