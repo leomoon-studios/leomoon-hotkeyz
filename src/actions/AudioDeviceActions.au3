@@ -17,6 +17,8 @@ Global Const $AUDIO_DEVICE_ERROR_ENDPOINTS = 2
 Global Const $AUDIO_DEVICE_ERROR_DEFAULT = 3
 Global Const $AUDIO_DEVICE_ERROR_POLICY = 4
 Global Const $AUDIO_DEVICE_ERROR_PROPERTY = 5
+Global Const $AUDIO_DEVICE_ERROR_NO_ENDPOINTS = 6
+Global Const $AUDIO_DEVICE_ERROR_INVALID_FLOW = 7
 
 Global Const $g_sAudioEnumeratorClsid = "{BCDE0395-E52F-467C-8E3D-C4579291692E}"
 Global Const $g_sAudioEnumeratorIid = "{A95664D2-9614-4F35-A746-DE8DB63617E6}"
@@ -54,6 +56,47 @@ Global Const $g_sAudioPolicyTag = "GetMixFormat hresult(wstr;ptr*);" & _
         "SetEndpointVisibility hresult(wstr;int);"
 
 Global $g_iAudioDeviceComError = 0
+
+; Callback names are optional test seams. Normal hotkey dispatch uses the built-in helpers.
+Func _AudioDeviceActions_Cycle($iFlow, $sEnumerate = "_AudioDeviceActions_Enumerate", $sGetDefault = "_AudioDeviceActions_GetDefaultId", $sSetDefault = "_AudioDeviceActions_SetDefaultId", $sNotify = "_AudioDeviceActions_Notify")
+    If $iFlow <> $AUDIO_FLOW_RENDER And $iFlow <> $AUDIO_FLOW_CAPTURE Then Return SetError($AUDIO_DEVICE_ERROR_INVALID_FLOW, 0, "")
+    Local $aEndpoints = Call($sEnumerate, $iFlow)
+    Local $iError = @error, $iExtended = @extended
+    If $iError Then Return SetError($iError, $iExtended, "")
+    If Not IsArray($aEndpoints) Then Return SetError($AUDIO_DEVICE_ERROR_NO_ENDPOINTS, 0, "")
+    If UBound($aEndpoints, 0) <> 2 Or UBound($aEndpoints, 2) <> 2 Or UBound($aEndpoints, 1) = 0 Then Return SetError($AUDIO_DEVICE_ERROR_ENDPOINTS, 0, "")
+    If UBound($aEndpoints, 1) = 1 Then Return $aEndpoints[0][$AUDIO_ENDPOINT_NAME]
+
+    Local $sCurrentId = Call($sGetDefault, $iFlow)
+    $iError = @error
+    $iExtended = @extended
+    If $iError Then Return SetError($iError, $iExtended, "")
+    Local $iNext = _AudioDeviceActions_NextIndex($aEndpoints, $sCurrentId)
+    Local $sNextId = $aEndpoints[$iNext][$AUDIO_ENDPOINT_ID]
+    If Not IsString($sNextId) Or $sNextId = "" Then Return SetError($AUDIO_DEVICE_ERROR_ENDPOINTS, $iNext, "")
+    Local $bChanged = Call($sSetDefault, $sNextId)
+    $iError = @error
+    $iExtended = @extended
+    If $iError Then Return SetError($iError, $iExtended, "")
+    If Not $bChanged Then Return SetError($AUDIO_DEVICE_ERROR_POLICY, $iNext, "")
+    Local $sName = $aEndpoints[$iNext][$AUDIO_ENDPOINT_NAME]
+    Call($sNotify, $iFlow, $sName)
+    Return $sName
+EndFunc
+
+Func _AudioDeviceActions_NextIndex(ByRef $aEndpoints, $sCurrentId)
+    Local $i
+    For $i = 0 To UBound($aEndpoints, 1) - 1
+        If $aEndpoints[$i][$AUDIO_ENDPOINT_ID] = $sCurrentId Then Return Mod($i + 1, UBound($aEndpoints, 1))
+    Next
+    Return 0
+EndFunc
+
+Func _AudioDeviceActions_Notify($iFlow, $sName)
+    Local $sTitle = "Playback Device"
+    If $iFlow = $AUDIO_FLOW_CAPTURE Then $sTitle = "Recording Device"
+    TrayTip($sTitle, $sName, 2, 1)
+EndFunc
 
 ; Returns a two-column array, or 0 with @error=0 when no devices are active.
 Func _AudioDeviceActions_Enumerate($iFlow)
