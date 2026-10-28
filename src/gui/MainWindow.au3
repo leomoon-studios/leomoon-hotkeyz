@@ -184,6 +184,8 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     If _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) Then _GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)
 EndFunc
 
+Global $g_bSavedInactiveRestrictions = False
+
 Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
     Local $txt, $x, $c, $s, $type, $path, $parameters, $options, $aRecord
     ;main hotkey
@@ -228,24 +230,33 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         If $type = $HOTKEY_ACTION_TEXT Then $path = StringReplace($path, '[New Line]', @LF)
         $aRecord = _HotkeyModel_Create(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $x, 1)), $type, $path, $parameters, $options)
         _HotkeyEditor_ApplyRestrictions($aRecord[$HOTKEY_FIELD_HOTKEY], $aRecord)
-        If Not _ActionValidator_ValidateRecord($aRecord, True) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
+        ; Paths may be unavailable until the hotkey runs (for example, a removable drive).
+        If Not _ActionValidator_ValidateRecord($aRecord, False) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
         If Not _HotkeyRepository_SetRecord($aNewHotkeys, $x + 1, $aRecord) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
     Next
     If Not _HotkeyEditorModel_ValidateToggle($appHotkey, $aNewHotkeys) Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, @error, False)
-    If Not _HotkeyRegistry_ApplyBindings($oldHotkey, $aHotkeys, $appHotkey, $aNewHotkeys) Then Return SetError($HOTKEY_REPOSITORY_ERROR_HOTKEY_UNAVAILABLE, @extended, False)
+    If Not _HotkeyRegistry_ApplyBindings($oldHotkey, $aHotkeys, $appHotkey, $aNewHotkeys, True) Then Return SetError($HOTKEY_REPOSITORY_ERROR_HOTKEY_UNAVAILABLE, @extended, False)
+    Local $aAppliedHotkeys = $g_aLastAppliedHotkeys
+    Local $bToggleAvailable = $g_bLastToggleAvailable
     If Not _HotkeyRepository_Save($iniFile, $aNewHotkeys) Then
         Local $iSaveError = @error
         Local $iSaveExtended = @extended
-        _HotkeyRegistry_ApplyBindings($appHotkey, $aNewHotkeys, $oldHotkey, $aHotkeys)
+        _HotkeyRegistry_ApplyBindings($appHotkey, $aAppliedHotkeys, $oldHotkey, $aHotkeys)
         Return SetError($iSaveError, $iSaveExtended, False)
     EndIf
     If Not IniWrite($iniFile, 'Options', 'Main', $appHotkey) Then
-        _HotkeyRegistry_ApplyBindings($appHotkey, $aNewHotkeys, $oldHotkey, $aHotkeys)
+        _HotkeyRegistry_ApplyBindings($appHotkey, $aAppliedHotkeys, $oldHotkey, $aHotkeys)
         Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 0, False)
     EndIf
-    $aHotkeys = $aNewHotkeys
+    $g_bSavedInactiveRestrictions = False
+    For $x = 1 To _HotkeyRepository_Count($aNewHotkeys)
+        $aRecord = _HotkeyRepository_GetRecord($aNewHotkeys, $x)
+        If _HotkeyModel_HasRestrictions($aRecord) Then $g_bSavedInactiveRestrictions = True
+    Next
+    $aHotkeys = $aAppliedHotkeys
     $txt = _HotkeyCodec_DecodeHotkey($appHotkey) ;decode hotkey to text
     TrayItemSetText($enableTray, 'Enable '&$APP_TITLE&@TAB&$txt) ;change menu entry to new hotkey
+    If Not $bToggleAvailable Then TrayItemSetText($enableTray, 'Enable ' & $APP_TITLE & @TAB & 'Shortcut unavailable')
     Return True
 EndFunc
 
@@ -275,12 +286,7 @@ Func _saveBtn()
             Return
         EndIf
     EndIf
-    Local $i, $aSavedRecord, $bHasInactive = False
-    For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-        $aSavedRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
-        If _HotkeyModel_HasRestrictions($aSavedRecord) Then $bHasInactive = True
-    Next
-    If $bHasInactive Then _AppWarning_Report("Hotkeys with modifier sides or lock conditions were saved but are inactive until condition handling is implemented.")
+    If $g_bSavedInactiveRestrictions Then _AppWarning_Report("Hotkeys with modifier sides or lock conditions were saved but are inactive until condition handling is implemented.")
     If _HotkeyEditorModel_ShouldCloseSettings(True, True) Then
         GUIDelete($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
         $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = False

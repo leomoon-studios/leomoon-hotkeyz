@@ -246,6 +246,16 @@ Func _HotkeyRepository_TablesEqual(ByRef $aLeft, ByRef $aRight)
     Local $i, $j
     For $i = 1 To _HotkeyRepository_Count($aLeft)
         For $j = 0 To $HOTKEY_FIELD_COUNT - 1
+            ; The INI uses {HkzEq}, while runtime records use {=}.
+            If $j = $HOTKEY_FIELD_HOTKEY Then
+                If _HotkeyCodec_NormalizeHotkey($aLeft[$i][$j]) <> _HotkeyCodec_NormalizeHotkey($aRight[$i][$j]) Then Return False
+                ContinueLoop
+            EndIf
+            ; The legacy format uses the same plain value for files and folders.
+            ; An unavailable folder can therefore reload as a file on this PC.
+            If $j = $HOTKEY_FIELD_ACTION And $aLeft[$i][$j] <> $aRight[$i][$j] Then
+                If ($aLeft[$i][$j] = $HOTKEY_ACTION_FOLDER And $aRight[$i][$j] = $HOTKEY_ACTION_FILE) Or ($aLeft[$i][$j] = $HOTKEY_ACTION_FILE And $aRight[$i][$j] = $HOTKEY_ACTION_FOLDER) Then ContinueLoop
+            EndIf
             If $aLeft[$i][$j] <> $aRight[$i][$j] Then Return False
         Next
     Next

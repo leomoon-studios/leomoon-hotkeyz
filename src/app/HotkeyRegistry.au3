@@ -5,6 +5,8 @@
 #include "ErrorReporter.au3"
 
 Global $aHotkeys = _HotkeyRepository_CreateTable(0)
+Global $g_aLastAppliedHotkeys = _HotkeyRepository_CreateTable(0)
+Global $g_bLastToggleAvailable = True
 Global $g_sHotkeySetHandler = "_HotkeyRegistry_SetBinding"
 Global $g_sRegistryReadHandler = "_HotkeyRegistry_RegRead"
 Global $g_sRegistryWriteHandler = "_HotkeyRegistry_RegWrite"
@@ -75,14 +77,30 @@ Func _HotkeyRegistry_ClearTable(ByRef $aRecords)
     Return $bSuccess
 EndFunc
 
-Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle, ByRef $aNewRecords)
+Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle, ByRef $aNewRecords, $bAllowUnavailable = False)
     ; HotKeySet returns 0 when removing an already unregistered shortcut (for example,
     ; while disabled or after a startup conflict). Still release every old binding.
     If $sOldToggle <> "" Then _HotkeyRegistry_TrySet($sOldToggle)
     _HotkeyRegistry_ClearTable($aOldRecords)
-    If Not _HotkeyRegistry_TrySet($sNewToggle, "_toggle") Then
+    $g_bLastToggleAvailable = _HotkeyRegistry_TrySet($sNewToggle, "_toggle")
+    If Not $g_bLastToggleAvailable And Not $bAllowUnavailable Then
         _HotkeyRegistry_RestoreBindings($sOldToggle, $aOldRecords)
         Return SetError(3, 0, False)
+    EndIf
+    If $bAllowUnavailable Then
+        Local $aApplied = _HotkeyRepository_CreateTable(_HotkeyRepository_Count($aNewRecords))
+        Local $i, $iApplied = 0, $aRecord
+        For $i = 1 To _HotkeyRepository_Count($aNewRecords)
+            $aRecord = _HotkeyRepository_GetRecord($aNewRecords, $i)
+            If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
+            If Not _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then ContinueLoop
+            $iApplied += 1
+            _HotkeyRepository_SetRecord($aApplied, $iApplied, $aRecord)
+        Next
+        ReDim $aApplied[$iApplied + 1][$HOTKEY_FIELD_COUNT]
+        $aApplied[0][$HOTKEY_FIELD_HOTKEY] = $iApplied
+        $g_aLastAppliedHotkeys = $aApplied
+        Return True
     EndIf
     If Not _HotkeyRegistry_SetTable($aNewRecords, "HotKeyPressed") Then
         Local $iFailedRow = @extended
@@ -250,7 +268,7 @@ Func _iniToApply($iniFile)
         Next
         ReDim $aHotkeys[$iRegistered + 1][$HOTKEY_FIELD_COUNT]
         $aHotkeys[0][$HOTKEY_FIELD_HOTKEY] = $iRegistered
-        If $sUnavailable <> "" Then _AppWarning_Report("These hotkeys are already in use and could not be registered:" & @CRLF & @CRLF & $sUnavailable & @CRLF & "LeoMoon HotKeyz is still running. You can change or remove these hotkeys in Settings.")
+        If $sUnavailable <> "" Then _AppWarning_ReportNonBlocking("These hotkeys are already in use and could not be registered:" & @CRLF & @CRLF & $sUnavailable & @CRLF & "LeoMoon HotKeyz is still running. You can change or remove these hotkeys in Settings.")
     Endif
     Return True
 EndFunc

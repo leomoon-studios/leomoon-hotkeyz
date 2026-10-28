@@ -594,7 +594,9 @@ EndFunc
 Func _HotkeyEditor_Commit($iListIndex)
     Local $aRecord = _HotkeyEditor_ReadRecord()
     If @error Or Not IsArray($aRecord) Then Return _HotkeyEditor_ShowError(_HotkeyEditor_ErrorMessage(@error, @extended))
-    If _HotkeyEditor_HasDuplicate($aRecord[$HOTKEY_FIELD_HOTKEY], $iListIndex) Then Return _HotkeyEditor_ShowError("That hotkey is already assigned")
+    Local $sConflict = _HotkeyEditor_FindConflict($aRecord[$HOTKEY_FIELD_HOTKEY], $iListIndex)
+    If $sConflict <> "" Then Return _HotkeyEditor_ShowError($sConflict)
+    If Not _HotkeyEditor_IsAvailable($aRecord[$HOTKEY_FIELD_HOTKEY]) Then Return _HotkeyEditor_ShowError("This hotkey is already in use by Windows or another application.")
     Local $sRow = _HotkeyEditor_RecordRow($aRecord)
     If @error Then Return _HotkeyEditor_ShowError("The selected action could not be displayed")
     Local $sOldHotkey = ""
@@ -698,15 +700,34 @@ Func _HotkeyEditor_ResolveSpecial($sHotkey, $sLabel)
     Return SetError(1, 0, 0)
 EndFunc
 
-Func _HotkeyEditor_HasDuplicate($sHotkey, $iExcludeIndex)
+Func _HotkeyEditor_FindConflict($sHotkey, $iExcludeIndex)
     Local $sNormalized = _HotkeyCodec_NormalizeHotkey($sHotkey)
     Local $i
     For $i = 0 To _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) - 1
-        If $i <> $iExcludeIndex And $sNormalized = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 1))) Then Return True
+        If $i <> $iExcludeIndex And $sNormalized = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 1))) Then
+            Return "This hotkey is already assigned to:" & @CRLF & _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 0) & ": " & _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 2)
+        EndIf
     Next
-    Return $sNormalized = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_returnToggleHotkey()))
+    If $sNormalized = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_returnToggleHotkey())) Then Return "This hotkey is assigned to the main enable/disable shortcut."
+    Return ""
 EndFunc
 
+Func _HotkeyEditor_IsAvailable($sHotkey)
+    Local $sNormalized = _HotkeyCodec_NormalizeHotkey($sHotkey), $i
+    ; Existing registrations belong to this process; probing them would replace their handlers.
+    If $g_bLastToggleAvailable And $sNormalized = _HotkeyCodec_NormalizeHotkey(IniRead($APP_INI_PATH, "Options", "Main", "")) Then Return True
+    If Not $enabled Then
+        For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            If $sNormalized = _HotkeyCodec_NormalizeHotkey($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then Return True
+        Next
+    EndIf
+    If Not _HotkeyRegistry_TrySet($sHotkey, "_HotkeyEditor_Probe") Then Return False
+    _HotkeyRegistry_TrySet($sHotkey)
+    Return True
+EndFunc
+
+Func _HotkeyEditor_Probe()
+EndFunc
 Func _HotkeyEditor_RecordRow(ByRef $aRecord)
     Local $sType = _HotkeyModel_ActionLabel($aRecord[$HOTKEY_FIELD_ACTION])
     Local $sItem = $aRecord[$HOTKEY_FIELD_TARGET]
@@ -774,11 +795,6 @@ Func _HotkeyEditor_UpdateOkState()
     $g_bHotkeyEditorUpdating = True
     Local $aRecord = _HotkeyEditor_ReadRecord()
     Local $bValid = IsArray($aRecord)
-    If $bValid Then
-        Local $iExclude = -1
-        If WinGetTitle($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) = "Edit Hotkey" Then $iExclude = _HotkeyEditor_SelectedIndex()
-        If _HotkeyEditor_HasDuplicate($aRecord[$HOTKEY_FIELD_HOTKEY], $iExclude) Then $bValid = False
-    EndIf
     If $bValid Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], $GUI_ENABLE)
     Else
