@@ -75,9 +75,20 @@ if ($LASTEXITCODE -ne 0) {
     throw "Unable to capture the repository worktree before tests"
 }
 foreach ($testPath in $testPaths) {
-    & $autoItPath /ErrorStdOut $testPath
-    if ($LASTEXITCODE -ne 0) {
-        throw "AutoIt test failed for $testPath with exit code $LASTEXITCODE"
+    # AutoIt3.exe is a Windows GUI executable; PowerShell may otherwise return
+    # before it finishes and report the exit status of the previous command.
+    $testOutput = Join-Path ([System.IO.Path]::GetTempPath()) ("hotkeyz-test-" + [guid]::NewGuid().ToString("N") + ".out")
+    $testError = $testOutput + ".err"
+    try {
+        $testProcess = Start-Process -FilePath $autoItPath -ArgumentList @('/ErrorStdOut', ('"' + $testPath + '"')) -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $testOutput -RedirectStandardError $testError
+        Get-Content -LiteralPath $testOutput -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
+        Get-Content -LiteralPath $testError -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ }
+        if ($testProcess.ExitCode -ne 0) {
+            throw "AutoIt test failed for $testPath with exit code $($testProcess.ExitCode)"
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $testOutput, $testError -Force -ErrorAction SilentlyContinue
     }
 }
 

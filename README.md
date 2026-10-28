@@ -43,6 +43,16 @@ On an interactive Windows desktop, run the additional GUI regression test withou
 
 This creates disposable windows, checks incomplete editor selections, and fires temporary Ctrl+Alt+Shift shortcuts for numpad plus/minus and F24 to verify transparency and minimize through native hotkey callbacks. It removes its windows and bindings afterward and does not write application settings or startup registry values. Keep the test window focused until it closes.
 
+Audio cycling has additional Windows-only tests:
+
+```powershell
+& 'C:\Program Files (x86)\AutoIt3\AutoIt3.exe' /ErrorStdOut .\tests\AudioEndpointsSmoke.au3 | Out-Host
+& 'C:\Program Files (x86)\AutoIt3\AutoIt3.exe' /ErrorStdOut .\tests\AudioEditorSmoke.au3 | Out-Host
+& 'C:\Program Files (x86)\AutoIt3\AutoIt3.exe' /ErrorStdOut .\tests\AudioLiveSmoke.au3 | Out-Host
+```
+
+Endpoint discovery reads the active devices and defaults. The editor test opens temporary Settings windows, writes a disposable profile in `tests`, and registers temporary hotkeys; it refuses to overwrite an existing profile there. The live test requires at least two active playback and two recording devices and a compiled executable at `build\audio-cycling-manual\LeoMoon HotKeyz.exe`. It temporarily changes the Windows audio defaults, exercises the compiled app using an isolated profile, and attempts to restore the original defaults for each role on exit. Do not change audio defaults concurrently while it runs. The live test also requests tray notifications; visually checking their appearance and disconnecting a device remain manual checks.
+
 ## Tagged builds from Linux
 
 Pushing an exact `vX.Y.Z` tag starts the [Windows package workflow](.github/workflows/build-release.yml). Its check job validates the tag and runs the full regression suite. Only after those checks pass does the dependent build job compile the x86 application, create a portable ZIP and an unsigned per-user Inno Setup installer, perform a silent install and uninstall test, and publish a GitHub Release with the packages, release manifest, and checksums attached. Branch pushes and pull requests run CI checks but never build packages.
