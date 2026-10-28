@@ -53,6 +53,21 @@ For $i = 0 To UBound($sPaths, 1) - 1
     EndIf
 Next
 
+Global $aPlayback = _HotkeyEditor_ResolveSpecial("^!p", "Cycle Playback Device")
+Global $aRecording = _HotkeyEditor_ResolveSpecial("^!r", "Cycle Recording Device")
+If Not IsArray($aPlayback) Or Not IsArray($aRecording) Then
+    ConsoleWrite("FAIL: audio actions are not available in the editor" & @CRLF)
+    Exit 1
+EndIf
+If $aPlayback[$HOTKEY_FIELD_ACTION] <> $HOTKEY_ACTION_SYSTEM Or $aRecording[$HOTKEY_FIELD_ACTION] <> $HOTKEY_ACTION_SYSTEM Then
+    ConsoleWrite("FAIL: audio actions do not use system handlers" & @CRLF)
+    Exit 1
+EndIf
+If _HotkeyEditor_RecordRow($aPlayback) <> "System|Ctrl + Alt + P|Cycle Playback Device|" Or _HotkeyEditor_RecordRow($aRecording) <> "System|Ctrl + Alt + R|Cycle Recording Device|" Then
+    ConsoleWrite("FAIL: audio actions are not shown as system actions" & @CRLF)
+    Exit 1
+EndIf
+
 ConsoleWrite("PASSED: noninteractive module composition and special-action smoke test" & @CRLF)
 Exit 0
 

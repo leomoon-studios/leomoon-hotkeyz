@@ -787,7 +787,7 @@ Func _TestRepositoryRecovery()
 EndFunc
 
 Func _TestActionValidationAndDispatch()
-    Local $aSystemActions[10][2] = [ _
+    Local $aSystemActions[12][2] = [ _
         ["Empty Recycle Bin", $SYSTEM_ACTION_EMPTY_RECYCLE_BIN], _
         ["Lock", $SYSTEM_ACTION_LOCK], _
         ["Log Off", $SYSTEM_ACTION_LOG_OFF], _
@@ -797,12 +797,16 @@ Func _TestActionValidationAndDispatch()
         ["Turn Off Monitors And Lock", $SYSTEM_ACTION_TURN_OFF_MONITORS_AND_LOCK], _
         ["Start Screensaver", $SYSTEM_ACTION_START_SCREENSAVER], _
         ["Start Screensaver And Lock", $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK], _
-        ["Empty Clipboard", $SYSTEM_ACTION_EMPTY_CLIPBOARD]]
+        ["Empty Clipboard", $SYSTEM_ACTION_EMPTY_CLIPBOARD], _
+        ["Cycle Playback Device", $SYSTEM_ACTION_CYCLE_PLAYBACK_DEVICE], _
+        ["Cycle Recording Device", $SYSTEM_ACTION_CYCLE_RECORDING_DEVICE]]
     Local $i
     For $i = 0 To UBound($aSystemActions, 1) - 1
         _AssertEqual($aSystemActions[$i][1], _SystemActions_GetId($aSystemActions[$i][0]), "allowed system action has fixed handler: " & $aSystemActions[$i][0])
     Next
     _AssertEqual($SYSTEM_ACTION_NONE, _SystemActions_GetId("RunAnything"), "unknown system action has no handler")
+    _AssertTrue(StringInStr("|" & _ActionCatalog_SpecialLabels() & "|", "|Cycle Playback Device|", 1) > 0, "playback cycling appears in system choices")
+    _AssertTrue(StringInStr("|" & _ActionCatalog_SpecialLabels() & "|", "|Cycle Recording Device|", 1) > 0, "recording cycling appears in system choices")
     Local $sSystemSource = FileRead(@ScriptDir & "\..\src\actions\SystemActions.au3")
     _AssertFalse(StringRegExp($sSystemSource, "(?m)^\s*Execute\(") = 1, "system action module has no dynamic Execute call")
 
@@ -813,6 +817,12 @@ Func _TestActionValidationAndDispatch()
     Local $aNoTags[1][2] = [["<NONE>", ""]]
     Local $aPreparedTampered = _ActionDispatcher_Prepare($aTampered, $aNoTags)
     _AssertFalse(IsArray($aPreparedTampered), "tampered system identifier cannot reach dispatch")
+    Local $aPlayback = _HotkeyModel_Create("^!p", $HOTKEY_ACTION_SYSTEM, "Cycle Playback Device")
+    Local $aRecording = _HotkeyModel_Create("^!r", $HOTKEY_ACTION_SYSTEM, "Cycle Recording Device")
+    _AssertTrue(_ActionValidator_ValidateRecord($aPlayback, False), "playback action passes validation")
+    _AssertTrue(_ActionValidator_ValidateRecord($aRecording, False), "recording action passes validation")
+    _AssertEqual($ACTION_ROUTE_SYSTEM, _ActionDispatcher_GetRoute($aPlayback[$HOTKEY_FIELD_ACTION]), "playback action uses system dispatch")
+    _AssertEqual($ACTION_ROUTE_SYSTEM, _ActionDispatcher_GetRoute($aRecording[$HOTKEY_FIELD_ACTION]), "recording action uses system dispatch")
 
     Local $aActions[8][2] = [ _
         [$HOTKEY_ACTION_FILE, $ACTION_ROUTE_FILE], _

@@ -31,7 +31,7 @@ $clsid[6][0] = 'My Documents'
 $clsid[6][1] = '::{450D8FBA-AD25-11D0-98A8-0800361B1103}'
 $clsid[7][0] = 'Network'
 $clsid[7][1] = '::{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}'
-Global $sPaths[25][2]
+Global $sPaths[27][2]
 $sPaths[0][0] = 'Control Panel (Category View)'
 $sPaths[0][1] = '::{26EE0668-A00A-44D7-9371-BEB064C98683}'
 $sPaths[1][0] = 'Control Panel (Icon View)'
@@ -82,6 +82,10 @@ $sPaths[23][0] = 'Start Screensaver And Lock'
 $sPaths[23][1] = '[HkzExe]Start Screensaver And Lock'
 $sPaths[24][0] = 'Empty Clipboard'
 $sPaths[24][1] = '[HkzExe]Empty Clipboard'
+$sPaths[25][0] = 'Cycle Playback Device'
+$sPaths[25][1] = '[HkzExe]Cycle Playback Device'
+$sPaths[26][0] = 'Cycle Recording Device'
+$sPaths[26][1] = '[HkzExe]Cycle Recording Device'
 
 Func _ActionCatalog_SpecialLabels()
     Local $sLabels = "", $i

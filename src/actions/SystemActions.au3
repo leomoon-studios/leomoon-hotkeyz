@@ -2,6 +2,7 @@
 
 #include <Clipboard.au3>
 #include <WinAPISys.au3>
+#include "AudioDeviceActions.au3"
 
 Global Enum $SYSTEM_ACTION_NONE = 0, _
             $SYSTEM_ACTION_EMPTY_RECYCLE_BIN, _
@@ -13,7 +14,9 @@ Global Enum $SYSTEM_ACTION_NONE = 0, _
             $SYSTEM_ACTION_TURN_OFF_MONITORS_AND_LOCK, _
             $SYSTEM_ACTION_START_SCREENSAVER, _
             $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK, _
-            $SYSTEM_ACTION_EMPTY_CLIPBOARD
+            $SYSTEM_ACTION_EMPTY_CLIPBOARD, _
+            $SYSTEM_ACTION_CYCLE_PLAYBACK_DEVICE, _
+            $SYSTEM_ACTION_CYCLE_RECORDING_DEVICE
 
 Func _SystemActions_GetId($sTarget)
     Switch $sTarget
@@ -37,6 +40,10 @@ Func _SystemActions_GetId($sTarget)
             Return $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK
         Case "Empty Clipboard"
             Return $SYSTEM_ACTION_EMPTY_CLIPBOARD
+        Case "Cycle Playback Device"
+            Return $SYSTEM_ACTION_CYCLE_PLAYBACK_DEVICE
+        Case "Cycle Recording Device"
+            Return $SYSTEM_ACTION_CYCLE_RECORDING_DEVICE
     EndSwitch
     Return $SYSTEM_ACTION_NONE
 EndFunc
@@ -64,10 +71,15 @@ Func _SystemActions_Execute($sTarget)
             $vResult = _StartScreensaverAndLock()
         Case $SYSTEM_ACTION_EMPTY_CLIPBOARD
             $vResult = _EmptyClipboard()
+        Case $SYSTEM_ACTION_CYCLE_PLAYBACK_DEVICE
+            $vResult = _AudioDeviceActions_Cycle($AUDIO_FLOW_RENDER)
+        Case $SYSTEM_ACTION_CYCLE_RECORDING_DEVICE
+            $vResult = _AudioDeviceActions_Cycle($AUDIO_FLOW_CAPTURE)
         Case Else
             Return SetError(1, 0, False)
     EndSwitch
-    If Not $vResult Then Return SetError(2, @error, False)
+    Local $iHandlerError = @error
+    If Not $vResult Then Return SetError(2, $iHandlerError, False)
     Return True
 EndFunc
 
