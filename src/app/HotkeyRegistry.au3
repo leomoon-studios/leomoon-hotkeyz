@@ -56,16 +56,20 @@ Func _HotkeyRegistry_TrySet($sHotkey, $sHandler = "")
 EndFunc
 
 Func _HotkeyRegistry_SetTable(ByRef $aRecords, $sHandler)
-    Local $i
+    Local $i, $aRecord
     For $i = 1 To _HotkeyRepository_Count($aRecords)
+        $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
+        If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
         If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], $sHandler) Then Return SetError(1, $i, False)
     Next
     Return True
 EndFunc
 
 Func _HotkeyRegistry_ClearTable(ByRef $aRecords)
-    Local $bSuccess = True, $i
+    Local $bSuccess = True, $i, $aRecord
     For $i = 1 To _HotkeyRepository_Count($aRecords)
+        $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
+        If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
         If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY]) Then $bSuccess = False
     Next
     Return $bSuccess
@@ -91,10 +95,12 @@ Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle,
 EndFunc
 
 Func _HotkeyRegistry_RestoreBindings($sToggle, ByRef $aRecords)
-    Local $bSuccess = True, $i
+    Local $bSuccess = True, $i, $aRecord
     If $sToggle <> "" And Not _HotkeyRegistry_TrySet($sToggle, "_toggle") Then $bSuccess = False
     ; A conflict on one old shortcut must not prevent restoring the others.
     For $i = 1 To _HotkeyRepository_Count($aRecords)
+        $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
+        If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
         If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then $bSuccess = False
     Next
     Return $bSuccess
@@ -106,13 +112,10 @@ Func _HotkeyRegistry_Initialize($sIniFile)
 EndFunc
 
 Func _HotkeyRegistry_Shutdown()
-    Local $i
-    For $i = 1 To _HotkeyRepository_Count($aHotkeys)
-        If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then Return False
-    Next
+    Local $bSuccess = _HotkeyRegistry_ClearTable($aHotkeys)
     Local $sToggleHotkey = IniRead($APP_INI_PATH, "Options", "Main", "")
-    If $sToggleHotkey <> "" And Not _HotkeyRegistry_TrySet($sToggleHotkey) Then Return False
-    Return True
+    If $sToggleHotkey <> "" And Not _HotkeyRegistry_TrySet($sToggleHotkey) Then $bSuccess = False
+    Return $bSuccess
 EndFunc
 
 Func _HotkeyRegistry_IsStartupEnabled()
@@ -223,11 +226,6 @@ Func _iniToApply($iniFile)
         Local $sToggleHotkey = _HotkeyCodec_NormalizeHotkey(IniRead($iniFile, "Options", "Main", ""))
         For $i = 1 To _HotkeyRepository_Count($aConfiguredHotkeys)
             $aRecord = _HotkeyRepository_GetRecord($aConfiguredHotkeys, $i)
-            ; Fail closed until the side/condition-aware input backend exists.
-            If _HotkeyModel_HasRestrictions($aRecord) Then
-                _AppError_Report("This profile contains restricted hotkeys that this build cannot safely apply", $HOTKEY_REPOSITORY_ERROR_INVALID, $i)
-                Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, False)
-            EndIf
             If Not _ActionValidator_ValidateRecord($aRecord, False) Then
                 $aHotkeys = _HotkeyRepository_CreateTable(0)
                 _AppError_Report("One or more action values are not allowed; no action hotkeys were registered", $HOTKEY_REPOSITORY_ERROR_INVALID, $i)
@@ -241,6 +239,8 @@ Func _iniToApply($iniFile)
         $aHotkeys = _HotkeyRepository_CreateTable(_HotkeyRepository_Count($aConfiguredHotkeys))
         For $i = 1 To _HotkeyRepository_Count($aConfiguredHotkeys)
             $aRecord = _HotkeyRepository_GetRecord($aConfiguredHotkeys, $i)
+            ; Restrictions remain inactive until the event-time backend exists.
+            If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
             If _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then
                 $iRegistered += 1
                 _HotkeyRepository_SetRecord($aHotkeys, $iRegistered, $aRecord)

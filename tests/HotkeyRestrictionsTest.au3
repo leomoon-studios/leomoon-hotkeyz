@@ -1,9 +1,12 @@
 #include "..\src\core\HotkeyRepository.au3"
 #include "..\src\gui\HotkeyEditorModel.au3"
 #include "..\src\actions\ActionDispatcher.au3"
+#include "..\src\core\AppConstants.au3"
+#include "..\src\app\HotkeyRegistry.au3"
 
 Opt("MustDeclareVars", 1)
 Global $g_iFailures = 0, $g_iAssertions = 0
+Global $g_sRegisteredKeys = ""
 Global $sIni = @TempDir & "\hotkeyz-restrictions-" & @AutoItPID & ".ini"
 Global $sBackup = $sIni & ".bak"
 OnAutoItExitRegister("_RestrictionsCleanup")
@@ -75,6 +78,27 @@ _Check(Not _HotkeyModel_IsValid($aInvalid), "invalid lock state rejected")
 $aInvalid[$HOTKEY_FIELD_CAPS_LOCK] = 0
 _Check(Not _HotkeyCodec_DecodeRestrictions($aInvalid, "1,0,0,0,0,0,9"), "malformed metadata rejected")
 
+Global $sRuntimeIni = $sIni & ".runtime"
+Global $aRuntimeTable = _HotkeyRepository_CreateTable(2)
+Global $aRuntimeRestricted = _HotkeyModel_Create("^!a", $HOTKEY_ACTION_TEXT, "restricted")
+$aRuntimeRestricted[$HOTKEY_FIELD_CAPS_LOCK] = $HOTKEY_LOCK_ON
+Global $aRuntimeNormal = _HotkeyModel_Create("^!b", $HOTKEY_ACTION_TEXT, "normal")
+_HotkeyRepository_SetRecord($aRuntimeTable, 1, $aRuntimeRestricted)
+_HotkeyRepository_SetRecord($aRuntimeTable, 2, $aRuntimeNormal)
+_Check(_HotkeyRepository_Save($sRuntimeIni, $aRuntimeTable), "prepare mixed runtime profile")
+_HotkeyRegistry_ConfigureHotkeyBackend("_RestrictionsMockSet")
+$g_sRegisteredKeys = ""
+_Check(_iniToApply($sRuntimeIni), "startup accepts profiles containing inactive restrictions")
+_Check($g_sRegisteredKeys = "^!b|", "startup registers only unrestricted shortcut")
+_Check(_HotkeyRepository_Count($aHotkeys) = 1, "runtime table contains only registered shortcut")
+$g_sRegisteredKeys = ""
+Global $aEmpty = _HotkeyRepository_CreateTable(0)
+_Check(_HotkeyRegistry_ApplyBindings("", $aEmpty, "^!z", $aRuntimeTable), "apply mixed restricted and unrestricted bindings")
+_Check($g_sRegisteredKeys = "^!z|^!b|", "apply never registers restricted shortcut")
+_HotkeyRegistry_ResetHotkeyBackend()
+FileDelete($sRuntimeIni)
+FileDelete($sRuntimeIni & ".bak")
+
 IniWrite($sIni, "HotkeyRestrictions", "Version", "2")
 $aLoaded = _HotkeyRepository_Load($sIni)
 _Check(Not IsArray($aLoaded), "unknown metadata version rejected")
@@ -120,8 +144,16 @@ Func _Check($bCondition, $sMessage)
     ConsoleWrite("FAIL: " & $sMessage & @CRLF)
 EndFunc
 
+Func _RestrictionsMockSet($sHotkey, $sHandler)
+    If $sHandler <> "" Then $g_sRegisteredKeys &= $sHotkey & "|"
+    Return True
+EndFunc
+
 Func _RestrictionsCleanup()
     FileDelete($sIni)
     FileDelete($sBackup)
     FileDelete($sIni & ".tmp")
+    FileDelete($sIni & ".runtime")
+    FileDelete($sIni & ".runtime.bak")
+    FileDelete($sIni & ".runtime.tmp")
 EndFunc

@@ -92,6 +92,7 @@ EndFunc
 
 Func _iniToGui($iniFile) ;just reads ini and sets the gui
     Local $i, $c, $s, $type, $item
+    ReDim $g_aRestrictionRows[1][8]
     ;read main hotkey
     Local $appHotkey = IniRead($iniFile, 'Options', 'Main', '')
     Local $k = StringUpper(StringReplace(StringReplace(StringReplace(StringReplace($appHotkey,'^',''),'!',''),'+',''),'#',''))
@@ -157,6 +158,13 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
                 If $opts == 'Admin' Then $opts &= ', '
                 $opts &= 'Singleton'
             EndIf
+            Local $aListRecord = _HotkeyRepository_GetRecord($aArray, $i)
+            _HotkeyEditor_SetRestrictions($aListRecord[$HOTKEY_FIELD_HOTKEY], $aListRecord)
+            Local $sRestrictionSummary = _HotkeyEditor_RestrictionSummary($aListRecord)
+            If $sRestrictionSummary <> '' Then
+                If $opts <> '' Then $opts &= ', '
+                $opts &= $sRestrictionSummary
+            EndIf
             GUICtrlCreateListViewItem($type&'|'&_HotkeyCodec_DecodeHotkey($aArray[$i][$HOTKEY_FIELD_HOTKEY])&'|'&$item&'|'&$opts, $g_aGuiState[$GUI_STATE_LIST_VIEW])
         Next
     EndIf
@@ -219,6 +227,7 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         EndIf
         If $type = $HOTKEY_ACTION_TEXT Then $path = StringReplace($path, '[New Line]', @LF)
         $aRecord = _HotkeyModel_Create(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $x, 1)), $type, $path, $parameters, $options)
+        _HotkeyEditor_ApplyRestrictions($aRecord[$HOTKEY_FIELD_HOTKEY], $aRecord)
         If Not _ActionValidator_ValidateRecord($aRecord, True) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
         If Not _HotkeyRepository_SetRecord($aNewHotkeys, $x + 1, $aRecord) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $x + 1, False)
     Next
@@ -266,6 +275,12 @@ Func _saveBtn()
             Return
         EndIf
     EndIf
+    Local $i, $aSavedRecord, $bHasInactive = False
+    For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+        $aSavedRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
+        If _HotkeyModel_HasRestrictions($aSavedRecord) Then $bHasInactive = True
+    Next
+    If $bHasInactive Then _AppWarning_Report("Hotkeys with modifier sides or lock conditions were saved but are inactive until condition handling is implemented.")
     If _HotkeyEditorModel_ShouldCloseSettings(True, True) Then
         GUIDelete($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
         $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = False

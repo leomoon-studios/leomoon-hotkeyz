@@ -66,6 +66,8 @@ Func _toggle()
     ;$enabled = Not $enabled
     If $enabled == False Then ;disable it
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            Local $aDisabledRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
+            If _HotkeyModel_HasRestrictions($aDisabledRecord) Then ContinueLoop
             If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then Return _AppError_Report("A hotkey could not be disabled", 1, $i)
         Next
         $enabled = True
@@ -74,6 +76,8 @@ Func _toggle()
         TraySetToolTip($APP_TITLE&" is disabled.")
     Else
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
+            Local $aEnabledRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
+            If _HotkeyModel_HasRestrictions($aEnabledRecord) Then ContinueLoop
             If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then Return _AppError_Report("A hotkey is unavailable because Windows or another application uses it", 1, $i)
         Next
         $enabled = False

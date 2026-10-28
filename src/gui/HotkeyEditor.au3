@@ -10,6 +10,119 @@
 #include "HotkeyEditorModel.au3"
 
 Global $g_bHotkeyEditorUpdating = False
+Global $g_aEditorRestrictions[7] = [0, 0, 0, 0, 0, 0, 0]
+Global $g_aRestrictionRows[1][8]
+Global $g_aRestrictionDialogControls[7], $g_hRestrictionDialog = 0
+
+Func _HotkeyEditor_ResetRestrictions()
+    Local $i
+    For $i = 0 To 6
+        $g_aEditorRestrictions[$i] = 0
+    Next
+EndFunc
+
+Func _HotkeyEditor_ShowRestrictions()
+    If IsHWnd($g_hRestrictionDialog) Then Return
+    Local $aLabels[7] = ["Ctrl side", "Alt side", "Shift side", "Win side", "Caps Lock", "Num Lock", "Scroll Lock"]
+    Local $aModifierControls[4] = [$GUI_STATE_EDITOR_CTRL_CHECKBOX, $GUI_STATE_EDITOR_ALT_CHECKBOX, $GUI_STATE_EDITOR_SHIFT_CHECKBOX, $GUI_STATE_EDITOR_WIN_CHECKBOX]
+    ; An owned popup stays above the editor without being clipped to its client area.
+    $g_hRestrictionDialog = GUICreate("Modifiers and conditions", 360, 345, -1, -1, BitOR($WS_POPUP, $WS_CAPTION, $WS_SYSMENU), $WS_EX_DLGMODALFRAME, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    GUISetFont(9, 400, 0, "Tahoma")
+    Local $i, $sChoices
+    For $i = 0 To 6
+        GUICtrlCreateLabel($aLabels[$i], 18, 20 + ($i * 37), 145, 22)
+        $g_aRestrictionDialogControls[$i] = GUICtrlCreateCombo("", 170, 16 + ($i * 37), 165, 25, $CBS_DROPDOWNLIST)
+        $sChoices = "Any|On|Off"
+        If $i < 4 Then $sChoices = "Either|Left|Right"
+        GUICtrlSetData(-1, $sChoices)
+        _GUICtrlComboBox_SetCurSel($g_aRestrictionDialogControls[$i], $g_aEditorRestrictions[$i])
+        If $i < 4 Then
+            If Not BitAND(GUICtrlRead($g_aGuiState[$aModifierControls[$i]]), $GUI_CHECKED) Then GUICtrlSetState($g_aRestrictionDialogControls[$i], $GUI_DISABLE)
+        EndIf
+    Next
+    GUICtrlCreateLabel("Restrictions are not active until the input backend is implemented.", 18, 278, 325, 28)
+    GUICtrlCreateButton("OK", 18, 308, 150, 28)
+    GUICtrlSetOnEvent(-1, "_HotkeyEditor_RestrictionsAccept")
+    GUICtrlCreateButton("Cancel", 185, 308, 150, 28)
+    GUICtrlSetOnEvent(-1, "_HotkeyEditor_RestrictionsCancel")
+    GUISetOnEvent($GUI_EVENT_CLOSE, "_HotkeyEditor_RestrictionsCancel", $g_hRestrictionDialog)
+    GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    GUISetState(@SW_SHOW, $g_hRestrictionDialog)
+EndFunc
+
+Func _HotkeyEditor_RestrictionsAccept()
+    Local $i
+    For $i = 0 To 6
+        $g_aEditorRestrictions[$i] = _GUICtrlComboBox_GetCurSel($g_aRestrictionDialogControls[$i])
+    Next
+    _HotkeyEditor_RestrictionsClose()
+EndFunc
+
+Func _HotkeyEditor_RestrictionsClose()
+    GUIDelete($g_hRestrictionDialog)
+    $g_hRestrictionDialog = 0
+    GUISetState(@SW_ENABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    _HotkeyEditor_UpdateOkState()
+EndFunc
+
+Func _HotkeyEditor_RestrictionsCancel()
+    _HotkeyEditor_RestrictionsClose()
+EndFunc
+
+Func _HotkeyEditor_FindRestrictions($sHotkey)
+    Local $sNormalized = _HotkeyCodec_NormalizeHotkey($sHotkey), $i
+    For $i = 1 To UBound($g_aRestrictionRows) - 1
+        If $g_aRestrictionRows[$i][0] = $sNormalized Then Return $i
+    Next
+    Return 0
+EndFunc
+
+Func _HotkeyEditor_SetRestrictions($sHotkey, ByRef $aRecord)
+    Local $iRow = _HotkeyEditor_FindRestrictions($sHotkey), $i
+    If Not $iRow Then
+        $iRow = UBound($g_aRestrictionRows)
+        ReDim $g_aRestrictionRows[$iRow + 1][8]
+    EndIf
+    $g_aRestrictionRows[$iRow][0] = _HotkeyCodec_NormalizeHotkey($sHotkey)
+    For $i = 0 To 6
+        $g_aRestrictionRows[$iRow][$i + 1] = $aRecord[$HOTKEY_FIELD_CTRL_SIDE + $i]
+    Next
+EndFunc
+
+Func _HotkeyEditor_ApplyRestrictions($sHotkey, ByRef $aRecord)
+    Local $iRow = _HotkeyEditor_FindRestrictions($sHotkey), $i
+    If Not $iRow Then Return
+    For $i = 0 To 6
+        $aRecord[$HOTKEY_FIELD_CTRL_SIDE + $i] = $g_aRestrictionRows[$iRow][$i + 1]
+    Next
+EndFunc
+
+Func _HotkeyEditor_RemoveRestrictions($sHotkey)
+    Local $iRow = _HotkeyEditor_FindRestrictions($sHotkey)
+    If $iRow Then $g_aRestrictionRows[$iRow][0] = ""
+EndFunc
+
+Func _HotkeyEditor_RestrictionSummary(ByRef $aRecord)
+    Local $aLabels[7] = ["Ctrl", "Alt", "Shift", "Win", "Caps", "Num", "Scroll"]
+    Local $sSummary = "", $i, $sValue
+    For $i = 0 To 6
+        Switch $aRecord[$HOTKEY_FIELD_CTRL_SIDE + $i]
+            Case 1
+                $sValue = "Left"
+                If $i >= 4 Then $sValue = "On"
+            Case 2
+                $sValue = "Right"
+                If $i >= 4 Then $sValue = "Off"
+            Case Else
+                ContinueLoop
+        EndSwitch
+        If $sSummary <> "" Then $sSummary &= ", "
+        $sSummary &= $aLabels[$i] & ": " & $sValue
+    Next
+    If $sSummary <> "" Then Return "Inactive (conditions unavailable): " & $sSummary
+    Return ""
+EndFunc
 
 Func _editGui($name)
     ;edit gui
@@ -77,8 +190,10 @@ Func _editGui($name)
     $g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO] = GUICtrlCreateCombo("", 273, 590, 119, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
     GUICtrlSetData(-1, $HOTKEY_CODEC_KEY_NAMES)
     GUICtrlCreateGroup("", -99, -99, 1, 1)
-    $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON] = GUICtrlCreateButton("Cancel", 209, 632, 193, 33)
-    $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON] = GUICtrlCreateButton("OK", 8, 632, 193, 33)
+    $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON] = GUICtrlCreateButton("OK", 8, 632, 125, 33)
+    $g_aGuiState[$GUI_STATE_RESTRICTIONS_BUTTON] = GUICtrlCreateButton("Conditions...", 139, 632, 132, 33)
+    GUICtrlSetOnEvent(-1, "_HotkeyEditor_ShowRestrictions")
+    $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON] = GUICtrlCreateButton("Cancel", 277, 632, 125, 33)
     ;other settings
     GUISetIcon(@ScriptFullPath, 201)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_FOLDER_RADIO], "_folderRdo")
@@ -307,7 +422,9 @@ Func _delBtn()
     Local $iSelected = _HotkeyEditor_SelectedIndex()
     If @error Then Return False
     If MsgBox(48+4, 'Confirmation', 'Delete the selected hotkey?', 0, $g_aGuiState[$GUI_STATE_MAIN_WINDOW]) == 6 Then
+        Local $sDeletedHotkey = _HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected, 1))
         If Not _GUICtrlListView_DeleteItem($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected) Then Return False
+        _HotkeyEditor_RemoveRestrictions($sDeletedHotkey)
         Local $iCount = _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW])
         If $iCount Then
             If $iSelected >= $iCount Then $iSelected = $iCount - 1
@@ -320,6 +437,7 @@ Func _delBtn()
 EndFunc
 
 Func _addBtn()
+    _HotkeyEditor_ResetRestrictions()
     _editGui('Add Hotkey')
     GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_RADIO], $GUI_CHECKED)
     _fileRdo()
@@ -333,6 +451,13 @@ Func _editBtn()
     Local $iSelected = _HotkeyEditor_SelectedIndex()
     If @error Then Return False
     Local $hotkey = _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected, 1)
+    _HotkeyEditor_ResetRestrictions()
+    Local $iRestrictionRow = _HotkeyEditor_FindRestrictions(_HotkeyCodec_EncodeHotkey($hotkey)), $iRestriction
+    If $iRestrictionRow Then
+        For $iRestriction = 0 To 6
+            $g_aEditorRestrictions[$iRestriction] = $g_aRestrictionRows[$iRestrictionRow][$iRestriction + 1]
+        Next
+    EndIf
     ;~ ConsoleWrite($hotkey)
     Local $path = _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected, 2)
     If $path = $ACTION_CATALOG_LEGACY_HIGH Then $path = "Set Process Priority to High"
@@ -472,6 +597,8 @@ Func _HotkeyEditor_Commit($iListIndex)
     If _HotkeyEditor_HasDuplicate($aRecord[$HOTKEY_FIELD_HOTKEY], $iListIndex) Then Return _HotkeyEditor_ShowError("That hotkey is already assigned")
     Local $sRow = _HotkeyEditor_RecordRow($aRecord)
     If @error Then Return _HotkeyEditor_ShowError("The selected action could not be displayed")
+    Local $sOldHotkey = ""
+    If $iListIndex >= 0 Then $sOldHotkey = _HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iListIndex, 1))
     If $iListIndex < 0 Then
         If GUICtrlCreateListViewItem($sRow, $g_aGuiState[$GUI_STATE_LIST_VIEW]) = 0 Then Return _HotkeyEditor_ShowError("The hotkey could not be added")
     Else
@@ -482,6 +609,8 @@ Func _HotkeyEditor_Commit($iListIndex)
             If Not _GUICtrlListView_SetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iListIndex, $aColumns[$i], $i - 1) Then Return _HotkeyEditor_ShowError("The hotkey could not be updated")
         Next
     EndIf
+    If $sOldHotkey <> "" Then _HotkeyEditor_RemoveRestrictions($sOldHotkey)
+    _HotkeyEditor_SetRestrictions($aRecord[$HOTKEY_FIELD_HOTKEY], $aRecord)
     _MainWindow_UpdateSaveState()
     _hideChild()
     Return True
@@ -514,7 +643,10 @@ Func _HotkeyEditor_ReadRecord()
         If @error Or Not IsArray($aSpecial) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
         Local $aSpecialValues = _HotkeyEditorModel_CreateValues($aSpecial[$HOTKEY_FIELD_HOTKEY], $aSpecial[$HOTKEY_FIELD_ACTION], $aSpecial[$HOTKEY_FIELD_TARGET], $aSpecial[$HOTKEY_FIELD_PARAMETERS], $iOptions)
         Local $aSpecialRecord = _HotkeyEditorModel_ToRecord($aSpecialValues, True)
-        Return SetError(@error, @extended, $aSpecialRecord)
+        If @error Or Not IsArray($aSpecialRecord) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
+        _HotkeyEditor_CopyCurrentRestrictions($aSpecialRecord)
+        If Not _HotkeyModel_IsValid($aSpecialRecord) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
+        Return $aSpecialRecord
     ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) = $GUI_CHECKED Then
         $sAction = $HOTKEY_ACTION_WINDOW
         $sTarget = GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_COMBO])
@@ -529,7 +661,22 @@ Func _HotkeyEditor_ReadRecord()
     EndIf
     Local $aValues = _HotkeyEditorModel_CreateValues(_HotkeyCodec_EncodeHotkey($sHotkey), $sAction, $sTarget, $sParameters, $iOptions, GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX]) = $GUI_CHECKED, GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_X_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX]) = $GUI_CHECKED, GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT]), GUICtrlRead($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT]))
     Local $aRecord = _HotkeyEditorModel_ToRecord($aValues, True)
-    Return SetError(@error, @extended, $aRecord)
+    If @error Or Not IsArray($aRecord) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
+    _HotkeyEditor_CopyCurrentRestrictions($aRecord)
+    If Not _HotkeyModel_IsValid($aRecord) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
+    Return $aRecord
+EndFunc
+
+Func _HotkeyEditor_CopyCurrentRestrictions(ByRef $aRecord)
+    Local $i
+    For $i = 0 To 6
+        $aRecord[$HOTKEY_FIELD_CTRL_SIDE + $i] = $g_aEditorRestrictions[$i]
+    Next
+    ; Unchecking a modifier removes its side restriction.
+    Local $aModifierControls[4] = [$GUI_STATE_EDITOR_CTRL_CHECKBOX, $GUI_STATE_EDITOR_ALT_CHECKBOX, $GUI_STATE_EDITOR_SHIFT_CHECKBOX, $GUI_STATE_EDITOR_WIN_CHECKBOX]
+    For $i = 0 To 3
+        If Not BitAND(GUICtrlRead($g_aGuiState[$aModifierControls[$i]]), $GUI_CHECKED) Then $aRecord[$HOTKEY_FIELD_CTRL_SIDE + $i] = 0
+    Next
 EndFunc
 
 Func _HotkeyEditor_ResolveFolder($sDisplay)
@@ -585,6 +732,11 @@ Func _HotkeyEditor_RecordRow(ByRef $aRecord)
     If _HotkeyModel_HasOption($aRecord, $HOTKEY_OPTION_SINGLETON) Then
         If $sOptions <> "" Then $sOptions &= ", "
         $sOptions &= "Singleton"
+    EndIf
+    Local $sRestrictions = _HotkeyEditor_RestrictionSummary($aRecord)
+    If $sRestrictions <> "" Then
+        If $sOptions <> "" Then $sOptions &= ", "
+        $sOptions &= $sRestrictions
     EndIf
     Return $sType & "|" & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY]) & "|" & $sItem & "|" & $sOptions
 EndFunc
