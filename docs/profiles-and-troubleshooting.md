@@ -26,6 +26,8 @@ To restore a backup, exit HotKeyz, save a copy of the current INI elsewhere, and
 
 The app reads UTF-8 with or without a byte-order mark, UTF-16 with a byte-order mark, and legacy Windows ANSI text when the bytes are not valid UTF-8. Unmarked encodings can be ambiguous: valid UTF-8 takes precedence. A successful save writes UTF-16 with a byte-order mark so Unicode text is preserved by Windows INI functions. If an old file is already corrupted, keep the original and restore the correct text from a clean backup.
 
+Development builds may recognize a versioned `[HotkeyRestrictions]` section and a companion `[HotkeyRestrictedActions]` section. Restricted records use a placeholder in `[Hotkeys]` so older readers do not receive the original action as an ordinary unrestricted entry. Support for enforcing these restrictions is not yet implemented: this build refuses to activate such profiles. Do not open or save a restricted profile with an older HotKeyz version; older versions cannot enforce its conditions and may damage its metadata. Preserve a separate backup before changing versions.
+
 ## INI representation
 
 The Settings interface is the recommended way to edit hotkeys. For reference, the file has an `[Options]` section with the main toggle and a `[Hotkeys]` section mapping key combinations to actions:

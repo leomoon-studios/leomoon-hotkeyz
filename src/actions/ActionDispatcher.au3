@@ -43,6 +43,8 @@ EndFunc
 
 Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags)
     If Not _ActionValidator_ValidateRecord($aRecord, False) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @error, 0)
+    ; Do not execute a restricted action until event-time filtering is implemented.
+    If _HotkeyModel_HasRestrictions($aRecord) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, 0)
     Local $aPrepared = _HotkeyModel_Create( _
         $aRecord[$HOTKEY_FIELD_HOTKEY], _
         $aRecord[$HOTKEY_FIELD_ACTION], _

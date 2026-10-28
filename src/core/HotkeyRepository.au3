@@ -90,20 +90,58 @@ Func _HotkeyRepository_Load($sIniFile)
     EndIf
     Local $aSection = IniReadSection($sReadCopy, "Hotkeys")
     Local $iReadError = @error
+    Local $aRestrictions = IniReadSection($sReadCopy, "HotkeyRestrictions")
+    Local $aRestrictedActions = IniReadSection($sReadCopy, "HotkeyRestrictedActions")
+    Local $sRestrictionVersion = IniRead($sReadCopy, "HotkeyRestrictions", "Version", "")
     FileDelete($sReadCopy)
-    If $iReadError Then Return _HotkeyRepository_CreateTable(0)
+    If IsArray($aRestrictions) And $sRestrictionVersion <> "1" Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, 0)
+    If IsArray($aRestrictions) <> IsArray($aRestrictedActions) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, 0)
+    If $iReadError Then
+        If IsArray($aRestrictions) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, 0)
+        Return _HotkeyRepository_CreateTable(0)
+    EndIf
     Local $aRecords = _HotkeyRepository_CreateTable($aSection[0][0])
-    Local $i, $j, $sPlainAction, $aRecord, $sNormalized
+    Local $i, $j, $sPlainAction, $aRecord, $sNormalized, $sValue, $bRestricted, $iRestrictionIndex, $iActionIndex
+    Local $iMatchedRestrictions = 0
     For $i = 1 To $aSection[0][0]
-        $sPlainAction = _HotkeyRepository_ClassifyPlainValue($aSection[$i][1])
-        $aRecord = _HotkeyCodec_DecodeLegacy($aSection[$i][0], $aSection[$i][1], $sPlainAction)
+        $sValue = $aSection[$i][1]
+        $bRestricted = $sValue = $HOTKEY_CODEC_RESTRICTED
+        If $bRestricted Then
+            If Not IsArray($aRestrictedActions) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
+            $iActionIndex = 0
+            For $j = 1 To $aRestrictedActions[0][0]
+                If _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aRestrictedActions[$j][0])) <> _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aSection[$i][0])) Then ContinueLoop
+                If $iActionIndex Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, 0)
+                $iActionIndex = $j
+            Next
+            If Not $iActionIndex Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
+            $sValue = $aRestrictedActions[$iActionIndex][1]
+        EndIf
+        $sPlainAction = _HotkeyRepository_ClassifyPlainValue($sValue)
+        $aRecord = _HotkeyCodec_DecodeLegacy($aSection[$i][0], $sValue, $sPlainAction)
         If @error Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
         $sNormalized = _HotkeyCodec_NormalizeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
         For $j = 1 To $i - 1
             If $sNormalized = _HotkeyCodec_NormalizeHotkey($aRecords[$j][$HOTKEY_FIELD_HOTKEY]) Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, 0)
         Next
+        $iRestrictionIndex = 0
+        If IsArray($aRestrictions) Then
+            For $j = 1 To $aRestrictions[0][0]
+                If $aRestrictions[$j][0] = "Version" Then ContinueLoop
+                If _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aRestrictions[$j][0])) <> $sNormalized Then ContinueLoop
+                If $iRestrictionIndex Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, 0)
+                $iRestrictionIndex = $j
+            Next
+        EndIf
+        If $bRestricted <> ($iRestrictionIndex <> 0) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
+        If $bRestricted Then
+            If Not _HotkeyCodec_DecodeRestrictions($aRecord, $aRestrictions[$iRestrictionIndex][1]) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
+            $iMatchedRestrictions += 1
+        EndIf
         If Not _HotkeyRepository_SetRecord($aRecords, $i, $aRecord) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
     Next
+    If IsArray($aRestrictions) And $aRestrictions[0][0] <> $iMatchedRestrictions + 1 Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, 0)
+    If IsArray($aRestrictedActions) And $aRestrictedActions[0][0] <> $iMatchedRestrictions Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, 0)
     Return $aRecords
 EndFunc
 
@@ -111,6 +149,11 @@ Func _HotkeyRepository_Save($sIniFile, ByRef $aRecords)
     If Not _HotkeyRepository_ValidateTable($aRecords) Then
         Local $iValidationError = @extended
         Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $iValidationError, False)
+    EndIf
+    ; Never overwrite an unreadable or newer profile format with older data.
+    If FileExists($sIniFile) Then
+        Local $aExisting = _HotkeyRepository_Load($sIniFile)
+        If @error Or Not IsArray($aExisting) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, 0, False)
     EndIf
     Local $sTemporaryFile = $sIniFile & ".tmp"
     Local $sBackupFile = $sIniFile & ".bak"
@@ -122,17 +165,41 @@ Func _HotkeyRepository_Save($sIniFile, ByRef $aRecords)
         FileClose($hTemporaryFile)
     EndIf
     IniDelete($sTemporaryFile, "Hotkeys")
+    IniDelete($sTemporaryFile, "HotkeyRestrictions")
+    IniDelete($sTemporaryFile, "HotkeyRestrictedActions")
     Local $aRemainingSection = IniReadSection($sTemporaryFile, "Hotkeys")
     If IsArray($aRemainingSection) Then
         FileDelete($sTemporaryFile)
         Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 3, False)
     EndIf
 
-    Local $i, $aRecord, $sValue
+    Local $i, $aRecord, $sValue, $bWroteVersion = False
     For $i = 1 To _HotkeyRepository_Count($aRecords)
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
         $sValue = _HotkeyCodec_EncodeLegacy($aRecord)
-        If @error Or Not IniWrite($sTemporaryFile, "Hotkeys", _HotkeyCodec_EncodeIniKey($aRecord), $sValue) Then
+        If @error Then
+            FileDelete($sTemporaryFile)
+            Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
+        EndIf
+        If _HotkeyModel_HasRestrictions($aRecord) Then
+            If Not $bWroteVersion Then
+                If Not IniWrite($sTemporaryFile, "HotkeyRestrictions", "Version", "1") Then
+                    FileDelete($sTemporaryFile)
+                    Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
+                EndIf
+                $bWroteVersion = True
+            EndIf
+            If Not IniWrite($sTemporaryFile, "HotkeyRestrictions", _HotkeyCodec_EncodeIniKey($aRecord), _HotkeyCodec_EncodeRestrictions($aRecord)) Then
+                FileDelete($sTemporaryFile)
+                Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
+            EndIf
+            If Not IniWrite($sTemporaryFile, "HotkeyRestrictedActions", _HotkeyCodec_EncodeIniKey($aRecord), $sValue) Then
+                FileDelete($sTemporaryFile)
+                Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
+            EndIf
+            $sValue = $HOTKEY_CODEC_RESTRICTED
+        EndIf
+        If Not IniWrite($sTemporaryFile, "Hotkeys", _HotkeyCodec_EncodeIniKey($aRecord), $sValue) Then
             FileDelete($sTemporaryFile)
             Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
         EndIf

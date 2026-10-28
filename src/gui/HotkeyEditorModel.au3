@@ -15,6 +15,13 @@ Global Enum $EDITOR_VALUE_HOTKEY = 0, _
             $EDITOR_VALUE_RESIZE_ENABLED, _
             $EDITOR_VALUE_RESIZE_WIDTH, _
             $EDITOR_VALUE_RESIZE_HEIGHT, _
+            $EDITOR_VALUE_CTRL_SIDE, _
+            $EDITOR_VALUE_ALT_SIDE, _
+            $EDITOR_VALUE_SHIFT_SIDE, _
+            $EDITOR_VALUE_WIN_SIDE, _
+            $EDITOR_VALUE_CAPS_LOCK, _
+            $EDITOR_VALUE_NUM_LOCK, _
+            $EDITOR_VALUE_SCROLL_LOCK, _
             $EDITOR_VALUE_COUNT
 
 Global Const $EDITOR_MODEL_ERROR_INPUT = 1
@@ -24,7 +31,7 @@ Global Const $EDITOR_MODEL_ERROR_RECORD = 4
 Global Const $EDITOR_MODEL_ERROR_DUPLICATE = 5
 
 Func _HotkeyEditorModel_CreateValues($sHotkey, $sAction, $sTarget, $sParameters = "", $iOptions = $HOTKEY_OPTION_NONE, $bMove = False, $sX = "", $sY = "", $bResize = False, $sWidth = "", $sHeight = "")
-    Local $aValues[$EDITOR_VALUE_COUNT] = [$sHotkey, $sAction, $sTarget, $sParameters, $iOptions, $bMove, $sX, $sY, $bResize, $sWidth, $sHeight]
+    Local $aValues[$EDITOR_VALUE_COUNT] = [$sHotkey, $sAction, $sTarget, $sParameters, $iOptions, $bMove, $sX, $sY, $bResize, $sWidth, $sHeight, 0, 0, 0, 0, 0, 0, 0]
     Return $aValues
 EndFunc
 
@@ -38,6 +45,10 @@ Func _HotkeyEditorModel_ToRecord(ByRef $aValues, $bRequireExistingPath = False)
         If @error Then Return SetError($EDITOR_MODEL_ERROR_NUMBER, @error, 0)
     EndIf
     Local $aRecord = _HotkeyModel_Create($sHotkey, $aValues[$EDITOR_VALUE_ACTION], $sTarget, $aValues[$EDITOR_VALUE_PARAMETERS], $aValues[$EDITOR_VALUE_OPTIONS])
+    Local $i
+    For $i = 0 To 6
+        $aRecord[$HOTKEY_FIELD_CTRL_SIDE + $i] = $aValues[$EDITOR_VALUE_CTRL_SIDE + $i]
+    Next
     If Not _ActionValidator_ValidateRecord($aRecord, $bRequireExistingPath) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
     Return $aRecord
 EndFunc

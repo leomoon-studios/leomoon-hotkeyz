@@ -8,6 +8,7 @@ Global Const $HOTKEY_CODEC_PARAMETER = "[HkzParam]"
 Global Const $HOTKEY_CODEC_NEWLINE = "[HkzNL]"
 Global Const $HOTKEY_CODEC_OPTION_ADMIN = "[HkzOptAdmin]"
 Global Const $HOTKEY_CODEC_OPTION_SINGLETON = "[HkzOptOne]"
+Global Const $HOTKEY_CODEC_RESTRICTED = "[HkzRestrictedV1]"
 Global Const $HOTKEY_CODEC_KEY_NAMES = "`|1|2|3|4|5|6|7|8|9|0|-|=|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|'|,|.|/|Space|Backspace|Enter|Up|Down|Left|Right|Escape|F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|Print Screen key|Pause key|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add"
 
 Func _HotkeyCodec_EncodeKey($sKey)
@@ -169,6 +170,26 @@ EndFunc
 
 Func _HotkeyCodec_EncodeIniKey(ByRef $aRecord)
     Return StringReplace($aRecord[$HOTKEY_FIELD_HOTKEY], "{=}", "{HkzEq}")
+EndFunc
+
+Func _HotkeyCodec_EncodeRestrictions(ByRef $aRecord)
+    If Not _HotkeyModel_IsValid($aRecord) Then Return SetError(1, 0, "")
+    Local $sEncoded = "", $i
+    For $i = $HOTKEY_FIELD_CTRL_SIDE To $HOTKEY_FIELD_SCROLL_LOCK
+        If $sEncoded <> "" Then $sEncoded &= ","
+        $sEncoded &= $aRecord[$i]
+    Next
+    Return $sEncoded
+EndFunc
+
+Func _HotkeyCodec_DecodeRestrictions(ByRef $aRecord, $sEncoded)
+    If Not StringRegExp($sEncoded, "^[0-2](?:,[0-2]){6}$") Then Return SetError(1, 0, False)
+    Local $aParts = StringSplit($sEncoded, ","), $i
+    For $i = $HOTKEY_FIELD_CTRL_SIDE To $HOTKEY_FIELD_SCROLL_LOCK
+        $aRecord[$i] = Number($aParts[$i - $HOTKEY_FIELD_CTRL_SIDE + 1])
+    Next
+    If Not _HotkeyModel_IsValid($aRecord) Or Not _HotkeyModel_HasRestrictions($aRecord) Then Return SetError(2, 0, False)
+    Return True
 EndFunc
 
 Func _HotkeyCodec_ExpandTags($sValue, ByRef $aTags)

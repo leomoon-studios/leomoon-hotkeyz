@@ -223,6 +223,11 @@ Func _iniToApply($iniFile)
         Local $sToggleHotkey = _HotkeyCodec_NormalizeHotkey(IniRead($iniFile, "Options", "Main", ""))
         For $i = 1 To _HotkeyRepository_Count($aConfiguredHotkeys)
             $aRecord = _HotkeyRepository_GetRecord($aConfiguredHotkeys, $i)
+            ; Fail closed until the side/condition-aware input backend exists.
+            If _HotkeyModel_HasRestrictions($aRecord) Then
+                _AppError_Report("This profile contains restricted hotkeys that this build cannot safely apply", $HOTKEY_REPOSITORY_ERROR_INVALID, $i)
+                Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, False)
+            EndIf
             If Not _ActionValidator_ValidateRecord($aRecord, False) Then
                 $aHotkeys = _HotkeyRepository_CreateTable(0)
                 _AppError_Report("One or more action values are not allowed; no action hotkeys were registered", $HOTKEY_REPOSITORY_ERROR_INVALID, $i)
