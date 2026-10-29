@@ -19,7 +19,8 @@ Global Enum $SYSTEM_ACTION_NONE = 0, _
             $SYSTEM_ACTION_CYCLE_PLAYBACK_DEVICE, _
             $SYSTEM_ACTION_CYCLE_RECORDING_DEVICE, _
             $SYSTEM_ACTION_OPEN_OPTICAL_TRAY, _
-            $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY
+            $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY, _
+            $SYSTEM_ACTION_TOGGLE_OPTICAL_TRAY
 
 Func _SystemActions_GetId($sTarget)
     Switch _OpticalDriveModel_Operation($sTarget)
@@ -27,6 +28,8 @@ Func _SystemActions_GetId($sTarget)
             Return $SYSTEM_ACTION_OPEN_OPTICAL_TRAY
         Case "closed"
             Return $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY
+        Case "toggle"
+            Return $SYSTEM_ACTION_TOGGLE_OPTICAL_TRAY
     EndSwitch
     Switch $sTarget
         Case "Empty Recycle Bin"
@@ -60,7 +63,7 @@ EndFunc
 Func _SystemActions_Execute($sTarget)
     Local $vResult
     Switch _SystemActions_GetId($sTarget)
-        Case $SYSTEM_ACTION_OPEN_OPTICAL_TRAY, $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY
+        Case $SYSTEM_ACTION_OPEN_OPTICAL_TRAY, $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY, $SYSTEM_ACTION_TOGGLE_OPTICAL_TRAY
             Local $bOptical = _OpticalDriveActions_Execute($sTarget)
             Return SetError(@error, @extended, $bOptical)
         Case $SYSTEM_ACTION_EMPTY_RECYCLE_BIN

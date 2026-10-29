@@ -94,5 +94,5 @@ Func _ActionCatalog_SpecialLabels()
         If $i Then $sLabels &= "|"
         $sLabels &= $sPaths[$i][0]
     Next
-    Return $sLabels & "|" & $OPTICAL_ACTION_OPEN & "|" & $OPTICAL_ACTION_CLOSE
+    Return $sLabels & "|" & $OPTICAL_ACTION_OPEN & "|" & $OPTICAL_ACTION_CLOSE & "|" & $OPTICAL_ACTION_TOGGLE
 EndFunc

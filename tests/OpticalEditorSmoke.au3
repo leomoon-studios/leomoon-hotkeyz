@@ -86,7 +86,17 @@ Global $i
 For $i = 1 To 2
     If $aSaved[$i][$HOTKEY_FIELD_TARGET] <> "Close optical drive tray D:" Then _OpticalEditorFail("reordered rows lost selected operation or drive")
 Next
-ConsoleWrite("PASSED: optical editor no-drive state, layout, refresh, selection, save/import, edit, conditions, disconnection, sorting; x64=" & @AutoItX64 & @CRLF)
+_GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], -1, False)
+_GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)
+_editBtn()
+If _GUICtrlComboBox_SelectString($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], $OPTICAL_ACTION_TOGGLE) = -1 Then _OpticalEditorFail("toggle action missing")
+_HotkeyEditor_SpecialChanged()
+If Not _edit() Or Not _guiToIni($APP_INI_PATH) Then _OpticalEditorFail("toggle save failed")
+_guiDel()
+_mainGui()
+_editBtn()
+If GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]) <> $OPTICAL_ACTION_TOGGLE Or GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO]) <> "D:" Then _OpticalEditorFail("toggle edit lost action or drive")
+ConsoleWrite("PASSED: optical editor no-drive state, refresh click, save/import, edit, conditions, disconnection, sorting, toggle; x64=" & @AutoItX64 & @CRLF)
 
 Func _OpticalEditorSelect($sAction, $sKey)
     _addBtn()

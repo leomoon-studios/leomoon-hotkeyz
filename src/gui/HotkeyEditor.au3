@@ -255,7 +255,7 @@ EndFunc
 
 Func _HotkeyEditor_OpticalVisibility()
     Local $sLabel = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
-    Local $bOptical = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED And ($sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE)
+    Local $bOptical = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED And ($sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE Or $sLabel = $OPTICAL_ACTION_TOGGLE)
     Local $iState = $GUI_HIDE, $iWidth = 367
     If $bOptical Then
         $iState = $GUI_SHOW
@@ -713,7 +713,7 @@ Func _HotkeyEditor_ReadRecord()
         $sTarget = _HotkeyEditor_ResolveFolder(GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]))
     ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED Then
         Local $sSpecialLabel = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
-        If $sSpecialLabel = $OPTICAL_ACTION_OPEN Or $sSpecialLabel = $OPTICAL_ACTION_CLOSE Then
+        If $sSpecialLabel = $OPTICAL_ACTION_OPEN Or $sSpecialLabel = $OPTICAL_ACTION_CLOSE Or $sSpecialLabel = $OPTICAL_ACTION_TOGGLE Then
             If Not _OpticalDriveActions_IsAvailable(GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO])) Then Return SetError($EDITOR_MODEL_ERROR_OPTICAL, 0, 0)
         EndIf
         Local $aSpecial = _HotkeyEditor_ResolveSpecial(_HotkeyCodec_EncodeHotkey($sHotkey), $sSpecialLabel, GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO]))
@@ -765,7 +765,7 @@ Func _HotkeyEditor_ResolveFolder($sDisplay)
 EndFunc
 
 Func _HotkeyEditor_ResolveSpecial($sHotkey, $sLabel, $sDrive = "")
-    If $sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE Then
+    If $sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE Or $sLabel = $OPTICAL_ACTION_TOGGLE Then
         Local $sTarget = _OpticalDriveModel_Target($sLabel, $sDrive)
         If @error Then Return SetError(1, 0, 0)
         Return _HotkeyCodec_DecodeLegacy($sHotkey, "[HkzExe]" & $sTarget)

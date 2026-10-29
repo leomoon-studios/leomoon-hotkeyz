@@ -7,6 +7,7 @@ Opt("MustDeclareVars", 1)
 Global $g_iChecks = 0, $g_iFailures = 0, $g_iTrayCalls = 0, $g_iBindings = 0
 Global $g_iListMode = 0, $g_iTrayResult = 1, $g_bTrayError = False
 Global $g_sLastDrive = "", $g_sLastOperation = ""
+Global $g_sTrayState = "closed", $g_iStateReads = 0
 Global $g_sProfile = @TempDir & "\hkz-optical-test-" & @AutoItPID & ".ini"
 If FileExists($g_sProfile) Or FileExists($g_sProfile & ".bak") Then Exit 2
 OnAutoItExitRegister("_CleanupOptical")
@@ -19,7 +20,7 @@ Global $bResult, $iError, $i
 _CheckOptical(_SystemActions_GetId($aOpen[$HOTKEY_FIELD_TARGET]) = $SYSTEM_ACTION_OPEN_OPTICAL_TRAY, "fixed open identifier")
 _CheckOptical(_SystemActions_GetId($aClose[$HOTKEY_FIELD_TARGET]) = $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY, "fixed close identifier")
 _CheckOptical(_OpticalDriveModel_Target($OPTICAL_ACTION_OPEN, "d:") = "Open optical drive tray D:", "canonical drive letter")
-Global $aInvalid[8] = ["Open optical drive tray", "Open optical drive tray D:\", "Open optical drive tray DD:", "Open optical drive tray \\server\drive", "Open optical drive tray D: extra", "Toggle optical drive tray D:", "Close optical drive tray D:" & @LF, "Open optical drive tray D:|Lock"]
+Global $aInvalid[8] = ["Open optical drive tray", "Open optical drive tray D:\", "Open optical drive tray DD:", "Open optical drive tray \\server\drive", "Open optical drive tray D: extra", "Flip optical drive tray D:", "Close optical drive tray D:" & @LF, "Open optical drive tray D:|Lock"]
 For $i = 0 To UBound($aInvalid) - 1
     _CheckOptical(_SystemActions_GetId($aInvalid[$i]) = $SYSTEM_ACTION_NONE, "reject malformed action " & $i)
     _CheckOptical(Not _OpticalDriveActions_Execute($aInvalid[$i]), "malformed input never executes " & $i)
@@ -86,6 +87,20 @@ _HotkeyRegistry_ConfigureHotkeyBackend("_OpticalBindingSpy")
 _CheckOptical(_iniToApply($g_sProfile) And $g_iBindings = 2, "startup registers disconnected drive actions")
 Global $aOther = _HotkeyModel_Create("^!a", $HOTKEY_ACTION_TEXT, "ordinary")
 _CheckOptical(_ActionValidator_ValidateRecord($aOther, False), "unrelated action remains valid")
+$g_iListMode = 1
+$g_sOpticalStateHandler = "_OpticalStateSpy"
+Global $aToggle = _HotkeyModel_Create("^!t", $HOTKEY_ACTION_SYSTEM, "Open/close optical drive tray D:")
+_CheckOptical(_ActionDispatcher_Dispatch($aToggle, $aTagsTest) And $g_sLastOperation = "open", "closed tray toggles open")
+$g_sTrayState = "open"
+_CheckOptical(_ActionDispatcher_Dispatch($aToggle, $aTagsTest) And $g_sLastOperation = "closed", "open tray toggles closed after external change")
+_CheckOptical($g_iStateReads = 2, "toggle reads state every press")
+$g_sTrayState = "not ready"
+$iBeforeCalls = $g_iTrayCalls
+$bResult = _ActionDispatcher_Dispatch($aToggle, $aTagsTest)
+$iError = @error
+_CheckOptical(Not $bResult And $iError = $ACTION_DISPATCH_ERROR_OPTICAL_STATE And $g_iTrayCalls = $iBeforeCalls, "unknown state never guesses or operates")
+Global $aToggleDecoded = _HotkeyCodec_DecodeLegacy("^!t", _HotkeyCodec_EncodeLegacy($aToggle))
+_CheckOptical(IsArray($aToggleDecoded) And $aToggleDecoded[$HOTKEY_FIELD_TARGET] = $aToggle[$HOTKEY_FIELD_TARGET], "toggle profile round trip")
 ConsoleWrite("Optical assertions: " & $g_iChecks & "; failures: " & $g_iFailures & @CRLF)
 If $g_iFailures Then Exit 1
 
@@ -106,6 +121,11 @@ Func _OpticalListSpy()
             Local $aInvalidDrives[2] = [2, "D:"]
             Return $aInvalidDrives
     EndSwitch
+EndFunc
+Func _OpticalStateSpy($sDrive)
+    _CheckOptical($sDrive = "D:", "query selected drive")
+    $g_iStateReads += 1
+    Return $g_sTrayState
 EndFunc
 Func _OpticalTraySpy($sDrive, $sOperation)
     $g_iTrayCalls += 1

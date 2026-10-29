@@ -3,6 +3,33 @@
 
 Global $g_sOpticalListHandler = "_OpticalDriveActions_NativeList"
 Global $g_sOpticalTrayHandler = "_OpticalDriveActions_NativeTray"
+Global $g_sOpticalStateHandler = "_OpticalDriveActions_NativeState"
+Global Const $OPTICAL_ERROR_STATE = 5
+
+Func _OpticalDriveActions_Mci($sCommand)
+    Local $aResult = DllCall("winmm.dll", "dword", "mciSendStringW", "wstr", $sCommand, "wstr", "", "uint", 256, "hwnd", 0)
+    If @error Or Not IsArray($aResult) Then Return SetError(1, 0, "")
+    If $aResult[0] Then Return SetError(1, $aResult[0], "")
+    Return $aResult[2]
+EndFunc
+
+Func _OpticalDriveActions_NativeState($sDrive)
+    If Not _OpticalDriveModel_IsDrive($sDrive) Then Return SetError(1, 0, "")
+    Local $sAlias = "hkztray" & @AutoItPID
+    _OpticalDriveActions_Mci('open ' & $sDrive & ' type cdaudio alias ' & $sAlias & ' shareable')
+    If @error Then Return SetError(1, 0, "")
+    Local $sMode = _OpticalDriveActions_Mci("status " & $sAlias & " mode"), $iError = @error
+    _OpticalDriveActions_Mci("close " & $sAlias)
+    If $iError Or @error Then Return SetError(1, 0, "")
+    Switch StringLower(StringStripWS($sMode, 3))
+        Case "open"
+            Return "open"
+        Case "stopped", "playing", "paused", "seeking"
+            Return "closed"
+    EndSwitch
+    ; Not ready does not distinguish an empty tray from unavailable hardware.
+    Return SetError(1, 0, "")
+EndFunc
 Global Const $OPTICAL_ERROR_INVALID = 1, $OPTICAL_ERROR_MISSING = 2, $OPTICAL_ERROR_OPERATION = 3, $OPTICAL_ERROR_ENUMERATION = 4
 
 Func _OpticalDriveActions_NativeList()
@@ -49,6 +76,12 @@ Func _OpticalDriveActions_Execute($sTarget)
     Local $sDrive = StringUpper(StringRight($sTarget, 2))
     ; Check drive type, not media readiness: an empty or open tray is still valid.
     If Not _OpticalDriveActions_IsAvailable($sDrive) Then Return SetError(@error, 0, False)
+    If $sOperation = "toggle" Then
+        Local $sState = Call($g_sOpticalStateHandler, $sDrive)
+        If @error Or ($sState <> "open" And $sState <> "closed") Then Return SetError($OPTICAL_ERROR_STATE, 0, False)
+        $sOperation = "open"
+        If $sState = "open" Then $sOperation = "closed"
+    EndIf
     Local $iResult = Call($g_sOpticalTrayHandler, $sDrive, $sOperation)
     If @error Or $iResult <> 1 Then Return SetError($OPTICAL_ERROR_OPERATION, 0, False)
     ; Success acknowledges the request, not physical closure (laptop trays vary).

@@ -22,6 +22,7 @@ Global Const $ACTION_DISPATCH_ERROR_INVALID = 1
 Global Const $ACTION_DISPATCH_ERROR_HANDLER = 2
 Global Const $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND = 3
 Global Const $ACTION_DISPATCH_ERROR_OPTICAL_MISSING = 5, $ACTION_DISPATCH_ERROR_OPTICAL_OPERATION = 6, $ACTION_DISPATCH_ERROR_OPTICAL_ENUMERATION = 7
+Global Const $ACTION_DISPATCH_ERROR_OPTICAL_STATE = 8
 
 Func _ActionDispatcher_GetRoute($sAction)
     Switch $sAction
@@ -115,6 +116,8 @@ Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags, $vSnapshot = Defau
     Local $iHandlerError = @error
     If Not $vResult And $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_SYSTEM And _OpticalDriveModel_Operation($aPrepared[$HOTKEY_FIELD_TARGET]) <> "" Then
         Switch $iHandlerError
+            Case $OPTICAL_ERROR_STATE
+                Return SetError($ACTION_DISPATCH_ERROR_OPTICAL_STATE, 0, False)
             Case $OPTICAL_ERROR_MISSING
                 Return SetError($ACTION_DISPATCH_ERROR_OPTICAL_MISSING, 0, False)
             Case $OPTICAL_ERROR_ENUMERATION

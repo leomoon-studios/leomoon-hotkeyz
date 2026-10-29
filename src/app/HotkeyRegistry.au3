@@ -194,6 +194,7 @@ Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True, $aSnaps
         If $iDispatchError = $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND Then $sMessage = "The target file or folder does not exist. Update this hotkey's path in Settings."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_MISSING Then $sMessage = "The selected optical drive is not connected or is no longer an optical drive. Reconnect it or choose its current drive letter in Settings."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_ENUMERATION Then $sMessage = "The optical drives could not be listed. The tray command was not sent."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_STATE Then $sMessage = "The optical drive did not report whether its tray is open or closed. No command was sent. Use the separate Open or Close optical drive tray action for this drive."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_OPERATION Then $sMessage = "The optical drive did not accept the tray command. It may be locked by another application or disconnected. Some laptop trays must be closed by hand."
         If _HotkeyModel_IsValid($aRecord) Then
             $sMessage &= @CRLF & @CRLF & "Hotkey: " & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
