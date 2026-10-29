@@ -14,7 +14,8 @@ $testPaths = @(
     (Join-Path $repositoryDirectory "tests\AudioCycleTest.au3"),
     (Join-Path $repositoryDirectory "tests\HotkeyRestrictionsTest.au3"),
     (Join-Path $repositoryDirectory "tests\InputStateTest.au3"),
-    (Join-Path $repositoryDirectory "tests\InputKeyTest.au3")
+    (Join-Path $repositoryDirectory "tests\InputKeyTest.au3"),
+    (Join-Path $repositoryDirectory "tests\InputHookLifecycleTest.au3")
 )
 $toolchainPath = (Resolve-Path -LiteralPath $ToolchainDirectory).Path
 $checkerPath = Join-Path $toolchainPath "Au3Check.exe"

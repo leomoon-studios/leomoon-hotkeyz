@@ -10,7 +10,7 @@ Global Const $INPUT_QUEUE_SIZE = 64
 Global $g_aInputQueue[$INPUT_QUEUE_SIZE][$INPUT_STATE_COUNT + 3]
 Global $g_iInputQueueRead = 0, $g_iInputQueueWrite = 0, $g_iInputQueueDropped = 0
 Global $g_aInputRules = _HotkeyRepository_CreateTable(0)
-Global $g_aInputRuleKeys[1][2], $g_aInputConsumed[256]
+Global $g_aInputRuleKeys[1][2], $g_aInputConsumed[256], $g_aInputForwarded[256]
 Global $g_bInputCaptureMatches = False, $g_bInputAcceptInjected = False
 
 ; Compile the complete candidate before installing it, preserving the current rules on failure.
@@ -50,12 +50,23 @@ Func _InputHook_SetRules(ByRef $aRecords, ByRef $aKeys, $bAcceptInjected = False
 EndFunc
 
 Func _InputHook_DisableRules()
+    If Not _InputHook_CanUpdate() Then Return SetError(1, @extended, False)
     $g_bInputCaptureMatches = False
     $g_aInputRules = _HotkeyRepository_CreateTable(0)
     Local $aEmpty[1][2]
     $g_aInputRuleKeys = $aEmpty
+    Return True
 EndFunc
 
+; Defer updates until all captured matches are read and consumed keys are released.
+Func _InputHook_CanUpdate()
+    If $g_iInputQueueRead <> $g_iInputQueueWrite Then Return SetError(1, 0, False)
+    Local $i
+    For $i = 0 To 255
+        If $g_aInputConsumed[$i] Then Return SetError(2, $i, False)
+    Next
+    Return True
+EndFunc
 Func _InputHook_ModifierMask()
     Local $i, $iMask = 0
     For $i = 0 To 3
@@ -86,6 +97,10 @@ Func _InputHook_Start()
     $g_iInputQueueRead = 0
     $g_iInputQueueWrite = 0
     $g_iInputQueueDropped = 0
+    For $i = 0 To 255
+        $g_aInputConsumed[$i] = False
+        $g_aInputForwarded[$i] = False
+    Next
     $g_hInputCallback = DllCallbackRegister("_InputHook_Callback", "lresult", "int;wparam;lparam")
     If @error Or Not $g_hInputCallback Then Return SetError(3, 0, False)
     $aResult = DllCall("user32.dll", "handle", "SetWindowsHookExW", "int", 13, "ptr", DllCallbackGetPtr($g_hInputCallback), "handle", 0, "dword", 0)
@@ -98,7 +113,8 @@ Func _InputHook_Start()
     Return True
 EndFunc
 
-Func _InputHook_Stop()
+Func _InputHook_Stop($bForce = False)
+    If Not $bForce And Not _InputHook_CanUpdate() Then Return SetError(2, @extended, False)
     If $g_hInputHook Then
         Local $aResult = DllCall("user32.dll", "bool", "UnhookWindowsHookEx", "handle", $g_hInputHook)
         If @error Or Not IsArray($aResult) Or Not $aResult[0] Then Return SetError(1, 0, False)
@@ -122,6 +138,20 @@ Func _InputHook_Read()
     Return $aEvent
 EndFunc
 
+; Resolve the queued rule while updates are still blocked. The returned record is
+; a copy, so a subsequent rules update cannot change the pending action.
+Func _InputHook_ReadMatch(ByRef $aRecord, ByRef $aSnapshot)
+    Local $aEvent = _InputHook_Read()
+    If @error Or Not IsArray($aEvent) Then Return SetError(1, 0, False)
+    Local $iRule = $aEvent[$INPUT_STATE_COUNT + 2], $i
+    If $iRule < 1 Or $iRule > _HotkeyRepository_Count($g_aInputRules) Then Return SetError(2, $iRule, False)
+    $aRecord = _HotkeyRepository_GetRecord($g_aInputRules, $iRule)
+    $aSnapshot = _InputState_Create()
+    For $i = 0 To $INPUT_STATE_COUNT - 1
+        $aSnapshot[$i] = $aEvent[$i + 2]
+    Next
+    Return True
+EndFunc
 Func _InputHook_Callback($iCode, $wParam, $lParam)
     If $iCode >= 0 Then
         Local $tEvent = DllStructCreate("dword vk;dword scan;dword flags;dword time;ulong_ptr extra", $lParam)
@@ -148,6 +178,10 @@ Func _InputHook_Callback($iCode, $wParam, $lParam)
                 $iSide = $INPUT_WIN_RIGHT
         EndSwitch
         If $iSide >= 0 And ($bDown Or $bUp) Then $g_aInputState[$iSide] = $bDown
+        If $iSide < 0 And $iVk >= 0 And $iVk < 256 And $g_aInputForwarded[$iVk] Then
+            If $bUp Then $g_aInputForwarded[$iVk] = False
+            Return _InputHook_Forward($iCode, $wParam, $lParam)
+        EndIf
         If $iSide < 0 And $iVk >= 0 And $iVk < 256 And $bUp And $g_aInputConsumed[$iVk] Then
             $g_aInputConsumed[$iVk] = False
             Return 1
@@ -158,7 +192,10 @@ Func _InputHook_Callback($iCode, $wParam, $lParam)
             Local $iMatched = 0
             If $g_bInputCaptureMatches Then
                 If Not $bInjected Or $g_bInputAcceptInjected Then $iMatched = _InputHook_Match($iVk)
-                If Not $iMatched Then Return _InputHook_Forward($iCode, $wParam, $lParam)
+                If Not $iMatched Then
+                    If $iVk < 256 Then $g_aInputForwarded[$iVk] = True
+                    Return _InputHook_Forward($iCode, $wParam, $lParam)
+                EndIf
             EndIf
             Local $iNext = Mod($g_iInputQueueWrite + 1, $INPUT_QUEUE_SIZE)
             If $iNext <> $g_iInputQueueRead Then
@@ -176,6 +213,7 @@ Func _InputHook_Callback($iCode, $wParam, $lParam)
                 EndIf
             Else
                 $g_iInputQueueDropped += 1
+                If $g_bInputCaptureMatches And $iVk < 256 Then $g_aInputForwarded[$iVk] = True
             EndIf
         EndIf
     EndIf
