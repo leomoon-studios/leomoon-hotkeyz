@@ -307,12 +307,13 @@ EndFunc
 Func _MainWindow_IsHotkeyLayoutValid()
     Local $sToggle = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_returnToggleHotkey()))
     If Not _HotkeyEditorModel_IsModifiedHotkey($sToggle) Then Return False
-    Local $i, $j, $sHotkey
-    For $i = 0 To _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) - 1
-        $sHotkey = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 1)))
-        If $sHotkey = $sToggle Then Return False
+    Local $i, $j, $iCount = _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW])
+    Local $aKeys[$iCount + 1]
+    For $i = 0 To $iCount - 1
+        $aKeys[$i] = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $i, 1)))
+        If $aKeys[$i] = $sToggle Then Return False
         For $j = 0 To $i - 1
-            If $sHotkey = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_EncodeHotkey(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $j, 1))) Then Return False
+            If $aKeys[$i] = $aKeys[$j] Then Return False
         Next
     Next
     Return True

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Improved Settings save performance by caching normalized hotkeys during validation and profile matching, reading each GUI row once for duplicate checks, and batching INI section writes. Saved profiles are still verified and backed up before replacement.
 - Added an **Open/close optical drive tray** action that reads the current tray state before opening or closing it.
 - Added per-hotkey left/right Ctrl, Alt, Shift, and Win selection, plus Caps Lock, Num Lock, and Scroll Lock On/Off conditions. All selected requirements must match for the hotkey to run.
 - Added a Conditions dialog and restriction summaries in Settings. Modifier sides and lock conditions persist through profile saves, imports, and restarts.

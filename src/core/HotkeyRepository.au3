@@ -103,14 +103,29 @@ Func _HotkeyRepository_Load($sIniFile)
     Local $aRecords = _HotkeyRepository_CreateTable($aSection[0][0])
     Local $i, $j, $sPlainAction, $aRecord, $sNormalized, $sValue, $bRestricted, $iRestrictionIndex, $iActionIndex
     Local $iMatchedRestrictions = 0
+    ; Normalize once per entry, not on every comparison in the matching loops.
+    Local $aKeys[$aSection[0][0] + 1], $aRestrictionKeys[1], $aActionKeys[1]
+    If IsArray($aRestrictions) Then
+        ReDim $aRestrictionKeys[$aRestrictions[0][0] + 1]
+        For $j = 1 To $aRestrictions[0][0]
+            $aRestrictionKeys[$j] = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aRestrictions[$j][0]))
+        Next
+    EndIf
+    If IsArray($aRestrictedActions) Then
+        ReDim $aActionKeys[$aRestrictedActions[0][0] + 1]
+        For $j = 1 To $aRestrictedActions[0][0]
+            $aActionKeys[$j] = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aRestrictedActions[$j][0]))
+        Next
+    EndIf
     For $i = 1 To $aSection[0][0]
+        $aKeys[$i] = _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aSection[$i][0]))
         $sValue = $aSection[$i][1]
         $bRestricted = $sValue = $HOTKEY_CODEC_RESTRICTED
         If $bRestricted Then
             If Not IsArray($aRestrictedActions) Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
             $iActionIndex = 0
             For $j = 1 To $aRestrictedActions[0][0]
-                If _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aRestrictedActions[$j][0])) <> _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aSection[$i][0])) Then ContinueLoop
+                If $aActionKeys[$j] <> $aKeys[$i] Then ContinueLoop
                 If $iActionIndex Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, 0)
                 $iActionIndex = $j
             Next
@@ -121,14 +136,15 @@ Func _HotkeyRepository_Load($sIniFile)
         $aRecord = _HotkeyCodec_DecodeLegacy($aSection[$i][0], $sValue, $sPlainAction)
         If @error Then Return SetError($HOTKEY_REPOSITORY_ERROR_INVALID, $i, 0)
         $sNormalized = _HotkeyCodec_NormalizeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
+        $aKeys[$i] = $sNormalized
         For $j = 1 To $i - 1
-            If $sNormalized = _HotkeyCodec_NormalizeHotkey($aRecords[$j][$HOTKEY_FIELD_HOTKEY]) Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, 0)
+            If $sNormalized = $aKeys[$j] Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, 0)
         Next
         $iRestrictionIndex = 0
         If IsArray($aRestrictions) Then
             For $j = 1 To $aRestrictions[0][0]
                 If $aRestrictions[$j][0] = "Version" Then ContinueLoop
-                If _HotkeyCodec_NormalizeHotkey(_HotkeyCodec_ToNativeHotkey($aRestrictions[$j][0])) <> $sNormalized Then ContinueLoop
+                If $aRestrictionKeys[$j] <> $sNormalized Then ContinueLoop
                 If $iRestrictionIndex Then Return SetError($HOTKEY_REPOSITORY_ERROR_DUPLICATE, $i, 0)
                 $iRestrictionIndex = $j
             Next
@@ -173,37 +189,43 @@ Func _HotkeyRepository_Save($sIniFile, ByRef $aRecords)
         Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 3, False)
     EndIf
 
-    Local $i, $aRecord, $sValue, $bWroteVersion = False
-    For $i = 1 To _HotkeyRepository_Count($aRecords)
+    ; Build each section in memory, then write it once. Per-entry IniWrite calls
+    ; repeatedly rewrite the growing file, especially for restricted profiles.
+    Local $i, $aRecord, $sValue, $sKey, $iCount = _HotkeyRepository_Count($aRecords), $iRestricted = 0
+    Local $aHotkeySection[$iCount + 1][2], $aRestrictionSection[$iCount + 2][2], $aActionSection[$iCount + 1][2]
+    $aRestrictionSection[1][0] = "Version"
+    $aRestrictionSection[1][1] = "1"
+    For $i = 1 To $iCount
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
         $sValue = _HotkeyCodec_EncodeLegacy($aRecord)
         If @error Then
             FileDelete($sTemporaryFile)
             Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
         EndIf
+        $sKey = _HotkeyCodec_EncodeIniKey($aRecord)
         If _HotkeyModel_HasRestrictions($aRecord) Then
-            If Not $bWroteVersion Then
-                If Not IniWrite($sTemporaryFile, "HotkeyRestrictions", "Version", "1") Then
-                    FileDelete($sTemporaryFile)
-                    Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
-                EndIf
-                $bWroteVersion = True
-            EndIf
-            If Not IniWrite($sTemporaryFile, "HotkeyRestrictions", _HotkeyCodec_EncodeIniKey($aRecord), _HotkeyCodec_EncodeRestrictions($aRecord)) Then
-                FileDelete($sTemporaryFile)
-                Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
-            EndIf
-            If Not IniWrite($sTemporaryFile, "HotkeyRestrictedActions", _HotkeyCodec_EncodeIniKey($aRecord), $sValue) Then
-                FileDelete($sTemporaryFile)
-                Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
-            EndIf
+            $iRestricted += 1
+            $aRestrictionSection[$iRestricted + 1][0] = $sKey
+            $aRestrictionSection[$iRestricted + 1][1] = _HotkeyCodec_EncodeRestrictions($aRecord)
+            $aActionSection[$iRestricted][0] = $sKey
+            $aActionSection[$iRestricted][1] = $sValue
             $sValue = $HOTKEY_CODEC_RESTRICTED
         EndIf
-        If Not IniWrite($sTemporaryFile, "Hotkeys", _HotkeyCodec_EncodeIniKey($aRecord), $sValue) Then
-            FileDelete($sTemporaryFile)
-            Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, $i, False)
-        EndIf
+        $aHotkeySection[$i][0] = $sKey
+        $aHotkeySection[$i][1] = $sValue
     Next
+    If $iCount And Not IniWriteSection($sTemporaryFile, "Hotkeys", $aHotkeySection) Then
+        FileDelete($sTemporaryFile)
+        Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 4, False)
+    EndIf
+    If $iRestricted Then
+        ReDim $aRestrictionSection[$iRestricted + 2][2]
+        ReDim $aActionSection[$iRestricted + 1][2]
+        If Not IniWriteSection($sTemporaryFile, "HotkeyRestrictions", $aRestrictionSection) Or Not IniWriteSection($sTemporaryFile, "HotkeyRestrictedActions", $aActionSection) Then
+            FileDelete($sTemporaryFile)
+            Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 5, False)
+        EndIf
+    EndIf
 
     Local $aVerified = _HotkeyRepository_Load($sTemporaryFile)
     If @error Or Not _HotkeyRepository_TablesEqual($aRecords, $aVerified) Then
@@ -229,12 +251,14 @@ Func _HotkeyRepository_ValidateTable(ByRef $aRecords)
     Local $iCount = _HotkeyRepository_Count($aRecords)
     If Not IsInt($iCount) Or $iCount < 0 Or UBound($aRecords, 1) <> $iCount + 1 Then Return SetError(2, 0, False)
     Local $i, $j, $aRecord, $sNormalized
+    Local $aKeys[$iCount + 1]
     For $i = 1 To $iCount
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
         If Not _HotkeyModel_IsValid($aRecord) Then Return SetError(3, $i, False)
         $sNormalized = _HotkeyCodec_NormalizeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
+        $aKeys[$i] = $sNormalized
         For $j = 1 To $i - 1
-            If $sNormalized = _HotkeyCodec_NormalizeHotkey($aRecords[$j][$HOTKEY_FIELD_HOTKEY]) Then Return SetError(4, $i, False)
+            If $sNormalized = $aKeys[$j] Then Return SetError(4, $i, False)
         Next
     Next
     Return True
