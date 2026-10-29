@@ -60,9 +60,8 @@ Func _mainGui()
         GUIRegisterMsg($WM_NOTIFY, "WM_NOTIFY")
         GUIRegisterMsg($WM_COMMAND, "_HotkeyEditor_WM_COMMAND")
         _GUICtrlListView_RegisterSortCallBack($g_aGuiState[$GUI_STATE_LIST_VIEW])
-        GUISetState(@SW_SHOW)
+        GUISetState(@SW_SHOWNORMAL, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
         _Debug_Log("Settings GUI shown; error=" & @error)
-        WinActivate($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
         $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = True
         _Debug_Log("Settings GUI activation completed; error=" & @error)
     Else
@@ -127,6 +126,16 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     Local $aArray = _HotkeyRepository_Load($iniFile)
     If IsArray($aArray) Then
         _aTags()
+        ; The catalog is constant during this load. Decoding it inside the row
+        ; loop repeats the same file classification and parsing for every hotkey.
+        Local $aSpecialCatalog[UBound($sPaths, 1)][3], $aSpecialRecord
+        For $s = 0 To UBound($sPaths, 1) - 1
+            $aSpecialRecord = _HotkeyCodec_DecodeLegacy("^!a", StringReplace($sPaths[$s][1], ' [Parameters] ', $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$s][1]))
+            If Not IsArray($aSpecialRecord) Then ContinueLoop
+            $aSpecialCatalog[$s][0] = $aSpecialRecord[$HOTKEY_FIELD_ACTION]
+            $aSpecialCatalog[$s][1] = $aSpecialRecord[$HOTKEY_FIELD_TARGET]
+            $aSpecialCatalog[$s][2] = $aSpecialRecord[$HOTKEY_FIELD_PARAMETERS]
+        Next
         For $i = 1 To _HotkeyRepository_Count($aArray)
             Local $opts = ''
             Local $special = False
@@ -134,7 +143,12 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             If $item = $ACTION_CATALOG_LEGACY_HIGH Then $item = "Set Process Priority to High"
             $type = _HotkeyModel_ActionLabel($aArray[$i][$HOTKEY_FIELD_ACTION])
             If $aArray[$i][$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE And $aArray[$i][$HOTKEY_FIELD_PARAMETERS] = '' Then
-                If StringInStr(FileGetAttrib(_HotkeyCodec_ExpandTags($item, $aTags)), 'D') Then $type = 'Folder'
+                Local $sExpandedItem = _HotkeyCodec_ExpandTags($item, $aTags)
+                ; Load already classified ordinary unexpanded paths. Bracketed
+                ; values bypass that check; tags may also change the path.
+                If $sExpandedItem <> $item Or StringLeft($item, 1) = '[' Then
+                    If StringInStr(FileGetAttrib($sExpandedItem), 'D') Then $type = 'Folder'
+                EndIf
             EndIf
             For $c = 0 To UBound($clsid, 1)-1
                 If _strCompare($item, $clsid[$c][1]) Then
@@ -143,8 +157,7 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
                 EndIf
             Next
             For $s = 0 To UBound($sPaths, 1)-1
-                Local $aSpecialRecord = _HotkeyCodec_DecodeLegacy($aArray[$i][$HOTKEY_FIELD_HOTKEY], StringReplace($sPaths[$s][1], ' [Parameters] ', $HOTKEY_CODEC_PARAMETER), _HotkeyRepository_ClassifyPlainValue($sPaths[$s][1]))
-                If IsArray($aSpecialRecord) And _strCompare($aArray[$i][$HOTKEY_FIELD_ACTION], $aSpecialRecord[$HOTKEY_FIELD_ACTION]) And _strCompare($aArray[$i][$HOTKEY_FIELD_TARGET], $aSpecialRecord[$HOTKEY_FIELD_TARGET]) And _strCompare($aArray[$i][$HOTKEY_FIELD_PARAMETERS], $aSpecialRecord[$HOTKEY_FIELD_PARAMETERS]) Then
+                If $aSpecialCatalog[$s][0] <> '' And _strCompare($aArray[$i][$HOTKEY_FIELD_ACTION], $aSpecialCatalog[$s][0]) And _strCompare($aArray[$i][$HOTKEY_FIELD_TARGET], $aSpecialCatalog[$s][1]) And _strCompare($aArray[$i][$HOTKEY_FIELD_PARAMETERS], $aSpecialCatalog[$s][2]) Then
                     $item = $sPaths[$s][0]
                     $special = True
                     ExitLoop
@@ -159,7 +172,8 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
                 $opts &= 'Singleton'
             EndIf
             Local $aListRecord = _HotkeyRepository_GetRecord($aArray, $i)
-            _HotkeyEditor_SetRestrictions($aListRecord[$HOTKEY_FIELD_HOTKEY], $aListRecord)
+            ; The repository has already rejected duplicates and the list was reset.
+            _HotkeyEditor_SetRestrictions($aListRecord[$HOTKEY_FIELD_HOTKEY], $aListRecord, True)
             Local $sRestrictionSummary = _HotkeyEditor_RestrictionSummary($aListRecord)
             If $sRestrictionSummary <> '' Then
                 If $opts <> '' Then $opts &= ', '

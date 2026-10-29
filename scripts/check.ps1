@@ -57,6 +57,7 @@ $checkTargets = @($sourcePath) + $testPaths + @(
     (Join-Path $repositoryDirectory "tests\SideRuntimeSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\OpticalEditorSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\SavePerformanceSmoke.au3"),
+    (Join-Path $repositoryDirectory "tests\SettingsPathSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\RestrictionEditorSmoke.au3")
 )
 foreach ($checkTarget in $checkTargets) {

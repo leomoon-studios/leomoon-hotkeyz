@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reduced fresh Settings window startup time while retaining profile and hotkey validation.
 - Fixed program-only options remaining checked or saved after changing a hotkey to another action type.
 - Reduced Add/Edit window startup delay.
 - Improved Settings save performance.

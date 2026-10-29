@@ -93,8 +93,9 @@ Func _HotkeyEditor_FindRestrictions($sHotkey)
     Return 0
 EndFunc
 
-Func _HotkeyEditor_SetRestrictions($sHotkey, ByRef $aRecord)
-    Local $iRow = _HotkeyEditor_FindRestrictions($sHotkey), $i
+Func _HotkeyEditor_SetRestrictions($sHotkey, ByRef $aRecord, $bKnownUnique = False)
+    Local $iRow = 0, $i
+    If Not $bKnownUnique Then $iRow = _HotkeyEditor_FindRestrictions($sHotkey)
     If Not $iRow Then
         $iRow = UBound($g_aRestrictionRows)
         ReDim $g_aRestrictionRows[$iRow + 1][8]
