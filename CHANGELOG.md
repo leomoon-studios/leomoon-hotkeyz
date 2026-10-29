@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refreshed the Settings window layout, clarified the main enable/disable shortcut, and improved the hotkey list and selection controls.
 - Warn and retry if the side-modifier observer cannot stop, and report incomplete hotkey rollback after an enable or disable failure.
 - Show hotkey action failures, unavailable startup shortcuts, and website-opening failures as nonblocking tray notifications.
 - Reduced fresh Settings window startup time while retaining profile and hotkey validation.

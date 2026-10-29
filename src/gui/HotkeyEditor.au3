@@ -537,6 +537,7 @@ Func _delBtn()
             _GUICtrlListView_SetItemFocused($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected)
         EndIf
         _MainWindow_UpdateSaveState()
+        _MainWindow_UpdateListState()
     EndIf
     Return True
 EndFunc
@@ -724,6 +725,7 @@ Func _HotkeyEditor_Commit($iListIndex)
     If $sOldHotkey <> "" Then _HotkeyEditor_RemoveRestrictions($sOldHotkey)
     _HotkeyEditor_SetRestrictions($aRecord[$HOTKEY_FIELD_HOTKEY], $aRecord)
     _MainWindow_UpdateSaveState()
+    _MainWindow_UpdateListState()
     _hideChild()
     Return True
 EndFunc

@@ -9,44 +9,77 @@
 #include "..\app\ErrorReporter.au3"
 #include "HotkeyEditorModel.au3"
 
+Global $g_iMainEditButton = 0, $g_iMainDeleteButton = 0, $g_iMainListHint = 0
+Global $g_sMainWorkAreaHandler = "_MainWindow_WorkAreaSize"
+
+Func _MainWindow_SizeForWorkArea($iWidth, $iHeight)
+    ; Leave room for the taskbar and reduce the list rather than hiding buttons.
+    Local $aSize[2] = [682, 590]
+    If $iWidth > 0 And $iWidth < $aSize[0] Then $aSize[0] = $iWidth
+    If $iHeight > 0 And $iHeight < $aSize[1] Then $aSize[1] = $iHeight
+    Return $aSize
+EndFunc
+
+Func _MainWindow_WorkAreaSize()
+    Local $tRect = DllStructCreate("long left;long top;long right;long bottom")
+    Local $aResult = DllCall("user32.dll", "bool", "SystemParametersInfoW", "uint", 0x30, "uint", 0, "struct*", $tRect, "uint", 0)
+    If @error Or Not IsArray($aResult) Or Not $aResult[0] Then Return _MainWindow_SizeForWorkArea(@DesktopWidth, @DesktopHeight)
+    Local $iLeft = DllStructGetData($tRect, "left"), $iTop = DllStructGetData($tRect, "top")
+    Local $iWorkWidth = DllStructGetData($tRect, "right") - $iLeft, $iWorkHeight = DllStructGetData($tRect, "bottom") - $iTop
+    Local $aSize = _MainWindow_SizeForWorkArea($iWorkWidth, $iWorkHeight)
+    ReDim $aSize[4]
+    $aSize[2] = $iLeft + Int(($iWorkWidth - $aSize[0]) / 2)
+    $aSize[3] = $iTop + Int(($iWorkHeight - $aSize[1]) / 2)
+    Return $aSize
+EndFunc
+
 Func _mainGui()
     _Debug_Log("Settings window requested; visible=" & $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE])
     ;~ $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
     ;~ $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate("Hotkey Settings", 386, 242, -1, -1, BitOR($WS_SYSMENU,$WS_POPUP)) ;frame only
     If $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] == False Then
-        $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate($APP_TITLE&" Settings", 682, 666, -1, -1, $WS_SYSMENU)
+        Local $aSize = Call($g_sMainWorkAreaHandler), $iWidth = $aSize[0], $iHeight = $aSize[1]
+        ; Minimum practical width keeps the four shortcut modifiers usable.
+        If $iWidth < 500 Then $iWidth = 500
+        If $iHeight < 340 Then $iHeight = 340
+        Local $iX = -1, $iY = -1
+        If UBound($aSize) >= 4 Then
+            $iX = $aSize[2]
+            $iY = $aSize[3]
+        EndIf
+        Local $iListHeight = $iHeight - 262, $iToolbarX = $iWidth - 326, $iKeyX = $iWidth - 252
+        Local $iModifierStep = Int(($iKeyX - 28) / 4)
+        $g_aGuiState[$GUI_STATE_MAIN_WINDOW] = GUICreate($APP_TITLE&" Settings", $iWidth, $iHeight, $iX, $iY, $WS_SYSMENU)
         _Debug_Log("Settings GUI created; handle=" & $g_aGuiState[$GUI_STATE_MAIN_WINDOW] & ", error=" & @error)
-        GUISetFont(9, 400, 0, "Tahoma")
-        GUICtrlCreateGroup("Startup", 8, 8, 658, 57)
-        $g_aGuiState[$GUI_STATE_STARTUP_CHECKBOX] = GUICtrlCreateCheckbox("Start with Windows", 17, 32, 289, 17)
-        GUICtrlCreateGroup("", -99, -99, 1, 1)
-        GUICtrlCreateGroup("HotKeyz main hotkey", 8, 72, 658, 57)
-        $g_aGuiState[$GUI_STATE_CTRL_CHECKBOX] = GUICtrlCreateCheckbox("Ctrl", 17, 96, 97, 17)
+        GUISetFont(9, 400, 0, "Segoe UI")
+        $g_aGuiState[$GUI_STATE_STARTUP_CHECKBOX] = GUICtrlCreateCheckbox("Start with Windows", 16, 16, 250, 22)
+        GUICtrlCreateGroup("Enable / disable HotKeyz shortcut", 16, 46, $iWidth - 38, 62)
+        $g_aGuiState[$GUI_STATE_CTRL_CHECKBOX] = GUICtrlCreateCheckbox("Ctrl", 28, 73, $iModifierStep, 20)
         GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
-        $g_aGuiState[$GUI_STATE_ALT_CHECKBOX] = GUICtrlCreateCheckbox("Alt", 136, 96, 97, 17)
+        $g_aGuiState[$GUI_STATE_ALT_CHECKBOX] = GUICtrlCreateCheckbox("Alt", 28 + $iModifierStep, 73, $iModifierStep, 20)
         GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
-        $g_aGuiState[$GUI_STATE_SHIFT_CHECKBOX] = GUICtrlCreateCheckbox("Shift", 256, 96, 97, 17)
+        $g_aGuiState[$GUI_STATE_SHIFT_CHECKBOX] = GUICtrlCreateCheckbox("Shift", 28 + $iModifierStep * 2, 73, $iModifierStep, 20)
         GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
-        $g_aGuiState[$GUI_STATE_WIN_CHECKBOX] = GUICtrlCreateCheckbox("Win", 376, 96, 97, 17)
+        $g_aGuiState[$GUI_STATE_WIN_CHECKBOX] = GUICtrlCreateCheckbox("Win", 28 + $iModifierStep * 3, 73, $iModifierStep, 20)
         GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
-        $g_aGuiState[$GUI_STATE_KEY_COMBO] = GUICtrlCreateCombo("", 497, 94, 159, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
+        $g_aGuiState[$GUI_STATE_KEY_COMBO] = GUICtrlCreateCombo("", $iKeyX, 70, 216, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
         GUICtrlSetData(-1, $HOTKEY_CODEC_KEY_NAMES)
         GUICtrlSetOnEvent(-1, "_MainWindow_UpdateSaveState")
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        GUICtrlCreateGroup("Edit hotkeys", 8, 136, 658, 450)
-        Local $addBtn = GUICtrlCreateButton("Add New", 16, 160, 209, 33)
-        Local $editBtn = GUICtrlCreateButton("Edit Selected", 232, 160, 209, 33)
-        Local $delBtn = GUICtrlCreateButton("Delete Selected", 448, 160, 209, 33)
-        $g_aGuiState[$GUI_STATE_LIST_VIEW] = GUICtrlCreateListView("", 17, 201, 639, 375, BitOR($GUI_SS_DEFAULT_LISTVIEW,$WS_HSCROLL,$WS_VSCROLL), BitOR($WS_EX_CLIENTEDGE,$LVS_EX_FULLROWSELECT))
-        GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $g_aGuiState[$GUI_STATE_CANCEL_BUTTON] = GUICtrlCreateButton("Cancel", 449, 592, 209, 33)
-        $g_aGuiState[$GUI_STATE_SAVE_BUTTON] = GUICtrlCreateButton("Save", 16, 592, 209, 33)
+        GUICtrlCreateLabel("Hotkeys", 16, 124, 100, 22)
+        Local $addBtn = GUICtrlCreateButton("Add", $iToolbarX, 117, 94, 30)
+        $g_iMainEditButton = GUICtrlCreateButton("Edit", $iToolbarX + 102, 117, 94, 30)
+        $g_iMainDeleteButton = GUICtrlCreateButton("Delete", $iToolbarX + 204, 117, 100, 30)
+        $g_aGuiState[$GUI_STATE_LIST_VIEW] = GUICtrlCreateListView("", 16, 154, $iWidth - 38, $iListHeight, BitOR($GUI_SS_DEFAULT_LISTVIEW,$WS_HSCROLL,$WS_VSCROLL), BitOR($WS_EX_CLIENTEDGE,$LVS_EX_FULLROWSELECT))
+        $g_iMainListHint = GUICtrlCreateLabel("", 16, 162 + $iListHeight, $iWidth - 38, 22)
+        $g_aGuiState[$GUI_STATE_CANCEL_BUTTON] = GUICtrlCreateButton("Cancel", $iWidth - 230, 187 + $iListHeight, 100, 30)
+        $g_aGuiState[$GUI_STATE_SAVE_BUTTON] = GUICtrlCreateButton("Save", $iWidth - 122, 187 + $iListHeight, 100, 30)
         ;edit ui
         GUISetIcon(@ScriptFullPath, 201)
         GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_LIST_VIEW], '_sort')
         GUICtrlSetOnEvent($addBtn, "_addBtn")
-        GUICtrlSetOnEvent($editBtn, "_editBtn")
-        GUICtrlSetOnEvent($delBtn, "_delBtn")
+        GUICtrlSetOnEvent($g_iMainEditButton, "_editBtn")
+        GUICtrlSetOnEvent($g_iMainDeleteButton, "_delBtn")
         GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_CANCEL_BUTTON], "_guiDel")
         GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_SAVE_BUTTON], '_saveBtn')
         GUISetOnEvent($GUI_EVENT_CLOSE, "_guiDel", $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
@@ -57,6 +90,7 @@ Func _mainGui()
         _iniToGui($APP_INI_PATH) ;set gui from ini file
         _Debug_Log("Settings data loaded; error=" & @error)
         _MainWindow_UpdateSaveState()
+        _MainWindow_UpdateListState()
         GUIRegisterMsg($WM_NOTIFY, "WM_NOTIFY")
         GUIRegisterMsg($WM_COMMAND, "_HotkeyEditor_WM_COMMAND")
         _GUICtrlListView_RegisterSortCallBack($g_aGuiState[$GUI_STATE_LIST_VIEW])
@@ -80,6 +114,7 @@ Func WM_NOTIFY($hWnd, $iMsg, $iwParam, $ilParam)
     $iCode = DllStructGetData($tNMHDR, "Code")
     Switch $hWndFrom
     Case $hWndListView
+        If $iCode = $LVN_ITEMCHANGED Then _MainWindow_UpdateListState()
         If $iCode = $NM_DBLCLK Then
             _editBtn()
             ;~ ConsoleWrite(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 1)&@LF)
@@ -87,6 +122,20 @@ Func WM_NOTIFY($hWnd, $iMsg, $iwParam, $ilParam)
         EndIf
     EndSwitch
     Return $GUI_RUNDEFMSG
+EndFunc
+
+Func _MainWindow_UpdateListState()
+    If Not $g_iMainEditButton Or Not $g_iMainDeleteButton Then Return
+    Local $iCount = _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW])
+    Local $iState = $GUI_DISABLE
+    If _GUICtrlListView_GetSelectedCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) > 0 Then $iState = $GUI_ENABLE
+    GUICtrlSetState($g_iMainEditButton, $iState)
+    GUICtrlSetState($g_iMainDeleteButton, $iState)
+    If $iCount Then
+        GUICtrlSetData($g_iMainListHint, "Double-click a hotkey to edit it.")
+    Else
+        GUICtrlSetData($g_iMainListHint, "No hotkeys yet. Select Add to create one.")
+    EndIf
 EndFunc
 
 Func _iniToGui($iniFile) ;just reads ini and sets the gui
@@ -182,19 +231,12 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
             GUICtrlCreateListViewItem($type&'|'&_HotkeyCodec_DecodeHotkey($aArray[$i][$HOTKEY_FIELD_HOTKEY])&'|'&$item&'|'&$opts, $g_aGuiState[$GUI_STATE_LIST_VIEW])
         Next
     EndIf
-    ;~ GUICtrlSendMsg($g_aGuiState[$GUI_STATE_LIST_VIEW], $LVM_SETCOLUMNWIDTH, 1, -1)
-    ;~ GUICtrlSendMsg($g_aGuiState[$GUI_STATE_LIST_VIEW], $LVM_SETCOLUMNWIDTH, 2, -1)
-    ;resize columns
-    _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 0, $LVSCW_AUTOSIZE_USEHEADER)
-    _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1, $LVSCW_AUTOSIZE_USEHEADER)
-    If IsArray($aArray) Then
-        _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 0, _GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)+10)
-        _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1, _GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1)+10)
-        _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 3, _GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 3)+10)
-    Else
-        _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1, 160)
-    EndIf
-    _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 2, ControlGetPos($g_aGuiState[$GUI_STATE_MAIN_WINDOW], '', $g_aGuiState[$GUI_STATE_LIST_VIEW])[2]-(_GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)+_GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1)+_GUICtrlListView_GetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 3)+25))
+    ; Keep each column usable even with empty lists or unusually long values.
+    ; Native column dragging and horizontal scrolling expose longer content.
+    _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 0, 75)
+    _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 1, 140)
+    _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 2, 255)
+    _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 3, 155)
     If _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) Then _GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)
 EndFunc
 
