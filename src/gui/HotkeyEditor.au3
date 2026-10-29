@@ -13,6 +13,10 @@ Global $g_bHotkeyEditorUpdating = False
 Global $g_aEditorRestrictions[7] = [0, 0, 0, 0, 0, 0, 0]
 Global $g_aRestrictionRows[1][8]
 Global $g_aRestrictionDialogControls[7], $g_hRestrictionDialog = 0
+Global $g_iEditorActionSelector = 0, $g_iEditorActionLabel = 0, $g_iEditorSummary = 0, $g_iEditorHint = 0
+Global $g_iEditorOpticalLabel = 0
+Global $g_iEditorActionGroup = 0, $g_iEditorShortcutGroup = 0, $g_iEditorWidth = 520, $g_iEditorHeight = 407
+Global $g_iEditorDisplayedAction = -1
 
 Func _HotkeyEditor_ResetRestrictions()
     Local $i
@@ -60,7 +64,15 @@ Func _HotkeyEditor_CenterWindow($hWindow, $hParent)
     If Not IsArray($aParent) Or Not IsArray($aWindow) Then Return False
     ; Outer dimensions include borders/title bars; use screen coordinates so
     ; moved parents and monitors with negative coordinates are handled too.
-    Local $aPosition = DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $hWindow, "hwnd", 0, "int", $aParent[0] + ($aParent[2] - $aWindow[2]) / 2, "int", $aParent[1] + ($aParent[3] - $aWindow[3]) / 2, "int", 0, "int", 0, "uint", 0x15)
+    Local $iX = $aParent[0] + Int(($aParent[2] - $aWindow[2]) / 2), $iY = $aParent[1] + Int(($aParent[3] - $aWindow[3]) / 2)
+    Local $aArea = _getMonitorArea(_WinAPI_MonitorFromWindow($hParent, $MONITOR_DEFAULTTONEAREST))
+    If IsArray($aArea) Then
+        If $iX + $aWindow[2] > $aArea[$WORK_AREA_RIGHT] Then $iX = $aArea[$WORK_AREA_RIGHT] - $aWindow[2]
+        If $iY + $aWindow[3] > $aArea[$WORK_AREA_BOTTOM] Then $iY = $aArea[$WORK_AREA_BOTTOM] - $aWindow[3]
+        If $iX < $aArea[$WORK_AREA_LEFT] Then $iX = $aArea[$WORK_AREA_LEFT]
+        If $iY < $aArea[$WORK_AREA_TOP] Then $iY = $aArea[$WORK_AREA_TOP]
+    EndIf
+    Local $aPosition = DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $hWindow, "hwnd", 0, "int", $iX, "int", $iY, "int", 0, "int", 0, "uint", 0x15)
     If @error Or Not IsArray($aPosition) Then Return False
     Return $aPosition[0] <> 0
 EndFunc
@@ -153,9 +165,22 @@ EndFunc
 
 Func _HotkeyEditor_CreateWindow($name)
     ;edit gui
-    $g_aGuiState[$GUI_STATE_EDITOR_WINDOW] = GUICreate($name, 418, 706, -1, -1, $WS_EX_TOOLWINDOW, $WS_EX_MDICHILD, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
-    GUISetFont(9, 400, 0, "Tahoma")
-    GUICtrlCreateGroup("Action", 8, 8, 395, 554)
+    $g_iEditorDisplayedAction = -1
+    Local $aWork = Call($g_sMainWorkAreaHandler)
+    If $g_sMainWorkAreaHandler = "_MainWindow_WorkAreaSize" Then
+        Local $aParentArea = _getMonitorArea(_WinAPI_MonitorFromWindow($g_aGuiState[$GUI_STATE_MAIN_WINDOW], $MONITOR_DEFAULTTONEAREST))
+        If IsArray($aParentArea) Then
+            $aWork[0] = $aParentArea[$WORK_AREA_RIGHT] - $aParentArea[$WORK_AREA_LEFT]
+            $aWork[1] = $aParentArea[$WORK_AREA_BOTTOM] - $aParentArea[$WORK_AREA_TOP]
+        EndIf
+    EndIf
+    $g_iEditorWidth = 520
+    $g_iEditorHeight = 407
+    If $aWork[0] >= 500 And $aWork[0] < $g_iEditorWidth Then $g_iEditorWidth = $aWork[0]
+    If $aWork[1] >= 380 And $aWork[1] < $g_iEditorHeight Then $g_iEditorHeight = $aWork[1]
+    $g_aGuiState[$GUI_STATE_EDITOR_WINDOW] = GUICreate($name, $g_iEditorWidth, $g_iEditorHeight, -1, -1, $WS_EX_TOOLWINDOW, $WS_EX_MDICHILD, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
+    GUISetFont(9, 400, 0, "Segoe UI")
+    $g_iEditorActionGroup = GUICtrlCreateGroup("Action", 8, 8, 395, 554)
     $g_aGuiState[$GUI_STATE_FILE_RADIO] = GUICtrlCreateRadio("Run a program or open a file", 17, 32, 185, 17)
     $g_aGuiState[$GUI_STATE_FILE_INPUT] = GUICtrlCreateInput("", 17, 58, 279, 22)
     $g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON] = GUICtrlCreateButton("Browse File", 304, 56, 89, 25)
@@ -217,7 +242,7 @@ Func _HotkeyEditor_CreateWindow($name)
     $g_aGuiState[$GUI_STATE_TEXT_EDIT] = GUICtrlCreateEdit("", 17, 489, 367, 63, BitOR($ES_AUTOVSCROLL,$ES_WANTRETURN,$WS_VSCROLL))
     GUICtrlSetState(-1, $GUI_DISABLE)
     GUICtrlCreateGroup("", -99, -99, 1, 1)
-    GUICtrlCreateGroup("Assign a hotkey", 8, 568, 395, 58)
+    $g_iEditorShortcutGroup = GUICtrlCreateGroup("Assign a hotkey", 8, 568, 395, 58)
     $g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX] = GUICtrlCreateCheckbox("Ctrl", 17, 592, 57, 17)
     $g_aGuiState[$GUI_STATE_EDITOR_ALT_CHECKBOX] = GUICtrlCreateCheckbox("Alt", 80, 592, 57, 17)
     $g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX] = GUICtrlCreateCheckbox("Shift", 144, 592, 57, 17)
@@ -229,6 +254,16 @@ Func _HotkeyEditor_CreateWindow($name)
     $g_aGuiState[$GUI_STATE_RESTRICTIONS_BUTTON] = GUICtrlCreateButton("Conditions...", 139, 632, 132, 33)
     GUICtrlSetOnEvent(-1, "_HotkeyEditor_ShowRestrictions")
     $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON] = GUICtrlCreateButton("Cancel", 277, 632, 125, 33)
+    GUICtrlCreateLabel("Action type", 16, 105, 100, 20)
+    $g_iEditorActionSelector = GUICtrlCreateCombo("", 16, 126, $g_iEditorWidth - 38, 25, $CBS_DROPDOWNLIST)
+    GUICtrlSetData(-1, "Program or file|Folder|System action|Active window|URL|Text", "Program or file")
+    GUICtrlSetOnEvent(-1, "_HotkeyEditor_ActionChanged")
+    $g_iEditorActionLabel = GUICtrlCreateLabel("", 16, 162, $g_iEditorWidth - 38, 20)
+    $g_iEditorOpticalLabel = GUICtrlCreateLabel("Drive", 16, 220, 70, 20)
+    GUICtrlSetState(-1, $GUI_HIDE)
+    $g_iEditorSummary = GUICtrlCreateLabel("", 142, 62, $g_iEditorWidth - 165, 30)
+    $g_iEditorHint = GUICtrlCreateLabel("", 16, $g_iEditorHeight - 104, $g_iEditorWidth - 38, 22)
+    _HotkeyEditor_Layout()
     ;other settings
     GUISetIcon(@ScriptFullPath, 201)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_FOLDER_RADIO], "_folderRdo")
@@ -246,9 +281,11 @@ Func _HotkeyEditor_CreateWindow($name)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_FILE_RADIO], "_fileRdo")
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], "_fileBrowse")
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_SPECIAL_RADIO], "_specialRdo")
+    _GUICtrlComboBox_SetDroppedWidth($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], 650)
     _GUICtrlComboBox_SetCurSel($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], 0)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_WINDOW_RADIO], "_windowRdo")
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_WINDOW_COMBO], "_windowDown")
+    _GUICtrlComboBox_SetDroppedWidth($g_aGuiState[$GUI_STATE_WINDOW_COMBO], 650)
     _GUICtrlComboBox_SetCurSel($g_aGuiState[$GUI_STATE_WINDOW_COMBO], 0)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX], "_moveCbox")
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX], "_resizeCbox")
@@ -274,17 +311,105 @@ Func _HotkeyEditor_CreateWindow($name)
     _HotkeyEditor_UpdateOkState()
 EndFunc
 
+Func _HotkeyEditor_Layout()
+    Local $iWidth = $g_iEditorWidth, $iHeight = $g_iEditorHeight
+    GUICtrlSetState($g_iEditorActionGroup, $GUI_HIDE)
+    GUICtrlSetPos($g_iEditorShortcutGroup, 16, 8, $iWidth - 38, 88)
+    Local $aRadios[6] = [$GUI_STATE_FILE_RADIO, $GUI_STATE_FOLDER_RADIO, $GUI_STATE_SPECIAL_RADIO, $GUI_STATE_WINDOW_RADIO, $GUI_STATE_URL_RADIO, $GUI_STATE_TEXT_RADIO], $i
+    For $i = 0 To 5
+        GUICtrlSetState($g_aGuiState[$aRadios[$i]], $GUI_HIDE)
+    Next
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX], 28, 30, 60, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_EDITOR_ALT_CHECKBOX], 90, 30, 58, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_EDITOR_SHIFT_CHECKBOX], 150, 30, 60, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_EDITOR_WIN_CHECKBOX], 212, 30, 58, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO], 278, 27, $iWidth - 316, 25)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_RESTRICTIONS_BUTTON], 28, 59, 105, 28)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_FILE_INPUT], 16, 182, $iWidth - 150, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $iWidth - 126, 181, 104, 26)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_FILE_PARAMETER_LABEL], 16, 219, 130, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT], 150, 216, $iWidth - 172, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX], 16, 249, 115, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX], 145, 249, 105, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX], 265, 249, 170, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_FOLDER_INPUT], 16, 182, $iWidth - 150, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_FOLDER_BROWSE_BUTTON], $iWidth - 126, 181, 104, 26)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], 16, 182, $iWidth - 38, 25)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO], 94, 216, 100, 25)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_OPTICAL_REFRESH_BUTTON], 202, 216, 92, 25)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_WINDOW_COMBO], 16, 182, $iWidth - 38, 25)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_MOVE_CHECKBOX], 16, 216, 175, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_X_LABEL], 16, 247, 18, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_MOVE_X_INPUT], 36, 244, 60, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_Y_LABEL], 108, 247, 18, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_MOVE_Y_INPUT], 128, 244, 60, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_RESIZE_CHECKBOX], 240, 216, 190, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_WIDTH_LABEL], 240, 247, 20, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT], 262, 244, 60, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_HEIGHT_LABEL], 334, 247, 20, 20)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT], 354, 244, 60, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_URL_COMBO], 16, 182, 85, 25)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_URL_INPUT], 110, 182, $iWidth - 132, 23)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_TEXT_EDIT], 16, 182, $iWidth - 38, $iHeight - 295)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON], $iWidth - 230, $iHeight - 74, 100, 30)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], $iWidth - 122, $iHeight - 74, 100, 30)
+EndFunc
+
 Func _HotkeyEditor_OpticalVisibility()
     Local $sLabel = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
     Local $bOptical = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED And ($sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE Or $sLabel = $OPTICAL_ACTION_TOGGLE)
-    Local $iState = $GUI_HIDE, $iWidth = 367
-    If $bOptical Then
-        $iState = $GUI_SHOW
-        $iWidth = 230
-    EndIf
+    Local $iState = $GUI_HIDE
+    If $bOptical Then $iState = $GUI_SHOW
+    GUICtrlSetState($g_iEditorOpticalLabel, $iState)
     GUICtrlSetState($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO], $iState)
     GUICtrlSetState($g_aGuiState[$GUI_STATE_OPTICAL_REFRESH_BUTTON], $iState)
-    GUICtrlSetPos($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], 17, 242, $iWidth, 25)
+EndFunc
+
+Func _HotkeyEditor_ActionChanged()
+    Local $aRadios[6] = [$GUI_STATE_FILE_RADIO, $GUI_STATE_FOLDER_RADIO, $GUI_STATE_SPECIAL_RADIO, $GUI_STATE_WINDOW_RADIO, $GUI_STATE_URL_RADIO, $GUI_STATE_TEXT_RADIO]
+    Local $aHandlers[6] = ["_fileRdo", "_folderRdo", "_specialRdo", "_windowRdo", "_urlRdo", "_txtRdo"]
+    Local $iSelected = _GUICtrlComboBox_GetCurSel($g_iEditorActionSelector), $i
+    If $iSelected < 0 Or $iSelected > 5 Then Return
+    For $i = 0 To 5
+        GUICtrlSetState($g_aGuiState[$aRadios[$i]], $GUI_UNCHECKED)
+    Next
+    GUICtrlSetState($g_aGuiState[$aRadios[$iSelected]], $GUI_CHECKED)
+    Call($aHandlers[$iSelected])
+    _HotkeyEditor_UpdateOkState()
+EndFunc
+
+Func _HotkeyEditor_UpdateActionLayout()
+    Local $aRadios[6] = [$GUI_STATE_FILE_RADIO, $GUI_STATE_FOLDER_RADIO, $GUI_STATE_SPECIAL_RADIO, $GUI_STATE_WINDOW_RADIO, $GUI_STATE_URL_RADIO, $GUI_STATE_TEXT_RADIO]
+    Local $aLabels[6] = ["Program, file or command", "Folder", "System action", "Action on the active window", "Website address", "Text to paste"]
+    Local $iSelected = 0, $i, $j
+    For $i = 0 To 5
+        If GUICtrlRead($g_aGuiState[$aRadios[$i]]) = $GUI_CHECKED Then
+            $iSelected = $i
+            ExitLoop
+        EndIf
+    Next
+    If $g_iEditorDisplayedAction = $iSelected Then
+        _HotkeyEditor_OpticalVisibility()
+        Return
+    EndIf
+    $g_iEditorDisplayedAction = $iSelected
+    _GUICtrlComboBox_SetCurSel($g_iEditorActionSelector, $iSelected)
+    GUICtrlSetData($g_iEditorActionLabel, $aLabels[$iSelected])
+    Local $aGroups[6][13] = [ _
+        [$GUI_STATE_FILE_INPUT, $GUI_STATE_FILE_BROWSE_BUTTON, $GUI_STATE_FILE_PARAMETER_LABEL, $GUI_STATE_FILE_PARAMETER_INPUT, $GUI_STATE_ADMIN_CHECKBOX, $GUI_STATE_SINGLETON_CHECKBOX, $GUI_STATE_COMMAND_CHECKBOX, -1, -1, -1, -1, -1, -1], _
+        [$GUI_STATE_FOLDER_INPUT, $GUI_STATE_FOLDER_BROWSE_BUTTON, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1], _
+        [$GUI_STATE_SPECIAL_COMBO, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1], _
+        [$GUI_STATE_WINDOW_COMBO, $GUI_STATE_MOVE_CHECKBOX, $GUI_STATE_X_LABEL, $GUI_STATE_MOVE_X_INPUT, $GUI_STATE_Y_LABEL, $GUI_STATE_MOVE_Y_INPUT, $GUI_STATE_RESIZE_CHECKBOX, $GUI_STATE_WIDTH_LABEL, $GUI_STATE_RESIZE_WIDTH_INPUT, $GUI_STATE_HEIGHT_LABEL, $GUI_STATE_RESIZE_HEIGHT_INPUT, -1, -1], _
+        [$GUI_STATE_URL_COMBO, $GUI_STATE_URL_INPUT, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1], _
+        [$GUI_STATE_TEXT_EDIT, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]]
+    For $i = 0 To 5
+        Local $iState = $GUI_HIDE
+        If $i = $iSelected Then $iState = $GUI_SHOW
+        For $j = 0 To 12
+            If $aGroups[$i][$j] >= 0 Then GUICtrlSetState($g_aGuiState[$aGroups[$i][$j]], $iState)
+        Next
+    Next
+    _HotkeyEditor_OpticalVisibility()
 EndFunc
 
 Func _HotkeyEditor_SpecialChanged()
@@ -902,7 +1027,7 @@ Func _HotkeyEditor_ErrorMessage($iError, $iExtended)
         Case $EDITOR_MODEL_ERROR_DUPLICATE
             Return "That hotkey is already assigned"
         Case $EDITOR_MODEL_ERROR_OPTICAL
-            Return "Select a connected optical drive. If you just connected it, click Refresh. A disc does not need to be inserted."
+            Return "Select a connected optical drive, or click Refresh."
     EndSwitch
     Return "Complete the selected action with valid values"
 EndFunc
@@ -916,13 +1041,22 @@ EndFunc
 Func _HotkeyEditor_UpdateOkState()
     If $g_bHotkeyEditorUpdating Or Not IsHWnd($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Or Not $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON] Then Return False
     $g_bHotkeyEditorUpdating = True
-    _HotkeyEditor_OpticalVisibility()
+    _HotkeyEditor_UpdateActionLayout()
     Local $aRecord = _HotkeyEditor_ReadRecord()
+    Local $iValidationError = @error, $iValidationDetail = @extended
     Local $bValid = IsArray($aRecord)
+    Local $aSummaryRecord = _HotkeyModel_Create("^a", $HOTKEY_ACTION_TEXT, "")
+    _HotkeyEditor_CopyCurrentRestrictions($aSummaryRecord)
+    Local $sSummary = _HotkeyEditor_RestrictionSummary($aSummaryRecord)
+    If $sSummary = "" Then $sSummary = "No conditions"
+    GUICtrlSetData($g_iEditorSummary, $sSummary)
+    GUICtrlSetTip($g_iEditorSummary, $sSummary)
     If $bValid Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], $GUI_ENABLE)
+        GUICtrlSetData($g_iEditorHint, "")
     Else
         GUICtrlSetState($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], $GUI_DISABLE)
+        GUICtrlSetData($g_iEditorHint, _HotkeyEditor_ErrorMessage($iValidationError, $iValidationDetail))
     EndIf
     $g_bHotkeyEditorUpdating = False
     Return $bValid

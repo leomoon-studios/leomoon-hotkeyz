@@ -69,9 +69,25 @@ If $aAfter[0] >= $aBefore[0] Or _GUICtrlListView_GetItemText($g_aGuiState[$GUI_S
 _GUICtrlListView_Scroll($g_aGuiState[$GUI_STATE_LIST_VIEW], -1000, 0)
 _GUICtrlListView_SetColumnWidth($g_aGuiState[$GUI_STATE_LIST_VIEW], 2, 255)
 ConsoleWrite("Settings input: tab, list keyboard selection, double-click, column drag and horizontal scroll passed" & @CRLF)
+_addBtn()
+WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+GUICtrlSetData($g_aGuiState[$GUI_STATE_FILE_INPUT], "C:\Example\test.exe")
+GUICtrlSetState($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX], $GUI_CHECKED)
+ControlFocus($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_iEditorActionSelector)
+Send("{END}")
+Sleep(150)
+If GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_RADIO]) <> $GUI_CHECKED Or Not BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_TEXT_EDIT]), $GUI_SHOW) Then Exit 17
+Send("{HOME}")
+Sleep(150)
+If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) <> $GUI_CHECKED Or Not BitAND(GUICtrlGetState($g_aGuiState[$GUI_STATE_FILE_INPUT]), $GUI_SHOW) Then Exit 18
+If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT]) <> "C:\Example\test.exe" Or BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX]), $GUI_CHECKED) Then Exit 19
+_hideChild()
+ConsoleWrite("Editor input: action selector keyboard switching passed" & @CRLF)
 Global $aNames[6] = ["file", "folder", "system", "window", "url", "text"]
 Global $aRadios[6] = [$GUI_STATE_FILE_RADIO, $GUI_STATE_FOLDER_RADIO, $GUI_STATE_SPECIAL_RADIO, $GUI_STATE_WINDOW_RADIO, $GUI_STATE_URL_RADIO, $GUI_STATE_TEXT_RADIO]
 Global $aHandlers[6] = ["_fileRdo", "_folderRdo", "_specialRdo", "_windowRdo", "_urlRdo", "_txtRdo"]
+Global $aInputs[6] = [$GUI_STATE_FILE_INPUT, $GUI_STATE_FOLDER_INPUT, $GUI_STATE_SPECIAL_COMBO, $GUI_STATE_WINDOW_COMBO, $GUI_STATE_URL_INPUT, $GUI_STATE_TEXT_EDIT]
+Global $aExpected[6] = ["C:\Example\A long folder name\A long application name.exe", "C:\Example\Documents", $sPaths[0][0], "Close", "example.com", "Example text"]
 For $i = 0 To 5
     $hTime = TimerInit()
     _addBtn()
@@ -91,6 +107,8 @@ For $i = 0 To 5
     $hTime = TimerInit()
     _editBtn()
     If $i = 0 Then ConsoleWrite("Edit open ms=" & Round(TimerDiff($hTime)) & @CRLF)
+    If GUICtrlRead($g_aGuiState[$aRadios[$i]]) <> $GUI_CHECKED Or _GUICtrlComboBox_GetCurSel($g_iEditorActionSelector) <> $i Then Exit 21
+    If GUICtrlRead($g_aGuiState[$aInputs[$i]]) <> $aExpected[$i] Then Exit 22
     _BaselineCapture("edit-" & $aNames[$i], $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
     _hideChild()
 Next
@@ -106,9 +124,22 @@ Global $aSmallList = ControlGetPos($g_aGuiState[$GUI_STATE_MAIN_WINDOW], "", $g_
 If $aSmallSave[0] + $aSmallSave[2] > $aSmallClient[0] Or $aSmallSave[1] + $aSmallSave[3] > $aSmallClient[1] Or $aSmallList[1] + $aSmallList[3] > $aSmallSave[1] Then Exit 15
 _BaselineCapture("settings-small-workarea", $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
 ConsoleWrite("Simulated work area: 520x420; list and footer fit" & @CRLF)
+_guiDel()
+$g_sMainWorkAreaHandler = "_BaselineMinimumArea"
+_mainGui()
+_addBtn()
+Global $aSmallEditor = WinGetClientSize($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+Global $aSmallOk = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON])
+If $aSmallOk[0] + $aSmallOk[2] > $aSmallEditor[0] Or $aSmallOk[1] + $aSmallOk[3] > $aSmallEditor[1] Then Exit 20
+_BaselineCapture("editor-small-workarea", $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+_hideChild()
+ConsoleWrite("Simulated work area: 500x380; editor footer fits" & @CRLF)
 ConsoleWrite("Desktop=" & @DesktopWidth & "x" & @DesktopHeight & @CRLF)
 Func _BaselineSmallArea()
     Return _MainWindow_SizeForWorkArea(520, 420)
+EndFunc
+Func _BaselineMinimumArea()
+    Return _MainWindow_SizeForWorkArea(500, 380)
 EndFunc
 Func _BaselineCapture($sName, $hWindow)
     If Not IsHWnd($hWindow) Then Exit 4

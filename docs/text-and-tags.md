@@ -4,8 +4,8 @@
 
 ## Paste a text template
 
-1. Open **Settings → Add New**.
-2. Select **Paste text into active window** and enter your text. You can include line breaks.
+1. Open **Settings → Add**.
+2. Select **Text** under **Action type** and enter your text. You can include line breaks.
 3. Assign a shortcut, click **OK**, and then **Save**.
 4. Place the cursor in an application that accepts pasted text and press the shortcut.
 
@@ -43,7 +43,7 @@ File parameters additionally support `<GetActiveWindowsExplorerPath>`. It is res
 
 ## Generated values
 
-These are found under **Run actions on active window**. Focus an editable field first, then press the assigned shortcut.
+These are found under the **Active window** action type. Focus an editable field first, then press the assigned shortcut.
 
 | Action                                             | Result                                                                        |
 |----------------------------------------------------|-------------------------------------------------------------------------------|
@@ -57,7 +57,7 @@ The password and UUID actions use Windows cryptographic randomness and paste the
 
 ## Transform selected text
 
-Under **Run actions on active window**, select one of these actions, highlight text in an editable application, and press the hotkey:
+Under the **Active window** action type, select one of these actions, highlight text in an editable application, and press the hotkey:
 
 - **Upper Case Selected Text**, **Lower Case Selected Text**, **Title Case Selected Text**, or **Reverse Selected Text**.
 - **MD5 Selected Text**, **SHA1 Selected Text**, **SHA-256 Selected Text**, or **SHA-512 Selected Text**: replace the selection with its hash in hexadecimal.

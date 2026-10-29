@@ -10,7 +10,6 @@
 #include "HotkeyEditorModel.au3"
 
 Global $g_iMainEditButton = 0, $g_iMainDeleteButton = 0, $g_iMainListHint = 0
-Global $g_sMainWorkAreaHandler = "_MainWindow_WorkAreaSize"
 
 Func _MainWindow_SizeForWorkArea($iWidth, $iHeight)
     ; Leave room for the taskbar and reduce the list rather than hiding buttons.

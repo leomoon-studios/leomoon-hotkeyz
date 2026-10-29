@@ -2,7 +2,7 @@
 
 [Documentation home](../README.md#user-documentation) · [Getting started](getting-started.md) · [Text and tags](text-and-tags.md) · [Profiles and troubleshooting](profiles-and-troubleshooting.md)
 
-In **Settings → Add New** or **Edit Selected**, choose one action type. Assign a modified shortcut at the bottom, then click **OK** and save the main Settings window. Paths and text can use the supported [tags](text-and-tags.md#dynamic-tags).
+In **Settings → Add** or **Edit**, choose an **Action type**. Assign a modified shortcut at the top, then click **OK** and save the main Settings window. Paths and text can use the supported [tags](text-and-tags.md#dynamic-tags).
 
 ## Run a program or open a file
 
@@ -56,7 +56,7 @@ Choose an entry from the system-action list. Availability can depend on Windows 
 
 **Open/close optical drive tray** checks the physical tray state each time: open trays receive Close, and closed trays receive Open. It uses the same drive selector and conditions as the separate actions. If the drive cannot report its state, HotKeyz sends no command and suggests using Open or Close instead. This handles manual tray changes without relying on the last command. Some drives or drivers may not support the state query; laptop trays may need to be closed by hand.
 
-Choose **Open optical drive tray** or **Close optical drive tray** under **Run a system action**, then select the drive letter beside the action. Click **Refresh** after connecting or disconnecting an optical drive. The editor displays **None** when no drives are detected; connect a drive before adding the action. A disc does not need to be inserted.
+Choose **System action**, then **Open optical drive tray** or **Close optical drive tray**, and select the drive letter below the action. Click **Refresh** after connecting or disconnecting an optical drive. The editor displays **None** when no drives are detected; connect a drive before adding the action. A disc does not need to be inserted.
 
 The separate Open and Close actions always send their named operation; Open/close chooses the opposite of the current tray state. Each action targets only the selected drive and never chooses a different drive if it disappears. Existing profiles can still be loaded and saved with a disconnected drive; running that shortcut reports that the drive is unavailable. The editor retains the saved letter so you can reconnect it or select its new letter. Conditions and left/right modifier selections work with these actions too.
 

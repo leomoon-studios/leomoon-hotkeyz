@@ -49,6 +49,7 @@ While IsHWnd($g_hRestrictionDialog)
     Sleep(10)
 WEnd
 If $g_aEditorRestrictions[0] <> 1 Or $g_aEditorRestrictions[4] <> 1 Then _TestFail("dialog did not retain choices")
+If Not StringInStr(GUICtrlRead($g_iEditorSummary), "Ctrl: Left") Or Not StringInStr(GUICtrlRead($g_iEditorSummary), "Caps: On") Then _TestFail("editor summary did not show accepted conditions")
 Global $aRecord = _HotkeyEditor_ReadRecord()
 If Not IsArray($aRecord) Then _TestFail("editor did not produce record")
 If $aRecord[$HOTKEY_FIELD_CTRL_SIDE] <> 1 Or $aRecord[$HOTKEY_FIELD_CAPS_LOCK] <> 1 Then _TestFail("record lost choices")

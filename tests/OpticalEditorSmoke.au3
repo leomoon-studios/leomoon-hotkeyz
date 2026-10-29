@@ -1,6 +1,7 @@
 #NoTrayIcon
 ; Desktop integration; isolated profile, simulated drives, no physical tray calls.
 #include "..\src\resources\ExtMsgBox.au3"
+#include "..\src\resources\StringSize.au3"
 #include "..\src\core\AppConstants.au3"
 #include "..\src\core\ActionCatalog.au3"
 #include "..\src\core\HotkeyRepository.au3"
@@ -39,12 +40,16 @@ If GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO]) <> "None" Then _Opt
 Global $aRecord = _HotkeyEditor_ReadRecord(), $iReadError = @error
 If $iReadError <> $EDITOR_MODEL_ERROR_OPTICAL Or IsArray($aRecord) Then _OpticalEditorFail("no-drive editor accepted action")
 If _HotkeyEditor_UpdateOkState() Then _OpticalEditorFail("OK enabled without drive")
+Global $aHintRect = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_iEditorHint)
+Global $aHintSize = _StringSize(GUICtrlRead($g_iEditorHint), 9, 400, 0, "Segoe UI", $aHintRect[2], $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+Global $aOkRect = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON])
+If Not IsArray($aHintSize) Or $aHintSize[3] > $aHintRect[3] Or StringInStr($aHintSize[0], @CRLF) Or $aHintRect[1] <> $aOkRect[1] - 30 Then _OpticalEditorFail("unavailable-drive help text is clipped or not aligned with the other help text")
 Global $aActionRect = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
 Global $aDriveRect = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO])
 Global $aRefreshRect = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_OPTICAL_REFRESH_BUTTON])
 Global $aClient = WinGetClientSize($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
 If Not IsArray($aActionRect) Or Not IsArray($aDriveRect) Or Not IsArray($aRefreshRect) Or Not IsArray($aClient) Then _OpticalEditorFail("cannot measure controls")
-If $aActionRect[0] + $aActionRect[2] > $aDriveRect[0] Or $aDriveRect[0] + $aDriveRect[2] > $aRefreshRect[0] Or $aRefreshRect[0] + $aRefreshRect[2] > $aClient[0] Then _OpticalEditorFail("optical controls overlap or extend outside editor")
+If $aActionRect[1] + $aActionRect[3] > $aDriveRect[1] Or $aDriveRect[0] + $aDriveRect[2] > $aRefreshRect[0] Or $aRefreshRect[0] + $aRefreshRect[2] > $aClient[0] Or $aRefreshRect[1] + $aRefreshRect[3] > $aClient[1] Then _OpticalEditorFail("optical controls overlap or extend outside editor")
 $g_iDriveMode = 1
 _OpticalEditorClickRefresh()
 If _GUICtrlComboBox_GetCount($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO]) <> 2 Then _OpticalEditorFail("refresh did not populate both drives")
@@ -96,8 +101,21 @@ _guiDel()
 _mainGui()
 _editBtn()
 If GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]) <> $OPTICAL_ACTION_TOGGLE Or GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO]) <> "D:" Then _OpticalEditorFail("toggle edit lost action or drive")
+_hideChild()
+_guiDel()
+$g_sMainWorkAreaHandler = "_OpticalEditorSmallArea"
+$g_iDriveMode = 0
+_mainGui()
+_OpticalEditorSelect($OPTICAL_ACTION_OPEN, "F9")
+$aHintRect = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_iEditorHint)
+$aHintSize = _StringSize(GUICtrlRead($g_iEditorHint), 9, 400, 0, "Segoe UI", $aHintRect[2], $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+$aOkRect = ControlGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON])
+If Not IsArray($aHintSize) Or $aHintSize[3] > $aHintRect[3] Or StringInStr($aHintSize[0], @CRLF) Or $aHintRect[1] <> $aOkRect[1] - 30 Then _OpticalEditorFail("unavailable-drive help does not fit or align in the minimum editor layout")
 ConsoleWrite("PASSED: optical editor no-drive state, refresh click, save/import, edit, conditions, disconnection, sorting, toggle; x64=" & @AutoItX64 & @CRLF)
 
+Func _OpticalEditorSmallArea()
+    Return _MainWindow_SizeForWorkArea(500, 380)
+EndFunc
 Func _OpticalEditorSelect($sAction, $sKey)
     _addBtn()
     GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_RADIO], $GUI_UNCHECKED)
