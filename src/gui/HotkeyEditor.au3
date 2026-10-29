@@ -40,7 +40,7 @@ Func _HotkeyEditor_ShowRestrictions()
             If Not BitAND(GUICtrlRead($g_aGuiState[$aModifierControls[$i]]), $GUI_CHECKED) Then GUICtrlSetState($g_aRestrictionDialogControls[$i], $GUI_DISABLE)
         EndIf
     Next
-    GUICtrlCreateLabel("Restrictions are not active until the input backend is implemented.", 18, 278, 325, 28)
+    GUICtrlCreateLabel("All selected conditions must match for the action to run.", 18, 278, 325, 28)
     GUICtrlCreateButton("OK", 18, 308, 150, 28)
     GUICtrlSetOnEvent(-1, "_HotkeyEditor_RestrictionsAccept")
     GUICtrlCreateButton("Cancel", 185, 308, 150, 28)

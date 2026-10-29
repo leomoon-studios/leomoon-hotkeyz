@@ -74,13 +74,13 @@ If HotKeyz creates a new INI file, it supplies the following defaults. An import
 
 ## Lock conditions
 
-In Add/Edit Hotkey, open **Modifiers and conditions...** and set Caps Lock, Num Lock, or Scroll Lock to **Any**, **On**, or **Off**. All specified lock conditions must match for the action to run. **Any** ignores that lock.
+In Add/Edit Hotkey, open **Conditions...** and set Caps Lock, Num Lock, or Scroll Lock to **Any**, **On**, or **Off**. All specified lock conditions must match for the action to run. **Any** ignores that lock.
 
 The state is captured when HotKeyz begins handling the shortcut. If a blocking dialog delays the callback and you change a lock during that delay, the callback uses the state it reads after the delay. A nonmatching shortcut does nothing: it does not run the action, change the locks, or pass the shortcut to another application.
 
 ## Left and right modifiers
 
-In **Modifiers and conditions...**, choose **Either**, **Left**, or **Right** for each enabled Ctrl, Alt, Shift, or Win modifier. For example, Ctrl: Left with F9 runs only when left Ctrl is held. Holding both Ctrl keys also satisfies Left or Right. These selectors apply to action shortcuts; the main enable/disable shortcut continues to accept either side.
+In **Conditions...**, choose **Either**, **Left**, or **Right** for each enabled Ctrl, Alt, Shift, or Win modifier. For example, Ctrl: Left with F9 runs only when left Ctrl is held. Holding both Ctrl keys also satisfies Left or Right. These selectors apply to action shortcuts; the main enable/disable shortcut continues to accept either side.
 
 Modifier sides are captured when the base key is pressed. You can combine side requirements with lock conditions; every requirement must match. Locks are checked when the queued action begins. The shortcut stays reserved even when a side or lock does not match, so that press is not passed to another application. You cannot assign the same combination twice with different conditions.
 
