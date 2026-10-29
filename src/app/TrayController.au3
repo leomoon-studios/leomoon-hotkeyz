@@ -46,8 +46,8 @@ Func _TrayController_ProcessEvents()
     If $iTrayMessage = 0 Then Return
     _Debug_Log("Tray message received: " & $iTrayMessage)
     Switch $iTrayMessage
-        Case $enableTray
-            _Debug_Log("Toggle menu item selected")
+        Case $enableTray, $TRAY_EVENT_PRIMARYDOUBLE
+            _Debug_Log("Toggle requested by tray menu or double-click")
             _toggle()
         Case $g_iSettingsTrayItem
             _Debug_Log("Settings menu item selected")
