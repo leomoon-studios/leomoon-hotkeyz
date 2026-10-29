@@ -54,7 +54,7 @@ Choose an entry from the system-action list. Availability can depend on Windows 
 
 ### Open or close an optical drive tray
 
-**Open/close optical drive tray** reads the current drive state each time: open trays receive Close, and closed trays receive Open. It uses the same drive selector and conditions as the separate actions. If the driver reports an unknown/not-ready state, HotKeyz sends no command and suggests using Open or Close instead. This avoids guessing from the last command, including after manual tray changes. State reporting varies by drive; physical toggle behavior has not been tested on this computer because it has no optical drive.
+**Open/close optical drive tray** checks the physical tray state each time: open trays receive Close, and closed trays receive Open. It uses the same drive selector and conditions as the separate actions. If the drive cannot report its state, HotKeyz sends no command and suggests using Open or Close instead. This handles manual tray changes without relying on the last command. Some drives or drivers may not support the state query; laptop trays may need to be closed by hand.
 
 Choose **Open optical drive tray** or **Close optical drive tray** under **Run a system action**, then select the drive letter beside the action. Click **Refresh** after connecting or disconnecting an optical drive. The editor displays **None** when no drives are detected; connect a drive before adding the action. A disc does not need to be inserted.
 

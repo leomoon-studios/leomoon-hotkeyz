@@ -16,6 +16,17 @@ $g_sOpticalTrayHandler = "_OpticalTraySpy"
 Global $aOpen = _HotkeyModel_Create("^!{F9}", $HOTKEY_ACTION_SYSTEM, "Open optical drive tray D:")
 Global $aClose = _HotkeyModel_Create("^!{F10}", $HOTKEY_ACTION_SYSTEM, "Close optical drive tray E:")
 Global $aTagsTest[1][2] = [["<USERNAME>", "test"]]
+Global $tMediaStatus = DllStructCreate("byte data[8]")
+DllStructSetData($tMediaStatus, "data", Binary("0x0006045600000000"))
+_CheckOptical(_OpticalDriveActions_ParseState($tMediaStatus) = "closed", "empty closed tray detected")
+DllStructSetData($tMediaStatus, "data", Binary("0x0006045600010000"))
+_CheckOptical(_OpticalDriveActions_ParseState($tMediaStatus) = "open", "open tray detected")
+DllStructSetData($tMediaStatus, "data", Binary("0x0006045600020000"))
+_CheckOptical(_OpticalDriveActions_ParseState($tMediaStatus) = "closed", "closed tray with media detected")
+DllStructSetData($tMediaStatus, "data", Binary("0x0006845600000000"))
+_CheckOptical(_OpticalDriveActions_ParseState($tMediaStatus) = "" And @error, "unavailable event fails closed")
+DllStructSetData($tMediaStatus, "data", Binary("0x0002035600000000"))
+_CheckOptical(_OpticalDriveActions_ParseState($tMediaStatus) = "" And @error, "short or wrong event fails closed")
 Global $bResult, $iError, $i
 _CheckOptical(_SystemActions_GetId($aOpen[$HOTKEY_FIELD_TARGET]) = $SYSTEM_ACTION_OPEN_OPTICAL_TRAY, "fixed open identifier")
 _CheckOptical(_SystemActions_GetId($aClose[$HOTKEY_FIELD_TARGET]) = $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY, "fixed close identifier")

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed program-only options remaining checked or saved after changing a hotkey to another action type.
 - Reduced Add/Edit window startup delay.
 - Improved Settings save performance.
 - Added per-hotkey left/right Ctrl, Alt, Shift, and Win selection, plus Caps Lock, Num Lock, and Scroll Lock On/Off conditions. All selected requirements must match for the hotkey to run.

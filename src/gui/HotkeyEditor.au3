@@ -373,6 +373,7 @@ EndFunc
 
 Func _folderRdo()
     If GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_RADIO]) == 1 Then
+        _HotkeyEditor_ClearProgramOptions()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_INPUT], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_PARAMETER_LABEL], $GUI_DISABLE)
@@ -393,6 +394,7 @@ EndFunc
 
 Func _specialRdo()
     If GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) == 1 Then
+        _HotkeyEditor_ClearProgramOptions()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_INPUT], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_PARAMETER_LABEL], $GUI_DISABLE)
@@ -413,6 +415,7 @@ EndFunc
 
 Func _windowRdo()
     If GUICtrlRead($g_aGuiState[$GUI_STATE_WINDOW_RADIO]) == 1 Then
+        _HotkeyEditor_ClearProgramOptions()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_INPUT], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_PARAMETER_LABEL], $GUI_DISABLE)
@@ -475,6 +478,7 @@ EndFunc
 
 Func _urlRdo()
     If GUICtrlRead($g_aGuiState[$GUI_STATE_URL_RADIO]) == 1 Then
+        _HotkeyEditor_ClearProgramOptions()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_INPUT], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $GUI_DISABLE)
@@ -493,6 +497,7 @@ EndFunc
 
 Func _txtRdo()
     If GUICtrlRead($g_aGuiState[$GUI_STATE_TEXT_RADIO]) == 1 Then
+        _HotkeyEditor_ClearProgramOptions()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_INPUT], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_BROWSE_BUTTON], $GUI_DISABLE)
@@ -507,6 +512,14 @@ Func _txtRdo()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_URL_INPUT], $GUI_DISABLE)
         GUICtrlSetState($g_aGuiState[$GUI_STATE_TEXT_EDIT], $GUI_ENABLE)
     EndIf
+EndFunc
+
+Func _HotkeyEditor_ClearProgramOptions()
+    Local $aControls[3] = [$GUI_STATE_ADMIN_CHECKBOX, $GUI_STATE_SINGLETON_CHECKBOX, $GUI_STATE_COMMAND_CHECKBOX], $i
+    For $i = 0 To 2
+        GUICtrlSetState($g_aGuiState[$aControls[$i]], $GUI_UNCHECKED)
+        GUICtrlSetState($g_aGuiState[$aControls[$i]], $GUI_DISABLE)
+    Next
 EndFunc
 
 Func _delBtn()
@@ -723,14 +736,14 @@ Func _HotkeyEditor_ReadRecord()
     $sHotkey &= GUICtrlRead($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO])
     Local $sAction = "", $sTarget = "", $sParameters = ""
     Local $iOptions = $HOTKEY_OPTION_NONE
-    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX]), $GUI_CHECKED) Then $iOptions = BitOR($iOptions, $HOTKEY_OPTION_ADMIN)
-    If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX]), $GUI_CHECKED) Then $iOptions = BitOR($iOptions, $HOTKEY_OPTION_SINGLETON)
     If GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_RADIO]) = $GUI_CHECKED Then
+        If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX]), $GUI_CHECKED) Then $iOptions = BitOR($iOptions, $HOTKEY_OPTION_ADMIN)
         $sTarget = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_INPUT])
         If GUICtrlRead($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX]) = $GUI_CHECKED Then
             $sAction = $HOTKEY_ACTION_COMMAND
         Else
             $sAction = $HOTKEY_ACTION_FILE
+            If BitAND(GUICtrlRead($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX]), $GUI_CHECKED) Then $iOptions = BitOR($iOptions, $HOTKEY_OPTION_SINGLETON)
             $sParameters = GUICtrlRead($g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT])
         EndIf
     ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_RADIO]) = $GUI_CHECKED Then
