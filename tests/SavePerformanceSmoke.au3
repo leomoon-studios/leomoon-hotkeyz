@@ -34,6 +34,21 @@ If Not _HotkeyRepository_Save($APP_INI_PATH, $aTable) Then Exit 3
 ConsoleWrite("Repository save (80 mixed hotkeys): " & Round(TimerDiff($hTimer)) & " ms" & @CRLF)
 _mainGui()
 $hTimer = TimerInit()
+_addBtn()
+ConsoleWrite("Open Add: " & Round(TimerDiff($hTimer)) & " ms" & @CRLF)
+If Not WinActive($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Then Exit 7
+_hideChild()
+$hTimer = TimerInit()
+_editBtn()
+ConsoleWrite("Open Edit: " & Round(TimerDiff($hTimer)) & " ms" & @CRLF)
+If Not WinActive($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Then Exit 8
+Global $aEdited = _HotkeyEditor_ReadRecord()
+If Not IsArray($aEdited) Then Exit 9
+For $i = 0 To $HOTKEY_FIELD_COUNT - 1
+    If $aEdited[$i] <> $aTable[1][$i] Then Exit 10
+Next
+_hideChild()
+$hTimer = TimerInit()
 If Not _MainWindow_IsHotkeyLayoutValid() Then Exit 4
 ConsoleWrite("Main layout validation: " & Round(TimerDiff($hTimer)) & " ms" & @CRLF)
 $hTimer = TimerInit()

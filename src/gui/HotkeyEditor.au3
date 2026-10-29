@@ -125,6 +125,17 @@ Func _HotkeyEditor_RestrictionSummary(ByRef $aRecord)
 EndFunc
 
 Func _editGui($name)
+    ; Control creation emits change notifications. Validate only after every
+    ; control exists, rather than repeatedly reading a half-built editor.
+    Local $bWasUpdating = $g_bHotkeyEditorUpdating
+    $g_bHotkeyEditorUpdating = True
+    Local $vResult = _HotkeyEditor_CreateWindow($name), $iError = @error, $iExtended = @extended
+    $g_bHotkeyEditorUpdating = $bWasUpdating
+    If Not $iError Then _HotkeyEditor_UpdateOkState()
+    Return SetError($iError, $iExtended, $vResult)
+EndFunc
+
+Func _HotkeyEditor_CreateWindow($name)
     ;edit gui
     $g_aGuiState[$GUI_STATE_EDITOR_WINDOW] = GUICreate($name, 418, 706, -1, -1, $WS_EX_TOOLWINDOW, $WS_EX_MDICHILD, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
     GUISetFont(9, 400, 0, "Tahoma")
@@ -245,11 +256,13 @@ Func _editGui($name)
     If @error Or Not IsArray($mpos) Then Return SetError(1, @error, False)
     Local $cpos = WinGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
     If @error Or Not IsArray($cpos) Then Return SetError(2, @error, False)
-    If Not WinMove($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], '', $mpos[0]+($mpos[2]/2)-($cpos[2]/2), $mpos[1]+($mpos[3]/2)-($cpos[3]/2)) Then Return SetError(3, @error, False)
+    ; Position our still-hidden window without WinMove's automation delay.
+    ; SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE preserves size and focus.
+    Local $aPosition = DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "hwnd", 0, "int", $mpos[0]+($mpos[2]/2)-($cpos[2]/2), "int", $mpos[1]+($mpos[3]/2)-($cpos[3]/2), "int", 0, "int", 0, "uint", 0x15)
+    If @error Or Not IsArray($aPosition) Or Not $aPosition[0] Then Return SetError(3, 0, False)
     Local $aAccelKeys[1][2] = [["{ESC}", $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON]]]
     GUISetAccelerators($aAccelKeys)
-    WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-    _HotkeyEditor_RefreshOpticalDrives()
+    ; Add/Edit shows and activates the completed window after populating it.
     _HotkeyEditor_UpdateOkState()
 EndFunc
 
@@ -267,7 +280,12 @@ Func _HotkeyEditor_OpticalVisibility()
 EndFunc
 
 Func _HotkeyEditor_SpecialChanged()
-    _HotkeyEditor_RefreshOpticalDrives()
+    Local $sLabel = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
+    If $sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE Or $sLabel = $OPTICAL_ACTION_TOGGLE Then
+        _HotkeyEditor_RefreshOpticalDrives()
+    Else
+        _HotkeyEditor_UpdateOkState()
+    EndIf
 EndFunc
 
 ; AutoIt GUI callbacks must be parameterless, including optional parameters.
@@ -509,7 +527,7 @@ Func _addBtn()
     _fileRdo()
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], "_add")
     GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
-    GUISetState(@SW_SHOW, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    GUISetState(@SW_SHOWNORMAL, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
     _HotkeyEditor_UpdateOkState()
 EndFunc
 
@@ -562,7 +580,7 @@ Func _editBtn()
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FOLDER_RADIO], $GUI_CHECKED)
         GUICtrlSetData($g_aGuiState[$GUI_STATE_FOLDER_INPUT], $path)
         _folderRdo()
-    ElseIf StringInStr(FileGetAttrib(StringReplace($path, '<USERNAME>', @UserName)), 'D') Then
+    ElseIf _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected, 0) = 'Folder' Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_FOLDER_RADIO], $GUI_CHECKED)
         GUICtrlSetData($g_aGuiState[$GUI_STATE_FOLDER_INPUT], $path)
         _folderRdo()
@@ -648,7 +666,7 @@ Func _editBtn()
     _GUICtrlComboBox_SelectString($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO], $k)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], "_edit")
     GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_MAIN_WINDOW])
-    GUISetState(@SW_SHOW, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    GUISetState(@SW_SHOWNORMAL, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
     _HotkeyEditor_UpdateOkState()
 EndFunc
 
@@ -889,10 +907,14 @@ EndFunc
 
 Func _HotkeyEditor_WM_COMMAND($hWnd, $iMsg, $iwParam, $ilParam)
     #forceref $iMsg, $iwParam, $ilParam
+    If $g_bHotkeyEditorUpdating Then Return $GUI_RUNDEFMSG
     If $hWnd = $g_aGuiState[$GUI_STATE_EDITOR_WINDOW] Then
         _HotkeyEditor_UpdateOkState()
     ElseIf $hWnd = $g_aGuiState[$GUI_STATE_MAIN_WINDOW] Then
-        _MainWindow_UpdateSaveState()
+        Switch BitAND($iwParam, 0xFFFF)
+            Case $g_aGuiState[$GUI_STATE_CTRL_CHECKBOX], $g_aGuiState[$GUI_STATE_ALT_CHECKBOX], $g_aGuiState[$GUI_STATE_SHIFT_CHECKBOX], $g_aGuiState[$GUI_STATE_WIN_CHECKBOX], $g_aGuiState[$GUI_STATE_KEY_COMBO]
+                _MainWindow_UpdateSaveState()
+        EndSwitch
     EndIf
     Return $GUI_RUNDEFMSG
 EndFunc
