@@ -35,6 +35,7 @@ GUICtrlSetState($g_aGuiState[$GUI_STATE_TEXT_RADIO], $GUI_CHECKED)
 GUICtrlSetData($g_aGuiState[$GUI_STATE_TEXT_EDIT], "example")
 GUICtrlSetState($g_aGuiState[$GUI_STATE_EDITOR_CTRL_CHECKBOX], $GUI_CHECKED)
 _GUICtrlComboBox_SelectString($g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO], "F9")
+WinMove($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", 60 + 160 * $g_iTestDialog, 40 + 60 * $g_iTestDialog)
 AdlibRegister("_TestDialog", 200)
 ControlClick($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_RESTRICTIONS_BUTTON])
 Global $hDialogWait = TimerInit()
@@ -78,6 +79,7 @@ _GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], $iRestricte
 _editBtn()
 If $g_aEditorRestrictions[0] <> 1 Or $g_aEditorRestrictions[4] <> 1 Then _TestFail("edit did not restore choices")
 $g_iTestDialog = 1
+WinMove($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", 60 + 160 * $g_iTestDialog, 40 + 60 * $g_iTestDialog)
 AdlibRegister("_TestDialog", 200)
 _HotkeyEditor_ShowRestrictions()
 While IsHWnd($g_hRestrictionDialog)
@@ -152,6 +154,9 @@ ConsoleWrite("PASSED: restriction editor; lock-only save, reopen, toggle, action
 Exit 0
 Func _TestDialog()
     AdlibUnRegister("_TestDialog")
+    Local $aParent = WinGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]), $aDialog = WinGetPos($g_hRestrictionDialog)
+    If Not IsArray($aParent) Or Not IsArray($aDialog) Then _TestFail("cannot measure conditions window")
+    If Abs(($aParent[0] + $aParent[2] / 2) - ($aDialog[0] + $aDialog[2] / 2)) > 1 Or Abs(($aParent[1] + $aParent[3] / 2) - ($aDialog[1] + $aDialog[3] / 2)) > 1 Then _TestFail("conditions window not centered over editor")
     If $g_iTestDialog = 0 Then
         _GUICtrlComboBox_SetCurSel($g_aRestrictionDialogControls[0], 1)
         _GUICtrlComboBox_SetCurSel($g_aRestrictionDialogControls[4], 1)

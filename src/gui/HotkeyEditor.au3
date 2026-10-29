@@ -46,8 +46,23 @@ Func _HotkeyEditor_ShowRestrictions()
     GUICtrlCreateButton("Cancel", 185, 308, 150, 28)
     GUICtrlSetOnEvent(-1, "_HotkeyEditor_RestrictionsCancel")
     GUISetOnEvent($GUI_EVENT_CLOSE, "_HotkeyEditor_RestrictionsCancel", $g_hRestrictionDialog)
+    If Not _HotkeyEditor_CenterWindow($g_hRestrictionDialog, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Then
+        GUIDelete($g_hRestrictionDialog)
+        $g_hRestrictionDialog = 0
+        Return False
+    EndIf
     GUISetState(@SW_DISABLE, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
     GUISetState(@SW_SHOW, $g_hRestrictionDialog)
+EndFunc
+
+Func _HotkeyEditor_CenterWindow($hWindow, $hParent)
+    Local $aParent = WinGetPos($hParent), $aWindow = WinGetPos($hWindow)
+    If Not IsArray($aParent) Or Not IsArray($aWindow) Then Return False
+    ; Outer dimensions include borders/title bars; use screen coordinates so
+    ; moved parents and monitors with negative coordinates are handled too.
+    Local $aPosition = DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $hWindow, "hwnd", 0, "int", $aParent[0] + ($aParent[2] - $aWindow[2]) / 2, "int", $aParent[1] + ($aParent[3] - $aWindow[3]) / 2, "int", 0, "int", 0, "uint", 0x15)
+    If @error Or Not IsArray($aPosition) Then Return False
+    Return $aPosition[0] <> 0
 EndFunc
 
 Func _HotkeyEditor_RestrictionsAccept()
@@ -251,15 +266,7 @@ Func _HotkeyEditor_CreateWindow($name)
                 "<COMPUTERNAME> will paste the name of the computer."&@LF& _
                 "<USERNAME> will paste the name of the current logged in user.", "Predefined Tags", 1)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON], "_hideChild")
-    ;center child window
-    Local $mpos = WinGetPos($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
-    If @error Or Not IsArray($mpos) Then Return SetError(1, @error, False)
-    Local $cpos = WinGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-    If @error Or Not IsArray($cpos) Then Return SetError(2, @error, False)
-    ; Position our still-hidden window without WinMove's automation delay.
-    ; SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE preserves size and focus.
-    Local $aPosition = DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "hwnd", 0, "int", $mpos[0]+($mpos[2]/2)-($cpos[2]/2), "int", $mpos[1]+($mpos[3]/2)-($cpos[3]/2), "int", 0, "int", 0, "uint", 0x15)
-    If @error Or Not IsArray($aPosition) Or Not $aPosition[0] Then Return SetError(3, 0, False)
+    If Not _HotkeyEditor_CenterWindow($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], $g_aGuiState[$GUI_STATE_MAIN_WINDOW]) Then Return SetError(3, 0, False)
     Local $aAccelKeys[1][2] = [["{ESC}", $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON]]]
     GUISetAccelerators($aAccelKeys)
     ; Add/Edit shows and activates the completed window after populating it.
