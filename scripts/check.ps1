@@ -52,6 +52,7 @@ if (-not (Test-Path -LiteralPath $autoItPath -PathType Leaf)) {
 $checkTargets = @($sourcePath) + $testPaths + @(
     (Join-Path $repositoryDirectory "tests\LockConditionSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\LockRuntimeSmoke.au3"),
+    (Join-Path $repositoryDirectory "tests\ModifierSideTimingSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\RestrictionEditorSmoke.au3")
 )
 foreach ($checkTarget in $checkTargets) {
