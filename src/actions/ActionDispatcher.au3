@@ -44,14 +44,24 @@ Func _ActionDispatcher_GetRoute($sAction)
     Return $ACTION_ROUTE_NONE
 EndFunc
 
-Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags)
+Func _ActionDispatcher_CaptureState(ByRef $aRecord)
+    If Not _HotkeyModel_IsValid($aRecord) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, 0)
+    Local $aState = _InputState_Create()
+    If _HotkeyModel_HasLockConditions($aRecord) Then
+        If Not _InputState_ReadLocks($aState, $g_sActionLockReader) Then Return SetError($ACTION_DISPATCH_ERROR_INPUT_STATE, @extended, 0)
+    EndIf
+    Return $aState
+EndFunc
+
+Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags, $vSnapshot = Default)
     If Not _ActionValidator_ValidateRecord($aRecord, False) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @error, 0)
     ; Side-specific input remains unsupported; lock conditions use callback-time state.
     If _HotkeyModel_HasSideRestrictions($aRecord) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, 0)
     If _HotkeyModel_HasLockConditions($aRecord) Then
-        Local $aState = _InputState_Create()
-        If Not _InputState_ReadLocks($aState, $g_sActionLockReader) Then Return SetError($ACTION_DISPATCH_ERROR_INPUT_STATE, @extended, 0)
-        If Not _InputState_Matches($aRecord, $aState) Then Return SetError(0, 0, False)
+        If IsKeyword($vSnapshot) Then $vSnapshot = _ActionDispatcher_CaptureState($aRecord)
+        If @error Or Not IsArray($vSnapshot) Then Return SetError($ACTION_DISPATCH_ERROR_INPUT_STATE, 0, 0)
+        If UBound($vSnapshot, 0) <> 1 Or UBound($vSnapshot) <> $INPUT_STATE_COUNT Then Return SetError($ACTION_DISPATCH_ERROR_INPUT_STATE, 0, 0)
+        If Not _InputState_Matches($aRecord, $vSnapshot) Then Return SetError(0, 0, False)
     EndIf
     Local $aPrepared = _HotkeyModel_Create( _
         $aRecord[$HOTKEY_FIELD_HOTKEY], _
@@ -73,8 +83,8 @@ Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags)
     Return $aPrepared
 EndFunc
 
-Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags)
-    Local $aPrepared = _ActionDispatcher_Prepare($aRecord, $aTags)
+Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags, $vSnapshot = Default)
+    Local $aPrepared = _ActionDispatcher_Prepare($aRecord, $aTags, $vSnapshot)
     If @error Then Return SetError(@error, @extended, False)
     ; A condition mismatch is a successful no-op, not an action failure.
     If Not IsArray($aPrepared) Then Return True

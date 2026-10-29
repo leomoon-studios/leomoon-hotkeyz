@@ -4,7 +4,7 @@ Opt("MustDeclareVars", 1)
 Opt("SendCapslockMode", 0)
 Global $aOriginal = _InputState_Create(), $g_iReceived = 0, $g_iFailures = 0
 If $CmdLine[0] Then
-    Local $hSenderWindow = GUICreate("HotKeyz foreground sender", 260, 90)
+    Global $hSenderWindow = GUICreate("HotKeyz foreground sender", 260, 90)
     GUISetState(@SW_SHOW, $hSenderWindow)
     WinActivate($hSenderWindow)
     Sleep(600)

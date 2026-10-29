@@ -49,7 +49,11 @@ if (-not (Test-Path -LiteralPath $autoItPath -PathType Leaf)) {
 }
 
 # ExtMsgBox.au3 explicitly disables warning 7 because it intentionally passes expressions to ByRef parameters.
-$checkTargets = @($sourcePath) + $testPaths
+$checkTargets = @($sourcePath) + $testPaths + @(
+    (Join-Path $repositoryDirectory "tests\LockConditionSmoke.au3"),
+    (Join-Path $repositoryDirectory "tests\LockRuntimeSmoke.au3"),
+    (Join-Path $repositoryDirectory "tests\RestrictionEditorSmoke.au3")
+)
 foreach ($checkTarget in $checkTargets) {
     if (-not (Test-Path -LiteralPath $checkTarget -PathType Leaf)) {
         throw "The AutoIt source was not found at $checkTarget"

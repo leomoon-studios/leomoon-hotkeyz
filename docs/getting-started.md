@@ -72,6 +72,14 @@ If HotKeyz creates a new INI file, it supplies the following defaults. An import
 | **Alt + Shift + Right** / **Left**                                | Move the active window to the next / previous monitor.                             |
 | **Ctrl + Alt + 0**                                                | Paste a sample date and time template.                                             |
 
+## Lock conditions
+
+In Add/Edit Hotkey, open **Modifiers and conditions...** and set Caps Lock, Num Lock, or Scroll Lock to **Any**, **On**, or **Off**. All specified lock conditions must match for the action to run. **Any** ignores that lock.
+
+The state is captured when HotKeyz begins handling the shortcut. If a blocking dialog delays the callback and you change a lock during that delay, the callback uses the state it reads after the delay. A nonmatching shortcut does nothing: it does not run the action, change the locks, or pass the shortcut to another application.
+
+Lock-only conditions work with the existing hotkey registration. Left/right modifier restrictions remain inactive; leave modifier sides set to **Either** to use lock conditions now.
+
 ## Next steps
 
 - See [Hotkey actions](actions.md) for program options, commands, system controls, and window management.

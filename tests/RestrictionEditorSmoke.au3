@@ -97,7 +97,55 @@ _hideChild()
 Global $hAfter = FileOpen($APP_INI_PATH, $FO_READ + $FO_BINARY), $bAfter = FileRead($hAfter)
 FileClose($hAfter)
 If $bBefore <> $bAfter Then _TestFail("opening or cancelling changed profile")
-ConsoleWrite("PASSED: restrictions dialog, list summary, edit/cancel, save, and imported profile" & @CRLF)
+_guiDel()
+$aRecord = _HotkeyModel_Create("^{F8}", $HOTKEY_ACTION_TEXT, "lock-only")
+$aRecord[$HOTKEY_FIELD_CAPS_LOCK] = $HOTKEY_LOCK_ON
+$aRecord[$HOTKEY_FIELD_NUM_LOCK] = $HOTKEY_LOCK_OFF
+$aTable = _HotkeyRepository_CreateTable(1)
+_HotkeyRepository_SetRecord($aTable, 1, $aRecord)
+If Not _HotkeyRepository_Save($APP_INI_PATH, $aTable) Then _TestFail("write lock-only fixture")
+_mainGui()
+If StringInStr(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], 0, 3), "Inactive") Then _TestFail("lock-only entry marked inactive")
+If Not _guiToIni($APP_INI_PATH) Then _TestFail("save lock-only profile")
+If _HotkeyRepository_Count($aHotkeys) <> 1 Then _TestFail("lock-only binding missing")
+If $g_bSavedInactiveRestrictions Then _TestFail("lock-only save warns inactive")
+_toggle()
+If Not $enabled Then _TestFail("disable failed")
+_toggle()
+If $enabled Then _TestFail("re-enable failed")
+If $aHotkeys[1][$HOTKEY_FIELD_CAPS_LOCK] <> 1 Or $aHotkeys[1][$HOTKEY_FIELD_NUM_LOCK] <> 2 Then _TestFail("toggle lost lock metadata")
+_guiDel()
+_mainGui()
+_GUICtrlListView_SetItemSelected($g_aGuiState[$GUI_STATE_LIST_VIEW], 0)
+_editBtn()
+If $g_aEditorRestrictions[4] <> 1 Or $g_aEditorRestrictions[5] <> 2 Then _TestFail("reopened editor lost lock conditions")
+GUICtrlSetState($g_aGuiState[$GUI_STATE_TEXT_RADIO], $GUI_UNCHECKED)
+GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_RADIO], $GUI_CHECKED)
+_fileRdo()
+GUICtrlSetState($g_aGuiState[$GUI_STATE_COMMAND_CHECKBOX], $GUI_CHECKED)
+_cmdCbox()
+GUICtrlSetData($g_aGuiState[$GUI_STATE_FILE_INPUT], "echo harmless")
+If Not _edit() Then _TestFail("change lock-only action type")
+GUICtrlCreateListViewItem("Text|Ctrl + F7|ordinary|", $g_aGuiState[$GUI_STATE_LIST_VIEW])
+_GUICtrlListView_SortItems($g_aGuiState[$GUI_STATE_LIST_VIEW], 1)
+If Not _guiToIni($APP_INI_PATH) Then _TestFail("save sorted changed actions")
+Global $aReopened = _HotkeyRepository_Load($APP_INI_PATH), $iLockRow = 0
+For $iRow = 1 To _HotkeyRepository_Count($aReopened)
+    If $aReopened[$iRow][$HOTKEY_FIELD_CAPS_LOCK] = 1 Then $iLockRow = $iRow
+Next
+If Not $iLockRow Then _TestFail("sorting lost lock record")
+If $aReopened[$iLockRow][$HOTKEY_FIELD_ACTION] <> $HOTKEY_ACTION_COMMAND Or $aReopened[$iLockRow][$HOTKEY_FIELD_NUM_LOCK] <> 2 Then _TestFail("action change lost conditions")
+For $iRow = 0 To _GUICtrlListView_GetItemCount($g_aGuiState[$GUI_STATE_LIST_VIEW]) - 1
+    If StringInStr(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iRow, 1), "F8") Then
+        _GUICtrlListView_DeleteItem($g_aGuiState[$GUI_STATE_LIST_VIEW], $iRow)
+        _HotkeyEditor_RemoveRestrictions("^{F8}")
+        ExitLoop
+    EndIf
+Next
+If Not _guiToIni($APP_INI_PATH) Then _TestFail("save after deleting conditional entry")
+$aReopened = _HotkeyRepository_Load($APP_INI_PATH)
+If _HotkeyRepository_Count($aReopened) <> 1 Or $aReopened[1][$HOTKEY_FIELD_CAPS_LOCK] <> 0 Then _TestFail("deletion retained orphan conditions")
+ConsoleWrite("PASSED: restriction editor; lock-only save, reopen, toggle, action changes, sorting and deletion" & @CRLF)
 Exit 0
 Func _TestDialog()
     AdlibUnRegister("_TestDialog")

@@ -179,8 +179,10 @@ Func _HotkeyRegistry_FindHotkey($sHotkey)
 EndFunc
 
 Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True)
+    Local $aSnapshot = _ActionDispatcher_CaptureState($aRecord)
+    If @error Then Return _AppError_Report("The hotkey input state could not be read; the action was not run.", @error, @extended, $bShowMessage)
     _aTags()
-    If Not _ActionDispatcher_Dispatch($aRecord, $aTags) Then
+    If Not _ActionDispatcher_Dispatch($aRecord, $aTags, $aSnapshot) Then
         Local $iDispatchError = @error
         Local $sMessage = "The hotkey action could not be completed."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_INPUT_STATE Then $sMessage = "The keyboard lock state could not be read; the action was not run."

@@ -43,6 +43,32 @@ $g_bReadFailure = True
 $bResult = _ActionDispatcher_Dispatch($aRecord, $aTagsTest)
 $iError = @error
 _Check(Not $bResult And $iError = $ACTION_DISPATCH_ERROR_INPUT_STATE, "read failure distinguished")
+$g_bReadFailure = False
+$aRecord[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_COMMAND
+$aRecord[$HOTKEY_FIELD_TARGET] = "echo test"
+$g_aLocks[1] = 0
+Global $aSnapshot = _ActionDispatcher_CaptureState($aRecord)
+$g_aLocks[0] = 0
+$g_iReads = 0
+$g_iCalls = 0
+_Check(_ActionDispatcher_Dispatch($aRecord, $aTagsTest, $aSnapshot) And $g_iCalls = 1, "dispatch uses captured state even if live state changes")
+_Check($g_iReads = 0, "captured state is not read again")
+$g_iReads = 0
+$g_iCalls = 0
+_Check(_HotkeyRegistry_ExecuteRecord($aRecord, False) And $g_iCalls = 0, "registry captures nonmatching state")
+_Check($g_iReads = 3, "registry reads one snapshot for entire dispatch")
+Global $aOldBindings = _HotkeyRepository_CreateTable(1), $aNewBindings = _HotkeyRepository_CreateTable(2), $g_sBindingLog = ""
+_HotkeyRepository_SetRecord($aOldBindings, 1, $aRecord)
+_HotkeyRepository_SetRecord($aNewBindings, 1, $aRecord)
+Global $aConflicting = _HotkeyModel_Create("^!b", $HOTKEY_ACTION_COMMAND, "echo conflict")
+$aConflicting[$HOTKEY_FIELD_CAPS_LOCK] = 1
+_HotkeyRepository_SetRecord($aNewBindings, 2, $aConflicting)
+_HotkeyRegistry_ConfigureHotkeyBackend("_LockBindingSpy")
+_Check(Not _HotkeyRegistry_ApplyBindings("^!z", $aOldBindings, "^!z", $aNewBindings), "strict rebind fails on conflict")
+_Check(StringRight($g_sBindingLog, 4) = "^!a|", "rollback restores conditional binding")
+_Check(_HotkeyRegistry_ApplyBindings("^!z", $aOldBindings, "^!z", $aNewBindings, True), "bulk save tolerates unavailable conditional binding")
+_Check(_HotkeyRepository_Count($g_aLastAppliedHotkeys) = 1 And $g_aLastAppliedHotkeys[1][$HOTKEY_FIELD_CAPS_LOCK] = 1, "available conditional binding survives conflict")
+_HotkeyRegistry_ResetHotkeyBackend()
 If $g_iFailures Then Exit 1
 ConsoleWrite("PASSED: " & $g_iChecks & " lock dispatch assertions" & @CRLF)
 Func _ReadLock($iKey)
@@ -68,4 +94,11 @@ Func _Check($bOk, $sMessage)
         $g_iFailures += 1
         ConsoleWrite("FAIL: " & $sMessage & @CRLF)
     EndIf
+EndFunc
+
+Func _LockBindingSpy($sKey, $sHandler)
+    If $sHandler = "" Then Return True
+    If $sKey = "^!b" Then Return False
+    $g_sBindingLog &= $sKey & "|"
+    Return True
 EndFunc
