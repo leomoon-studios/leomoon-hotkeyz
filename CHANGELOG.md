@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Warn and retry if the side-modifier observer cannot stop, and report incomplete hotkey rollback after an enable or disable failure.
 - Show hotkey action failures, unavailable startup shortcuts, and website-opening failures as nonblocking tray notifications.
 - Reduced fresh Settings window startup time while retaining profile and hotkey validation.
 - Fixed program-only options remaining checked or saved after changing a hotkey to another action type.

@@ -15,12 +15,39 @@ Global $g_aSideQueue[128][$HOTKEY_FIELD_COUNT + $INPUT_STATE_COUNT + 1]
 Global $g_iSideRead = 0, $g_iSideQueueWrite = 0, $g_bSideDispatching = False
 Global $g_iSideMisses = 0
 Global $g_hSideLastPoll = TimerInit(), $g_iSideReportedMisses = 0
+Global $g_sSideInstallHandler = "_SideHotkeys_NativeInstall", $g_sSideUnhookHandler = "_SideHotkeys_NativeUnhook"
+Global $g_sSideUnregisterHandler = "_SideHotkeys_NativeUnregister"
+Global $g_bSideHookStopFailed = False, $g_bSideStopWarningShown = False, $g_bSideRefreshWarningShown = False
+
+Func _SideHotkeys_NativeInstall($pCallback)
+    Local $aHook = DllCall("user32.dll", "handle", "SetWindowsHookExW", "int", 13, "ptr", $pCallback, "handle", 0, "dword", 0)
+    If @error Or Not IsArray($aHook) Or Not $aHook[0] Then Return SetError(1, 0, 0)
+    Return $aHook[0]
+EndFunc
+
+Func _SideHotkeys_NativeUnhook($hHook)
+    Local $aResult = DllCall("user32.dll", "bool", "UnhookWindowsHookEx", "handle", $hHook)
+    If @error Or Not IsArray($aResult) Then Return SetError(1, 0, False)
+    If Not $aResult[0] Then
+        Local $aError = DllCall("kernel32.dll", "dword", "GetLastError")
+        ; ERROR_INVALID_HOOK_HANDLE means Windows already removed the hook.
+        If Not IsArray($aError) Or $aError[0] <> 1404 Then Return SetError(1, 0, False)
+    EndIf
+    Return True
+EndFunc
+
+Func _SideHotkeys_NativeUnregister($hWindow, $iId)
+    Local $aResult = DllCall("user32.dll", "bool", "UnregisterHotKey", "hwnd", $hWindow, "int", $iId)
+    If @error Or Not IsArray($aResult) Or Not $aResult[0] Then Return False
+    Return True
+EndFunc
 
 Func _SideHotkeys_NativeMask($iMask)
     Return BitOR(BitAND($iMask, 12), BitShift(BitAND($iMask, 1), -1), BitShift(BitAND($iMask, 2), 1))
 EndFunc
 
 Func _SideHotkeys_Start()
+    If $g_bSideHookStopFailed Then Return SetError(3, 0, False)
     If $g_hSideHook Then Return True
     If Not $g_hSideWindow Then
         Local $aWindow = DllCall("user32.dll", "hwnd", "CreateWindowExW", "dword", 0, "wstr", "STATIC", "wstr", "HotKeyz registered input receiver", "dword", 0, "int", 0, "int", 0, "int", 0, "int", 0, "hwnd", 0, "handle", 0, "handle", 0, "ptr", 0)
@@ -29,13 +56,13 @@ Func _SideHotkeys_Start()
     EndIf
     $g_hSideCallback = DllCallbackRegister("_SideHotkeys_Observe", "lresult", "int;wparam;lparam")
     If @error Or Not $g_hSideCallback Then Return SetError(1, 0, False)
-    Local $aHook = DllCall("user32.dll", "handle", "SetWindowsHookExW", "int", 13, "ptr", DllCallbackGetPtr($g_hSideCallback), "handle", 0, "dword", 0)
-    If @error Or Not IsArray($aHook) Or Not $aHook[0] Then
+    Local $hHook = Call($g_sSideInstallHandler, DllCallbackGetPtr($g_hSideCallback))
+    If @error Or Not $hHook Then
         DllCallbackFree($g_hSideCallback)
         $g_hSideCallback = 0
         Return SetError(2, 0, False)
     EndIf
-    $g_hSideHook = $aHook[0]
+    $g_hSideHook = $hHook
     Return True
 EndFunc
 
@@ -69,8 +96,7 @@ Func _SideHotkeys_Unregister(ByRef $aRecord)
     For $i = 1 To $g_iSideNext - 1
         If Not $g_aSideKeys[$i][0] Then ContinueLoop
         If _HotkeyCodec_NormalizeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY]) <> _HotkeyCodec_NormalizeHotkey($g_aSideRecords[$i][$HOTKEY_FIELD_HOTKEY]) Then ContinueLoop
-        Local $aResult = DllCall("user32.dll", "bool", "UnregisterHotKey", "hwnd", $g_hSideWindow, "int", 0x5000 + $i)
-        If @error Or Not IsArray($aResult) Or Not $aResult[0] Then Return SetError(1, 0, False)
+        If Not Call($g_sSideUnregisterHandler, $g_hSideWindow, 0x5000 + $i) Then Return SetError(1, 0, False)
         $g_aSideMap[$g_aSideKeys[$i][1]][$g_aSideKeys[$i][2]] = 0
         $g_aSideKeys[$i][0] = False
         $g_aSideVkCount[$g_aSideKeys[$i][1]] -= 1
@@ -81,7 +107,7 @@ Func _SideHotkeys_Unregister(ByRef $aRecord)
 EndFunc
 
 Func _SideHotkeys_Observe($iCode, $wParam, $lParam)
-    If $iCode >= 0 And ($wParam = 0x0100 Or $wParam = 0x0104) Then
+    If Not $g_bSideHookStopFailed And $iCode >= 0 And ($wParam = 0x0100 Or $wParam = 0x0104) Then
         Local $tEvent = DllStructCreate("dword vk;dword scan;dword flags;dword time;ulong_ptr extra", $lParam)
         Local $iVk = DllStructGetData($tEvent, "vk")
         ; Base-key events precede their own async update, but earlier modifier events
@@ -135,7 +161,7 @@ Func _SideHotkeys_Poll()
         Next
         Local $iStateError = 0, $iLastField = $INPUT_STATE_COUNT - 1, $bActive = False
         If $iSlot > 0 Then
-            $bActive = $g_aSideKeys[$iSlot][0]
+            $bActive = $g_aSideKeys[$iSlot][0] And Not $g_bSideHookStopFailed
             $aSnapshot = _ActionDispatcher_CaptureState($aRecord)
             $iStateError = @error
             If $iStateError Then $aSnapshot = _InputState_Create()
@@ -154,7 +180,14 @@ Func _SideHotkeys_Poll()
             $g_bSideDispatching = False
         EndIf
     EndIf
-    If $g_iSideCount = 0 Then _SideHotkeys_StopObserver()
+    If $g_iSideCount = 0 Then
+        If _SideHotkeys_StopObserver() Then
+            $g_bSideRefreshWarningShown = False
+        ElseIf Not $g_bSideStopWarningShown Then
+            $g_bSideStopWarningShown = True
+            _AppWarning_ReportNonBlocking("The modifier-side keyboard observer could not be stopped. HotKeyz will retry. If side-specific shortcuts cannot be re-enabled, restart HotKeyz.")
+        EndIf
+    EndIf
     If $g_iSideMisses <> $g_iSideReportedMisses Then
         ConsoleWrite("HotKeyz: skipped " & ($g_iSideMisses - $g_iSideReportedMisses) & " hotkey events because the input queue was full or input state could not be read." & @CRLF)
         $g_iSideReportedMisses = $g_iSideMisses
@@ -162,31 +195,39 @@ Func _SideHotkeys_Poll()
 EndFunc
 
 Func _SideHotkeys_RefreshObserver()
-    If _SideHotkeys_StopObserver() And _SideHotkeys_Start() Then Return True
+    If _SideHotkeys_StopObserver() And _SideHotkeys_Start() Then
+        $g_bSideRefreshWarningShown = False
+        Return True
+    EndIf
     ; Do not leave side shortcuts captured indefinitely without an observer.
-    Local $i, $aRecord
+    Local $i, $aRecord, $bReleased = True
     For $i = 1 To $g_iSideNext - 1
         If Not $g_aSideKeys[$i][0] Then ContinueLoop
         $aRecord = _HotkeyModel_Create($g_aSideRecords[$i][$HOTKEY_FIELD_HOTKEY], $HOTKEY_ACTION_COMMAND, "")
-        _SideHotkeys_Unregister($aRecord)
+        If Not _SideHotkeys_Unregister($aRecord) Then $bReleased = False
     Next
-    _AppWarning_ReportNonBlocking("Modifier-side hotkeys could not resume after a pause. Disable and re-enable HotKeyz to retry. Other hotkeys remain available.")
+    Local $sWarning = "Modifier-side hotkeys could not resume after a pause. Disable and re-enable HotKeyz to retry; if that fails, restart HotKeyz. Other hotkeys remain available."
+    If Not $bReleased Then $sWarning &= @CRLF & @CRLF & "Some affected shortcuts could not be released and may remain captured until HotKeyz exits."
+    If Not $g_bSideRefreshWarningShown Then
+        $g_bSideRefreshWarningShown = True
+        $g_bSideStopWarningShown = True
+        _AppWarning_ReportNonBlocking($sWarning)
+    EndIf
     Return False
 EndFunc
 
 Func _SideHotkeys_StopObserver()
     If $g_hSideHook Then
-        Local $aResult = DllCall("user32.dll", "bool", "UnhookWindowsHookEx", "handle", $g_hSideHook)
-        If @error Or Not IsArray($aResult) Then Return False
-        If Not $aResult[0] Then
-            Local $aError = DllCall("kernel32.dll", "dword", "GetLastError")
-            ; ERROR_INVALID_HOOK_HANDLE: Windows already removed this hook.
-            If Not IsArray($aError) Or $aError[0] <> 1404 Then Return False
+        If Not Call($g_sSideUnhookHandler, $g_hSideHook) Then
+            $g_bSideHookStopFailed = True
+            Return False
         EndIf
         $g_hSideHook = 0
     EndIf
     If $g_hSideCallback Then DllCallbackFree($g_hSideCallback)
     $g_hSideCallback = 0
+    $g_bSideHookStopFailed = False
+    $g_bSideStopWarningShown = False
     Return True
 EndFunc
 

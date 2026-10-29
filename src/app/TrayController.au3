@@ -8,6 +8,7 @@ Global $enableTray
 Global $g_iSettingsTrayItem
 Global $g_iWebsiteTrayItem
 Global $g_iExitTrayItem
+Global $g_sTrayToggleErrorHandler = "_AppError_Report"
 Global Const $APP_DEBUG_LOG_PATH = @TempDir & "\\LeoMoon-HotKeyz-debug.log"
 
 Func _Debug_Log($sMessage)
@@ -64,17 +65,19 @@ EndFunc
 
 Func _toggle()
     $g_iSideGeneration += 1
-    Local $i, $j, $aRollbackRecord
+    Local $i, $j, $aRollbackRecord, $bRollbackSucceeded
     ;$enabled = Not $enabled
     If $enabled == False Then ;disable it
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
             Local $aDisabledRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
             If Not _HotkeyRegistry_UnbindRecord($aDisabledRecord) Then
+                $bRollbackSucceeded = True
                 For $j = 1 To $i - 1
                     $aRollbackRecord = _HotkeyRepository_GetRecord($aHotkeys, $j)
-                    _HotkeyRegistry_BindRecord($aRollbackRecord)
+                    If Not _HotkeyRegistry_BindRecord($aRollbackRecord) Then $bRollbackSucceeded = False
                 Next
-                Return _AppError_Report("A hotkey could not be disabled", 1, $i)
+                If Not $bRollbackSucceeded Then _AppWarning_ReportNonBlocking("Some shortcuts could not be restored after disabling failed. Open Settings to review them, or restart HotKeyz.")
+                Return Call($g_sTrayToggleErrorHandler, "A hotkey could not be disabled", 1, $i)
             EndIf
         Next
         $enabled = True
@@ -85,11 +88,13 @@ Func _toggle()
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
             Local $aEnabledRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
             If Not _HotkeyRegistry_BindRecord($aEnabledRecord) Then
+                $bRollbackSucceeded = True
                 For $j = 1 To $i - 1
                     $aRollbackRecord = _HotkeyRepository_GetRecord($aHotkeys, $j)
-                    _HotkeyRegistry_UnbindRecord($aRollbackRecord)
+                    If Not _HotkeyRegistry_UnbindRecord($aRollbackRecord) Then $bRollbackSucceeded = False
                 Next
-                Return _AppError_Report("A hotkey could not be registered. Windows or another application may be using it", 1, $i)
+                If Not $bRollbackSucceeded Then _AppWarning_ReportNonBlocking("Some shortcuts could not be released after enabling failed. Open Settings to review them, or restart HotKeyz.")
+                Return Call($g_sTrayToggleErrorHandler, "A hotkey could not be registered. Windows or another application may be using it", 1, $i)
             EndIf
         Next
         $enabled = False
