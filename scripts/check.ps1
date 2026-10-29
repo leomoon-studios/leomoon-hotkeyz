@@ -12,6 +12,7 @@ $testPaths = @(
     (Join-Path $repositoryDirectory "tests\TestRunner.au3"),
     (Join-Path $repositoryDirectory "tests\ModuleSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\AudioCycleTest.au3"),
+    (Join-Path $repositoryDirectory "tests\OpticalDriveTest.au3"),
     (Join-Path $repositoryDirectory "tests\HotkeyRestrictionsTest.au3"),
     (Join-Path $repositoryDirectory "tests\InputStateTest.au3"),
     (Join-Path $repositoryDirectory "tests\InputKeyTest.au3"),
@@ -54,6 +55,7 @@ $checkTargets = @($sourcePath) + $testPaths + @(
     (Join-Path $repositoryDirectory "tests\LockRuntimeSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\ModifierSideTimingSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\SideRuntimeSmoke.au3"),
+    (Join-Path $repositoryDirectory "tests\OpticalEditorSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\RestrictionEditorSmoke.au3")
 )
 foreach ($checkTarget in $checkTargets) {

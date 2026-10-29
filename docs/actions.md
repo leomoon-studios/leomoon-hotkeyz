@@ -52,6 +52,14 @@ Choose an entry from the system-action list. Availability can depend on Windows 
 | **Start Screensaver**, **Start Screensaver And Lock**                                                  | Run the Windows 3D text screensaver. The lock variant waits for the screensaver to finish, then locks the workstation. |
 | **Empty Clipboard**                                                                                    | Clears the clipboard.                                                                                                  |
 
+### Open or close an optical drive tray
+
+Choose **Open optical drive tray** or **Close optical drive tray** under **Run a system action**, then select the drive letter beside the action. Click **Refresh** after connecting or disconnecting an optical drive. The editor displays **None** when no drives are detected; connect a drive before adding the action. A disc does not need to be inserted.
+
+The shortcut sends the selected operation to that drive only. It does not toggle or choose a different drive if the saved one disappears. Existing profiles can still be loaded and saved with a disconnected drive; running that shortcut reports that the drive is unavailable. The editor retains the saved letter so you can reconnect it or select its new letter. Conditions and left/right modifier selections work with these actions too.
+
+Some drives may be locked by burning software, and many laptop trays must be closed by hand. A successful close request does not prove the tray physically closed. Only local optical drives are supported. These are limitations of AutoIt's [CDTray function](https://www.autoitscript.com/autoit3/docs/functions/CDTray.htm).
+
 ## Run actions on active window
 
 Choose an action and focus its target window before pressing the hotkey. Window actions operate on the active, visible, titled window; some applications or Windows security boundaries may prevent operations. An ineligible target may be ignored.

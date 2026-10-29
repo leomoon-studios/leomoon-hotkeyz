@@ -21,6 +21,7 @@ Global Const $ACTION_DISPATCH_ERROR_INPUT_STATE = 4
 Global Const $ACTION_DISPATCH_ERROR_INVALID = 1
 Global Const $ACTION_DISPATCH_ERROR_HANDLER = 2
 Global Const $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND = 3
+Global Const $ACTION_DISPATCH_ERROR_OPTICAL_MISSING = 5, $ACTION_DISPATCH_ERROR_OPTICAL_OPERATION = 6, $ACTION_DISPATCH_ERROR_OPTICAL_ENUMERATION = 7
 
 Func _ActionDispatcher_GetRoute($sAction)
     Switch $sAction
@@ -79,7 +80,10 @@ Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags, $vSnapshot = Defaul
     If $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FILE Or $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_FOLDER Then
         If StringRegExp($aPrepared[$HOTKEY_FIELD_TARGET], "(?i)^(?:[A-Z]:\\|\\\\)") And Not FileExists($aPrepared[$HOTKEY_FIELD_TARGET]) Then Return SetError($ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND, 0, 0)
     EndIf
-    If Not _ActionValidator_ValidateRecord($aPrepared, True) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @error, 0)
+    ; Optical availability is checked by its executor so removal is reported as
+    ; an unavailable drive, not a malformed action. The editor checks it separately.
+    Local $bCheckExistingPath = Not ($aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_SYSTEM And _OpticalDriveModel_Operation($aPrepared[$HOTKEY_FIELD_TARGET]) <> "")
+    If Not _ActionValidator_ValidateRecord($aPrepared, $bCheckExistingPath) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @error, 0)
     Return $aPrepared
 EndFunc
 
@@ -109,6 +113,16 @@ Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags, $vSnapshot = Defau
             Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, False)
     EndSwitch
     Local $iHandlerError = @error
+    If Not $vResult And $aPrepared[$HOTKEY_FIELD_ACTION] = $HOTKEY_ACTION_SYSTEM And _OpticalDriveModel_Operation($aPrepared[$HOTKEY_FIELD_TARGET]) <> "" Then
+        Switch $iHandlerError
+            Case $OPTICAL_ERROR_MISSING
+                Return SetError($ACTION_DISPATCH_ERROR_OPTICAL_MISSING, 0, False)
+            Case $OPTICAL_ERROR_ENUMERATION
+                Return SetError($ACTION_DISPATCH_ERROR_OPTICAL_ENUMERATION, 0, False)
+            Case Else
+                Return SetError($ACTION_DISPATCH_ERROR_OPTICAL_OPERATION, 0, False)
+        EndSwitch
+    EndIf
     If Not $vResult Then Return SetError($ACTION_DISPATCH_ERROR_HANDLER, $iHandlerError, False)
     Return True
 EndFunc

@@ -1,4 +1,5 @@
 #include-once
+#include "OpticalDriveModel.au3"
 
 Global Const $ACTION_CATALOG_CUSTOM_WINDOW = "Custom Move and/or Resize"
 Global Const $ACTION_CATALOG_WINDOW_ACTIONS = "Close|Minimize|Terminate|Transparency +|Transparency -|Toggle On Top|Take Screenshot|Set Process Priority to Low|Set Process Priority to Below Normal|Set Process Priority to Normal|Set Process Priority to Above Normal|Set Process Priority to High|Set Process Priority to Realtime|Move Center|Move Top Left|Move Top Mid|Move Top Right|Move Bottom Left|Move Bottom Mid|Move Bottom Right|Move to Next Monitor|Move to Previous Monitor|Snap Fullscreen|Snap Top (1x2)|Snap Bottom (1x2)|Snap Left (2x1)|Snap Right (2x1)|Snap Left (3x1)|Snap Mid (3x1)|Snap Right (3x1)|Snap Top Left (2x2)|Snap Top Right (2x2)|Snap Bottom Left (2x2)|Snap Bottom Right (2x2)|Snap Top Left (3x2)|Snap Top Mid (3x2)|Snap Top Right (3x2)|Snap Bottom Left (3x2)|Snap Bottom Mid (3x2)|Snap Bottom Right (3x2)|Toggle Ghost (Advanced)|Generate Random Password (PPP)|Generate Random Password (Letters)|Generate Random Password (Numbers)|Generate Random Password (Letters and Numbers)|Generate Random UUID|Upper Case Selected Text|Lower Case Selected Text|Title Case Selected Text|Reverse Selected Text|MD5 Selected Text|SHA1 Selected Text|SHA-256 Selected Text|SHA-512 Selected Text|Base64 Encode Selected Text|Base64 Decode Selected Text"
@@ -93,5 +94,5 @@ Func _ActionCatalog_SpecialLabels()
         If $i Then $sLabels &= "|"
         $sLabels &= $sPaths[$i][0]
     Next
-    Return $sLabels
+    Return $sLabels & "|" & $OPTICAL_ACTION_OPEN & "|" & $OPTICAL_ACTION_CLOSE
 EndFunc

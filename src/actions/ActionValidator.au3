@@ -34,6 +34,10 @@ Func _ActionValidator_ValidateRecord(ByRef $aRecord, $bRequireExistingPath = Fal
             If StringRegExp($aRecord[$HOTKEY_FIELD_TARGET], "[\r\n]") Then Return SetError($ACTION_VALIDATION_ERROR_TARGET, 6, False)
         Case $HOTKEY_ACTION_SYSTEM
             If _SystemActions_GetId($aRecord[$HOTKEY_FIELD_TARGET]) = $SYSTEM_ACTION_NONE Then Return SetError($ACTION_VALIDATION_ERROR_ACTION, 2, False)
+            If _OpticalDriveModel_Operation($aRecord[$HOTKEY_FIELD_TARGET]) <> "" Then
+                If $aRecord[$HOTKEY_FIELD_PARAMETERS] <> "" Then Return SetError($ACTION_VALIDATION_ERROR_PARAMETERS, 3, False)
+                If $bRequireExistingPath And Not _OpticalDriveActions_IsAvailable(StringRight($aRecord[$HOTKEY_FIELD_TARGET], 2)) Then Return SetError($ACTION_VALIDATION_ERROR_TARGET, 7, False)
+            EndIf
         Case $HOTKEY_ACTION_MEDIA
             If Not _ProcessActions_IsMediaTarget($aRecord[$HOTKEY_FIELD_TARGET]) Then Return SetError($ACTION_VALIDATION_ERROR_ACTION, 3, False)
         Case Else

@@ -3,6 +3,7 @@
 #include <Clipboard.au3>
 #include <WinAPISys.au3>
 #include "AudioDeviceActions.au3"
+#include "OpticalDriveActions.au3"
 
 Global Enum $SYSTEM_ACTION_NONE = 0, _
             $SYSTEM_ACTION_EMPTY_RECYCLE_BIN, _
@@ -16,9 +17,17 @@ Global Enum $SYSTEM_ACTION_NONE = 0, _
             $SYSTEM_ACTION_START_SCREENSAVER_AND_LOCK, _
             $SYSTEM_ACTION_EMPTY_CLIPBOARD, _
             $SYSTEM_ACTION_CYCLE_PLAYBACK_DEVICE, _
-            $SYSTEM_ACTION_CYCLE_RECORDING_DEVICE
+            $SYSTEM_ACTION_CYCLE_RECORDING_DEVICE, _
+            $SYSTEM_ACTION_OPEN_OPTICAL_TRAY, _
+            $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY
 
 Func _SystemActions_GetId($sTarget)
+    Switch _OpticalDriveModel_Operation($sTarget)
+        Case "open"
+            Return $SYSTEM_ACTION_OPEN_OPTICAL_TRAY
+        Case "closed"
+            Return $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY
+    EndSwitch
     Switch $sTarget
         Case "Empty Recycle Bin"
             Return $SYSTEM_ACTION_EMPTY_RECYCLE_BIN
@@ -51,6 +60,9 @@ EndFunc
 Func _SystemActions_Execute($sTarget)
     Local $vResult
     Switch _SystemActions_GetId($sTarget)
+        Case $SYSTEM_ACTION_OPEN_OPTICAL_TRAY, $SYSTEM_ACTION_CLOSE_OPTICAL_TRAY
+            Local $bOptical = _OpticalDriveActions_Execute($sTarget)
+            Return SetError(@error, @extended, $bOptical)
         Case $SYSTEM_ACTION_EMPTY_RECYCLE_BIN
             $vResult = _EmptyRecycleBin()
         Case $SYSTEM_ACTION_LOCK

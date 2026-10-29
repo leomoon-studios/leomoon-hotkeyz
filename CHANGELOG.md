@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added per-hotkey left/right Ctrl, Alt, Shift, and Win selection, plus Caps Lock, Num Lock, and Scroll Lock On/Off conditions. All selected requirements must match for the hotkey to run.
+- Added a Conditions dialog and restriction summaries in Settings. Modifier sides and lock conditions persist through profile saves, imports, and restarts.
+- Added separate open/close optical-drive tray actions with a drive selector and Refresh button.
+- Restored double-clicking the tray icon to enable or disable HotKeyz.
+
 ## 2.0.0 - 2026-10-26
 
 - Added a Windows release workflow that validates source, runs strict checks, builds the x86 app, and packages portable and installer artifacts.

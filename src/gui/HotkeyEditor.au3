@@ -146,6 +146,14 @@ Func _editGui($name)
     $g_aGuiState[$GUI_STATE_SPECIAL_COMBO] = GUICtrlCreateCombo("", 17, 242, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
     GUICtrlSetData(-1, _ActionCatalog_SpecialLabels())
     GUICtrlSetState(-1, $GUI_DISABLE)
+    GUICtrlSetOnEvent(-1, "_HotkeyEditor_SpecialChanged")
+    $g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO] = GUICtrlCreateCombo("", 253, 242, 62, 25, $CBS_DROPDOWNLIST)
+    GUICtrlSetTip(-1, "Select the optical drive letter. No disc is required.")
+    GUICtrlSetState(-1, $GUI_HIDE)
+    $g_aGuiState[$GUI_STATE_OPTICAL_REFRESH_BUTTON] = GUICtrlCreateButton("Refresh", 321, 242, 63, 23)
+    GUICtrlSetTip(-1, "Refresh optical drives after connecting or disconnecting a drive. Some laptop trays must be closed by hand.")
+    GUICtrlSetOnEvent(-1, "_HotkeyEditor_RefreshOpticalDrivesClick")
+    GUICtrlSetState(-1, $GUI_HIDE)
     $g_aGuiState[$GUI_STATE_WINDOW_RADIO] = GUICtrlCreateRadio("Run actions on active window", 16, 280, 369, 17)
     $g_aGuiState[$GUI_STATE_WINDOW_COMBO] = GUICtrlCreateCombo("", 17, 306, 367, 25, BitOR($CBS_DROPDOWNLIST,$WS_VSCROLL))
     GUICtrlSetData(-1, _ActionCatalog_WindowLabels())
@@ -241,6 +249,64 @@ Func _editGui($name)
     Local $aAccelKeys[1][2] = [["{ESC}", $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON]]]
     GUISetAccelerators($aAccelKeys)
     WinActivate($g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
+    _HotkeyEditor_RefreshOpticalDrives()
+    _HotkeyEditor_UpdateOkState()
+EndFunc
+
+Func _HotkeyEditor_OpticalVisibility()
+    Local $sLabel = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
+    Local $bOptical = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED And ($sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE)
+    Local $iState = $GUI_HIDE, $iWidth = 367
+    If $bOptical Then
+        $iState = $GUI_SHOW
+        $iWidth = 230
+    EndIf
+    GUICtrlSetState($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO], $iState)
+    GUICtrlSetState($g_aGuiState[$GUI_STATE_OPTICAL_REFRESH_BUTTON], $iState)
+    GUICtrlSetPos($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], 17, 242, $iWidth, 25)
+EndFunc
+
+Func _HotkeyEditor_SpecialChanged()
+    _HotkeyEditor_RefreshOpticalDrives()
+EndFunc
+
+; AutoIt GUI callbacks must be parameterless, including optional parameters.
+Func _HotkeyEditor_RefreshOpticalDrivesClick()
+    _HotkeyEditor_RefreshOpticalDrives()
+EndFunc
+
+Func _HotkeyEditor_RefreshOpticalDrives($sSelected = Default)
+    If IsKeyword($sSelected) Then $sSelected = GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO])
+    Local $bUpdating = $g_bHotkeyEditorUpdating
+    $g_bHotkeyEditorUpdating = True
+    Local $aDrives = _OpticalDriveActions_List(), $sChoices = "", $bFound = False, $i
+    Local $sTip = "Select the optical drive letter. No disc is required. Some laptop trays must be closed by hand."
+    If IsArray($aDrives) Then
+        For $i = 1 To $aDrives[0]
+            If $sChoices <> "" Then $sChoices &= "|"
+            $sChoices &= $aDrives[$i]
+            If $aDrives[$i] = $sSelected Then $bFound = True
+        Next
+        If $aDrives[0] = 0 Then $sTip = "No optical drives detected. Connect a drive, then click Refresh."
+        If Not _OpticalDriveModel_IsDrive($sSelected) And $aDrives[0] > 0 Then $sSelected = $aDrives[1]
+    Else
+        $sTip = "Optical drives could not be listed. Click Refresh to retry."
+    EndIf
+    ; Retain imported/disconnected selections instead of silently changing drives.
+    If _OpticalDriveModel_IsDrive($sSelected) And Not $bFound And Not StringInStr("|" & $sChoices & "|", "|" & $sSelected & "|") Then
+        If $sChoices <> "" Then $sChoices &= "|"
+        $sChoices &= $sSelected
+        $sTip = $sSelected & " is not currently available. Reconnect it or select another optical drive."
+    EndIf
+    If $sChoices = "" Then
+        $sChoices = "None"
+        $sSelected = "None"
+    EndIf
+    GUICtrlSetData($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO], "")
+    GUICtrlSetData($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO], $sChoices, $sSelected)
+    GUICtrlSetTip($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO], $sTip)
+    GUICtrlSetTip($g_aGuiState[$GUI_STATE_OPTICAL_REFRESH_BUTTON], $sTip)
+    $g_bHotkeyEditorUpdating = $bUpdating
     _HotkeyEditor_UpdateOkState()
 EndFunc
 
@@ -483,7 +549,12 @@ Func _editBtn()
     _editGui('Edit Hotkey')
     If StringInStr(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 3), 'Admin') Then GUICtrlSetState($g_aGuiState[$GUI_STATE_ADMIN_CHECKBOX], $GUI_CHECKED)
     If StringInStr(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], Number(_GUICtrlListView_GetSelectedIndices($g_aGuiState[$GUI_STATE_LIST_VIEW])), 3), 'Singleton') Then GUICtrlSetState($g_aGuiState[$GUI_STATE_SINGLETON_CHECKBOX], $GUI_CHECKED)
-    If $special Then
+    If _OpticalDriveModel_Operation($path) <> "" And _GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], $iSelected, 0) = "System" Then
+        GUICtrlSetState($g_aGuiState[$GUI_STATE_SPECIAL_RADIO], $GUI_CHECKED)
+        _GUICtrlComboBox_SelectString($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], StringTrimRight($path, 3))
+        _HotkeyEditor_RefreshOpticalDrives(StringUpper(StringRight($path, 2)))
+        _specialRdo()
+    ElseIf $special Then
         GUICtrlSetState($g_aGuiState[$GUI_STATE_SPECIAL_RADIO], $GUI_CHECKED)
         _GUICtrlComboBox_SelectString($g_aGuiState[$GUI_STATE_SPECIAL_COMBO], $sPaths[$s][0])
         _specialRdo()
@@ -641,7 +712,11 @@ Func _HotkeyEditor_ReadRecord()
         $sAction = $HOTKEY_ACTION_FOLDER
         $sTarget = _HotkeyEditor_ResolveFolder(GUICtrlRead($g_aGuiState[$GUI_STATE_FOLDER_INPUT]))
     ElseIf GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_RADIO]) = $GUI_CHECKED Then
-        Local $aSpecial = _HotkeyEditor_ResolveSpecial(_HotkeyCodec_EncodeHotkey($sHotkey), GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO]))
+        Local $sSpecialLabel = GUICtrlRead($g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
+        If $sSpecialLabel = $OPTICAL_ACTION_OPEN Or $sSpecialLabel = $OPTICAL_ACTION_CLOSE Then
+            If Not _OpticalDriveActions_IsAvailable(GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO])) Then Return SetError($EDITOR_MODEL_ERROR_OPTICAL, 0, 0)
+        EndIf
+        Local $aSpecial = _HotkeyEditor_ResolveSpecial(_HotkeyCodec_EncodeHotkey($sHotkey), $sSpecialLabel, GUICtrlRead($g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO]))
         If @error Or Not IsArray($aSpecial) Then Return SetError($EDITOR_MODEL_ERROR_RECORD, @error, 0)
         Local $aSpecialValues = _HotkeyEditorModel_CreateValues($aSpecial[$HOTKEY_FIELD_HOTKEY], $aSpecial[$HOTKEY_FIELD_ACTION], $aSpecial[$HOTKEY_FIELD_TARGET], $aSpecial[$HOTKEY_FIELD_PARAMETERS], $iOptions)
         Local $aSpecialRecord = _HotkeyEditorModel_ToRecord($aSpecialValues, True)
@@ -689,7 +764,12 @@ Func _HotkeyEditor_ResolveFolder($sDisplay)
     Return $sDisplay
 EndFunc
 
-Func _HotkeyEditor_ResolveSpecial($sHotkey, $sLabel)
+Func _HotkeyEditor_ResolveSpecial($sHotkey, $sLabel, $sDrive = "")
+    If $sLabel = $OPTICAL_ACTION_OPEN Or $sLabel = $OPTICAL_ACTION_CLOSE Then
+        Local $sTarget = _OpticalDriveModel_Target($sLabel, $sDrive)
+        If @error Then Return SetError(1, 0, 0)
+        Return _HotkeyCodec_DecodeLegacy($sHotkey, "[HkzExe]" & $sTarget)
+    EndIf
     Local $i
     For $i = 0 To UBound($sPaths, 1) - 1
         If $sLabel = $sPaths[$i][0] Then
@@ -780,6 +860,8 @@ Func _HotkeyEditor_ErrorMessage($iError, $iExtended)
             Return "Custom window coordinates must be integers and sizes must be positive integers"
         Case $EDITOR_MODEL_ERROR_DUPLICATE
             Return "That hotkey is already assigned"
+        Case $EDITOR_MODEL_ERROR_OPTICAL
+            Return "Select a connected optical drive. If you just connected it, click Refresh. A disc does not need to be inserted."
     EndSwitch
     Return "Complete the selected action with valid values"
 EndFunc
@@ -793,6 +875,7 @@ EndFunc
 Func _HotkeyEditor_UpdateOkState()
     If $g_bHotkeyEditorUpdating Or Not IsHWnd($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Or Not $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON] Then Return False
     $g_bHotkeyEditorUpdating = True
+    _HotkeyEditor_OpticalVisibility()
     Local $aRecord = _HotkeyEditor_ReadRecord()
     Local $bValid = IsArray($aRecord)
     If $bValid Then

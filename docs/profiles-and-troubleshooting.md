@@ -49,6 +49,10 @@ Modifier characters are `^` for Ctrl, `!` for Alt, `+` for Shift, and `#` for Wi
 
 Check the notification area's hidden-icons menu and confirm that HotKeyz is running. Right-click its tray icon and choose **Settings...**. If another instance is already running, use that instance or exit it before launching another copy.
 
+### Optical drive shortcuts
+
+The saved system action includes its drive letter, for example `[HkzExe]Open optical drive tray D:` or `[HkzExe]Close optical drive tray E:`. There are no separate command-line parameters. Copying a profile preserves that letter; it may need changing on another computer. Bulk Save does not require the drive to be connected. The editor checks that a selected letter is currently an optical drive, while execution checks it again and reports missing drives or failed tray commands separately.
+
 ### A shortcut does nothing or is unavailable
 
 Check that **Enable LeoMoon HotKeyz** is checked in the tray menu. If Windows or another application already owns the combination, select another hotkey in Settings and save. At startup, unavailable action hotkeys are reported and the app continues with the shortcuts it could register; the main toggle can also be unavailable. Some combinations are reserved by Windows.

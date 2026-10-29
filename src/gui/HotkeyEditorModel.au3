@@ -29,6 +29,7 @@ Global Const $EDITOR_MODEL_ERROR_HOTKEY = 2
 Global Const $EDITOR_MODEL_ERROR_NUMBER = 3
 Global Const $EDITOR_MODEL_ERROR_RECORD = 4
 Global Const $EDITOR_MODEL_ERROR_DUPLICATE = 5
+Global Const $EDITOR_MODEL_ERROR_OPTICAL = 6
 
 Func _HotkeyEditorModel_CreateValues($sHotkey, $sAction, $sTarget, $sParameters = "", $iOptions = $HOTKEY_OPTION_NONE, $bMove = False, $sX = "", $sY = "", $bResize = False, $sWidth = "", $sHeight = "")
     Local $aValues[$EDITOR_VALUE_COUNT] = [$sHotkey, $sAction, $sTarget, $sParameters, $iOptions, $bMove, $sX, $sY, $bResize, $sWidth, $sHeight, 0, 0, 0, 0, 0, 0, 0]
