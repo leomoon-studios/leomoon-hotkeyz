@@ -61,7 +61,7 @@ Func _HotkeyRegistry_SetTable(ByRef $aRecords, $sHandler)
     Local $i, $aRecord
     For $i = 1 To _HotkeyRepository_Count($aRecords)
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
-        If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
+        If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
         If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], $sHandler) Then Return SetError(1, $i, False)
     Next
     Return True
@@ -71,7 +71,7 @@ Func _HotkeyRegistry_ClearTable(ByRef $aRecords)
     Local $bSuccess = True, $i, $aRecord
     For $i = 1 To _HotkeyRepository_Count($aRecords)
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
-        If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
+        If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
         If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY]) Then $bSuccess = False
     Next
     Return $bSuccess
@@ -92,7 +92,7 @@ Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle,
         Local $i, $iApplied = 0, $aRecord
         For $i = 1 To _HotkeyRepository_Count($aNewRecords)
             $aRecord = _HotkeyRepository_GetRecord($aNewRecords, $i)
-            If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
+            If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
             If Not _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then ContinueLoop
             $iApplied += 1
             _HotkeyRepository_SetRecord($aApplied, $iApplied, $aRecord)
@@ -118,7 +118,7 @@ Func _HotkeyRegistry_RestoreBindings($sToggle, ByRef $aRecords)
     ; A conflict on one old shortcut must not prevent restoring the others.
     For $i = 1 To _HotkeyRepository_Count($aRecords)
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
-        If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
+        If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
         If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then $bSuccess = False
     Next
     Return $bSuccess
@@ -183,6 +183,7 @@ Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True)
     If Not _ActionDispatcher_Dispatch($aRecord, $aTags) Then
         Local $iDispatchError = @error
         Local $sMessage = "The hotkey action could not be completed."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_INPUT_STATE Then $sMessage = "The keyboard lock state could not be read; the action was not run."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND Then $sMessage = "The target file or folder does not exist. Update this hotkey's path in Settings."
         If _HotkeyModel_IsValid($aRecord) Then
             $sMessage &= @CRLF & @CRLF & "Hotkey: " & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
@@ -258,7 +259,7 @@ Func _iniToApply($iniFile)
         For $i = 1 To _HotkeyRepository_Count($aConfiguredHotkeys)
             $aRecord = _HotkeyRepository_GetRecord($aConfiguredHotkeys, $i)
             ; Restrictions remain inactive until the event-time backend exists.
-            If _HotkeyModel_HasRestrictions($aRecord) Then ContinueLoop
+            If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
             If _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then
                 $iRegistered += 1
                 _HotkeyRepository_SetRecord($aHotkeys, $iRegistered, $aRecord)

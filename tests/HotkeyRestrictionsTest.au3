@@ -79,22 +79,25 @@ $aInvalid[$HOTKEY_FIELD_CAPS_LOCK] = 0
 _Check(Not _HotkeyCodec_DecodeRestrictions($aInvalid, "1,0,0,0,0,0,9"), "malformed metadata rejected")
 
 Global $sRuntimeIni = $sIni & ".runtime"
-Global $aRuntimeTable = _HotkeyRepository_CreateTable(2)
+Global $aRuntimeTable = _HotkeyRepository_CreateTable(3)
 Global $aRuntimeRestricted = _HotkeyModel_Create("^!a", $HOTKEY_ACTION_TEXT, "restricted")
 $aRuntimeRestricted[$HOTKEY_FIELD_CAPS_LOCK] = $HOTKEY_LOCK_ON
 Global $aRuntimeNormal = _HotkeyModel_Create("^!b", $HOTKEY_ACTION_TEXT, "normal")
 _HotkeyRepository_SetRecord($aRuntimeTable, 1, $aRuntimeRestricted)
 _HotkeyRepository_SetRecord($aRuntimeTable, 2, $aRuntimeNormal)
+Global $aRuntimeSide = _HotkeyModel_Create("^!c", $HOTKEY_ACTION_TEXT, "side-specific")
+$aRuntimeSide[$HOTKEY_FIELD_CTRL_SIDE] = $HOTKEY_SIDE_LEFT
+_HotkeyRepository_SetRecord($aRuntimeTable, 3, $aRuntimeSide)
 _Check(_HotkeyRepository_Save($sRuntimeIni, $aRuntimeTable), "prepare mixed runtime profile")
 _HotkeyRegistry_ConfigureHotkeyBackend("_RestrictionsMockSet")
 $g_sRegisteredKeys = ""
 _Check(_iniToApply($sRuntimeIni), "startup accepts profiles containing inactive restrictions")
-_Check($g_sRegisteredKeys = "^!b|", "startup registers only unrestricted shortcut")
-_Check(_HotkeyRepository_Count($aHotkeys) = 1, "runtime table contains only registered shortcut")
+_Check($g_sRegisteredKeys = "^!a|^!b|", "startup registers lock-only and ordinary shortcuts")
+_Check(_HotkeyRepository_Count($aHotkeys) = 2, "runtime table contains both registered shortcuts")
 $g_sRegisteredKeys = ""
 Global $aEmpty = _HotkeyRepository_CreateTable(0)
 _Check(_HotkeyRegistry_ApplyBindings("", $aEmpty, "^!z", $aRuntimeTable), "apply mixed restricted and unrestricted bindings")
-_Check($g_sRegisteredKeys = "^!z|^!b|", "apply never registers restricted shortcut")
+_Check($g_sRegisteredKeys = "^!z|^!a|^!b|", "apply registers lock-only shortcut")
 _HotkeyRegistry_ResetHotkeyBackend()
 FileDelete($sRuntimeIni)
 FileDelete($sRuntimeIni & ".bak")

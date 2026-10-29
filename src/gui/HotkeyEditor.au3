@@ -120,7 +120,8 @@ Func _HotkeyEditor_RestrictionSummary(ByRef $aRecord)
         If $sSummary <> "" Then $sSummary &= ", "
         $sSummary &= $aLabels[$i] & ": " & $sValue
     Next
-    If $sSummary <> "" Then Return "Inactive (conditions unavailable): " & $sSummary
+    If _HotkeyModel_HasSideRestrictions($aRecord) Then Return "Inactive (modifier sides unavailable): " & $sSummary
+    If $sSummary <> "" Then Return $sSummary
     Return ""
 EndFunc
 

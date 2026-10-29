@@ -1,4 +1,4 @@
-﻿#NoTrayIcon
+#NoTrayIcon
 ; Interactive test: creates a temporary INI beside this script and registers
 ; test hotkeys. It never changes the Windows startup registry value.
 #include "..\src\resources\ExtMsgBox.au3"
@@ -56,7 +56,7 @@ If Not StringInStr(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIE
 If Not StringInStr(_GUICtrlListView_GetItemText($g_aGuiState[$GUI_STATE_LIST_VIEW], 0, 3), "Caps: On") Then _TestFail("condition missing from list")
 If Not _guiToIni($APP_INI_PATH) Then _TestFail("could not save restricted hotkey")
 If IniRead($APP_INI_PATH, "Hotkeys", "^{F9}", "missing") <> $HOTKEY_CODEC_RESTRICTED Then _TestFail("restricted action did not save with placeholder")
-If Not _HotkeyEditor_HasDuplicate("^{F9}", -1) Then _TestFail("restricted shortcut was not recognized as a duplicate")
+If _HotkeyEditor_FindConflict("^{F9}", -1) = "" Then _TestFail("restricted shortcut was not recognized as a duplicate")
 _addBtn()
 GUICtrlSetState($g_aGuiState[$GUI_STATE_FILE_RADIO], $GUI_UNCHECKED)
 GUICtrlSetState($g_aGuiState[$GUI_STATE_TEXT_RADIO], $GUI_CHECKED)

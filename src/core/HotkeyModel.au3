@@ -125,3 +125,19 @@ EndFunc
 Func _HotkeyModel_HasOption(ByRef $aRecord, $iOption)
     Return BitAND($aRecord[$HOTKEY_FIELD_OPTIONS], $iOption) = $iOption
 EndFunc
+
+Func _HotkeyModel_HasSideRestrictions(ByRef $aRecord)
+    Local $i
+    For $i = $HOTKEY_FIELD_CTRL_SIDE To $HOTKEY_FIELD_WIN_SIDE
+        If $aRecord[$i] <> 0 Then Return True
+    Next
+    Return False
+EndFunc
+
+Func _HotkeyModel_HasLockConditions(ByRef $aRecord)
+    Local $i
+    For $i = $HOTKEY_FIELD_CAPS_LOCK To $HOTKEY_FIELD_SCROLL_LOCK
+        If $aRecord[$i] <> 0 Then Return True
+    Next
+    Return False
+EndFunc

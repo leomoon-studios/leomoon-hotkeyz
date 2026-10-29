@@ -3,6 +3,7 @@
 #include "..\core\HotkeyCodec.au3"
 #include "ActionValidator.au3"
 #include "TextActions.au3"
+#include "..\core\InputState.au3"
 #include "ClipboardTransaction.au3"
 
 Global Enum $ACTION_ROUTE_NONE = 0, _
@@ -15,6 +16,8 @@ Global Enum $ACTION_ROUTE_NONE = 0, _
             $ACTION_ROUTE_SYSTEM, _
             $ACTION_ROUTE_MEDIA
 
+Global $g_sActionLockReader = "_InputState_GetKeyState"
+Global Const $ACTION_DISPATCH_ERROR_INPUT_STATE = 4
 Global Const $ACTION_DISPATCH_ERROR_INVALID = 1
 Global Const $ACTION_DISPATCH_ERROR_HANDLER = 2
 Global Const $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND = 3
@@ -43,8 +46,13 @@ EndFunc
 
 Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags)
     If Not _ActionValidator_ValidateRecord($aRecord, False) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @error, 0)
-    ; Do not execute a restricted action until event-time filtering is implemented.
-    If _HotkeyModel_HasRestrictions($aRecord) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, 0)
+    ; Side-specific input remains unsupported; lock conditions use callback-time state.
+    If _HotkeyModel_HasSideRestrictions($aRecord) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, 0)
+    If _HotkeyModel_HasLockConditions($aRecord) Then
+        Local $aState = _InputState_Create()
+        If Not _InputState_ReadLocks($aState, $g_sActionLockReader) Then Return SetError($ACTION_DISPATCH_ERROR_INPUT_STATE, @extended, 0)
+        If Not _InputState_Matches($aRecord, $aState) Then Return SetError(0, 0, False)
+    EndIf
     Local $aPrepared = _HotkeyModel_Create( _
         $aRecord[$HOTKEY_FIELD_HOTKEY], _
         $aRecord[$HOTKEY_FIELD_ACTION], _
@@ -68,6 +76,8 @@ EndFunc
 Func _ActionDispatcher_Dispatch(ByRef $aRecord, ByRef $aTags)
     Local $aPrepared = _ActionDispatcher_Prepare($aRecord, $aTags)
     If @error Then Return SetError(@error, @extended, False)
+    ; A condition mismatch is a successful no-op, not an action failure.
+    If Not IsArray($aPrepared) Then Return True
     Local $sVerb = ""
     If _HotkeyModel_HasOption($aPrepared, $HOTKEY_OPTION_ADMIN) Then $sVerb = "runas"
     Local $bSingleton = _HotkeyModel_HasOption($aPrepared, $HOTKEY_OPTION_SINGLETON)
