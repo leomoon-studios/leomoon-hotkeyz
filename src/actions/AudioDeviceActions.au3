@@ -1,6 +1,7 @@
 #include-once
 
 #include <WinAPI.au3>
+#include "..\app\Notification.au3"
 
 ; Adapted from LeoMoon PlaybackSwitch. The policy configuration interface is
 ; used by Windows audio device switchers but is not a public Core Audio API.
@@ -95,16 +96,7 @@ EndFunc
 Func _AudioDeviceActions_Notify($iFlow, $sName)
     Local $sTitle = "Playback Device"
     If $iFlow = $AUDIO_FLOW_CAPTURE Then $sTitle = "Recording Device"
-    ; Dismiss the previous tray notification before showing the latest device.
-    AdlibUnRegister("_AudioDeviceActions_ClearNotification")
-    TrayTip("", "", 0)
-    TrayTip($sTitle, $sName, 2, 1)
-    AdlibRegister("_AudioDeviceActions_ClearNotification", 2000)
-EndFunc
-
-Func _AudioDeviceActions_ClearNotification()
-    AdlibUnRegister("_AudioDeviceActions_ClearNotification")
-    TrayTip("", "", 0)
+    _Notification_Show($sTitle, $sName, 2, 1)
 EndFunc
 
 ; Returns a two-column array, or 0 with @error=0 when no devices are active.

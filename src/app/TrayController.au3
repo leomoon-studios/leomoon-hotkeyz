@@ -114,7 +114,7 @@ Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default
     $g_bLastToggleAvailable = _HotkeyRegistry_TrySet($appHotkey, $function)
     If Not $g_bLastToggleAvailable Then
         TrayItemSetText($trayItem, $text & @TAB & "Shortcut unavailable")
-        _AppWarning_ReportNonBlocking("The main toggle hotkey is already in use. LeoMoon HotKeyz is still running, and you can choose another hotkey in Settings.")
+        _AppWarning_AddUnavailable("- Main toggle: " & _HotkeyCodec_DecodeHotkey($appHotkey) & @CRLF)
         Return True
     EndIf
     TrayItemSetText($trayItem, $text&@TAB&_HotkeyCodec_DecodeHotkey($appHotkey))
@@ -123,7 +123,7 @@ EndFunc
 
 Func _web()
     Local $iPid = ShellExecute('http://leomoon.com', '', '', '', @SW_HIDE)
-    If @error Or $iPid = 0 Then Return _AppError_Report("The LeoMoon Studios website could not be opened", 1, @error)
+    If @error Or $iPid = 0 Then Return _AppError_Notify("The LeoMoon Studios website could not be opened", 1, @error)
     Return True
 EndFunc
 

@@ -12,6 +12,7 @@ $testPaths = @(
     (Join-Path $repositoryDirectory "tests\TestRunner.au3"),
     (Join-Path $repositoryDirectory "tests\ModuleSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\AudioCycleTest.au3"),
+    (Join-Path $repositoryDirectory "tests\NotificationTest.au3"),
     (Join-Path $repositoryDirectory "tests\OpticalDriveTest.au3"),
     (Join-Path $repositoryDirectory "tests\HotkeyRestrictionsTest.au3"),
     (Join-Path $repositoryDirectory "tests\InputStateTest.au3"),

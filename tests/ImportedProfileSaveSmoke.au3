@@ -19,6 +19,9 @@
 Opt("MustDeclareVars", 1)
 Opt("GUIOnEventMode", 1)
 Global $g_bOwnProfile = False
+Global $g_sStartupNotice = ""
+$g_sNotificationTrayHandler = "_TestWarningTray"
+$g_sNotificationScheduleHandler = "_TestWarningSchedule"
 If FileExists($APP_INI_PATH) Or FileExists($APP_INI_PATH & ".bak") Or FileExists($APP_INI_PATH & ".tmp") Then Exit 2
 OnAutoItExitRegister("_TestCleanup")
 $g_bOwnProfile = True
@@ -45,15 +48,22 @@ If Not IsArray($aSaved) Or _HotkeyRepository_Count($aSaved) <> 2 Then _TestFail(
 If $aSaved[1][$HOTKEY_FIELD_TARGET] <> $sMissing Then _TestFail("save changed unavailable target")
 If $aSaved[2][$HOTKEY_FIELD_TARGET] <> "Cycle Playback Device" Then _TestFail("save changed other action")
 _iniToApply($APP_INI_PATH)
-If $g_hWarningWindow = 0 Or _HotkeyRepository_Count($aHotkeys) <> 1 Then _TestFail("startup warning or available binding missing")
-_AppWarning_ReportNonBlocking("Another warning")
-If Not StringInStr(GUICtrlRead($g_iWarningText), "Another warning") Then _TestFail("startup warnings were not combined")
-_AppWarning_Close()
-ConsoleWrite("PASSED: imported save and nonblocking startup warnings" & @CRLF)
+If $g_hWarningWindow <> 0 Or _HotkeyRepository_Count($aHotkeys) <> 1 Then _TestFail("startup notice blocked or available binding missing")
+If Not StringInStr($g_sStartupNotice, "Ctrl + Alt + F10") Then _TestFail("startup notice does not identify unavailable shortcut")
+ConsoleWrite("PASSED: imported save and nonblocking startup notification" & @CRLF)
 Exit 0
 Func _TestBinding($sHotkey, $sHandler)
     If $sHotkey = "^!{F10}" And $sHandler <> "" Then Return False
     Return True
+EndFunc
+Func _TestWarningTray($sTitle, $sText, $iSeconds, $iIcon)
+    #forceref $iSeconds, $iIcon
+    If $sTitle <> "" Then $g_sStartupNotice = $sText
+    Return 1
+EndFunc
+Func _TestWarningSchedule($iMilliseconds)
+    #forceref $iMilliseconds
+    Return 1
 EndFunc
 Func _TestFail($sMessage)
     ConsoleWrite("FAIL: " & $sMessage & @CRLF)

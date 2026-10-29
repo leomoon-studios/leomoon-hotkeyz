@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Show hotkey action failures, unavailable startup shortcuts, and website-opening failures as nonblocking tray notifications.
 - Reduced fresh Settings window startup time while retaining profile and hotkey validation.
 - Fixed program-only options remaining checked or saved after changing a hotkey to another action type.
 - Reduced Add/Edit window startup delay.

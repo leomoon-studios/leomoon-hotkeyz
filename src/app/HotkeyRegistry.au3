@@ -181,7 +181,11 @@ EndFunc
 
 Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True, $aSnapshot = Default)
     If IsKeyword($aSnapshot) Then $aSnapshot = _ActionDispatcher_CaptureState($aRecord)
-    If @error Then Return _AppError_Report("The hotkey input state could not be read; the action was not run.", @error, @extended, $bShowMessage)
+    If @error Then
+        Local $iStateError = @error, $iStateExtended = @extended, $sStateMessage = "The hotkey input state could not be read; the action was not run."
+        If _HotkeyModel_IsValid($aRecord) Then $sStateMessage &= @CRLF & "Hotkey: " & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
+        Return _AppError_Notify($sStateMessage, $iStateError, $iStateExtended, $bShowMessage)
+    EndIf
     _aTags()
     Local $bWasDispatching = $g_bSideDispatching
     $g_bSideDispatching = True
@@ -196,11 +200,21 @@ Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True, $aSnaps
         If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_ENUMERATION Then $sMessage = "The optical drives could not be listed. The tray command was not sent."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_STATE Then $sMessage = "The optical drive did not report whether its tray is open or closed. No command was sent. Use the separate Open or Close optical drive tray action for this drive."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_OPERATION Then $sMessage = "The optical drive did not accept the tray command. It may be locked by another application or disconnected. Some laptop trays must be closed by hand."
+        Local $sNotice = $sMessage
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_INPUT_STATE Then $sNotice = "Could not read keyboard lock state."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND Then $sNotice = "File or folder not found."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_MISSING Then $sNotice = "Optical drive not connected."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_ENUMERATION Then $sNotice = "Could not list optical drives."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_STATE Then $sNotice = "Cannot determine tray state; use Open or Close."
+        If $iDispatchError = $ACTION_DISPATCH_ERROR_OPTICAL_OPERATION Then $sNotice = "Tray command failed; drive may be locked or disconnected."
         If _HotkeyModel_IsValid($aRecord) Then
+            Local $sNoticeTarget = _HotkeyCodec_ExpandTags($aRecord[$HOTKEY_FIELD_TARGET], $aTags)
+            If StringLen($sNoticeTarget) > 90 Then $sNoticeTarget = StringLeft($sNoticeTarget, 40) & "..." & StringRight($sNoticeTarget, 47)
+            $sNotice &= @CRLF & "Hotkey: " & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY]) & @CRLF & "Target: " & $sNoticeTarget
             $sMessage &= @CRLF & @CRLF & "Hotkey: " & _HotkeyCodec_DecodeHotkey($aRecord[$HOTKEY_FIELD_HOTKEY])
             $sMessage &= @CRLF & "Target: " & _HotkeyCodec_ExpandTags($aRecord[$HOTKEY_FIELD_TARGET], $aTags)
         EndIf
-        _AppError_Report($sMessage, $HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError, $bShowMessage)
+        _AppError_Notify($sMessage, $HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError, $bShowMessage, $sNotice)
         Return SetError($HOTKEY_REGISTRY_ERROR_DISPATCH, $iDispatchError, False)
     EndIf
     Return True
@@ -279,7 +293,7 @@ Func _iniToApply($iniFile)
         Next
         ReDim $aHotkeys[$iRegistered + 1][$HOTKEY_FIELD_COUNT]
         $aHotkeys[0][$HOTKEY_FIELD_HOTKEY] = $iRegistered
-        If $sUnavailable <> "" Then _AppWarning_ReportNonBlocking("These hotkeys could not be registered. Windows or another application may own them, or their input settings could not be initialized:" & @CRLF & @CRLF & $sUnavailable & @CRLF & "LeoMoon HotKeyz is still running. You can change or remove these hotkeys in Settings.")
+        If $sUnavailable <> "" Then _AppWarning_AddUnavailable($sUnavailable)
     Endif
     Return True
 EndFunc

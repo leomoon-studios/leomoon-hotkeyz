@@ -1,16 +1,53 @@
 #include-once
 
 #include "..\resources\ExtMsgBox.au3"
+#include "Notification.au3"
 #include <GUIConstantsEx.au3>
 #include <EditConstants.au3>
 #include <WindowsConstants.au3>
 
 Global $g_sLastApplicationError = ""
+Global $g_bStartupWarningsDeferred = False, $g_sStartupUnavailable = ""
+
+Func _AppWarning_BeginStartup()
+    $g_sStartupUnavailable = ""
+    $g_bStartupWarningsDeferred = True
+EndFunc
+
+Func _AppWarning_AddUnavailable($sLines)
+    If $sLines = "" Then Return
+    $g_sStartupUnavailable &= $sLines
+    If Not $g_bStartupWarningsDeferred Then _AppWarning_FinishStartup()
+EndFunc
+
+Func _AppWarning_FinishStartup($bShow = True)
+    $g_bStartupWarningsDeferred = False
+    If $g_sStartupUnavailable = "" Then Return
+    Local $sFull = "These hotkeys could not be registered. Windows or another application may own them, or their input settings could not be initialized:" & @CRLF & $g_sStartupUnavailable
+    ConsoleWrite("WARNING: " & $sFull & @CRLF)
+    If $bShow Then
+        Local $sList = StringStripWS($g_sStartupUnavailable, 3), $sNotice
+        If StringLen($sList) > 155 Then $sList = StringLeft($sList, 152) & "..."
+        $sNotice = "Unavailable shortcuts:" & @CRLF & $sList & @CRLF & "Open Settings to change them."
+        _Notification_Show("LeoMoon HotKeyz", $sNotice, 7, 2)
+    EndIf
+    $g_sStartupUnavailable = ""
+EndFunc
 
 Func _AppError_Report($sContext, $iError = 1, $iExtended = 0, $bShowMessage = True)
     $g_sLastApplicationError = $sContext & " (error " & $iError & ", detail " & $iExtended & ")"
     ConsoleWrite("ERROR: " & $g_sLastApplicationError & @CRLF)
     If $bShowMessage Then _ExtMsgBox(48, "OK", "LeoMoon HotKeyz error", $g_sLastApplicationError, 0)
+    Return SetError($iError, $iExtended, False)
+EndFunc
+
+Func _AppError_Notify($sContext, $iError = 1, $iExtended = 0, $bShowMessage = True, $sNotice = Default)
+    $g_sLastApplicationError = $sContext & " (error " & $iError & ", detail " & $iExtended & ")"
+    ConsoleWrite("ERROR: " & $g_sLastApplicationError & @CRLF)
+    If $bShowMessage Then
+        If IsKeyword($sNotice) Then $sNotice = $sContext
+        _Notification_Show("LeoMoon HotKeyz", $sNotice, 5, 3)
+    EndIf
     Return SetError($iError, $iExtended, False)
 EndFunc
 

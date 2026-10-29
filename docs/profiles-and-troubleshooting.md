@@ -55,7 +55,7 @@ The saved system action includes its drive letter, for example `[HkzExe]Open opt
 
 ### A shortcut does nothing or is unavailable
 
-Check that **Enable LeoMoon HotKeyz** is checked in the tray menu. If Windows or another application already owns the combination, select another hotkey in Settings and save. At startup, unavailable action hotkeys are reported and the app continues with the shortcuts it could register; the main toggle can also be unavailable. Some combinations are reserved by Windows.
+Check that **Enable LeoMoon HotKeyz** is checked in the tray menu. If Windows or another application already owns the combination, select another hotkey in Settings and save. At startup, a tray notification lists unavailable shortcuts, including the main toggle if necessary; the app continues with the shortcuts it could register. Long lists are shortened in the notification, and the complete list is written to the AutoIt console when running the script. Some combinations are reserved by Windows.
 
 For an active-window action, focus a visible, titled window first. Some applications may block window operations or simulated copy/paste. If the target runs with higher privileges, Windows can limit what a non-elevated application can do with it.
 
@@ -77,4 +77,4 @@ For an absolute file target, HotKeyz launches from the file's directory. Make su
 
 ### Error and detail numbers
 
-Error messages can include `error` and `detail` numbers for troubleshooting. Their meanings depend on the operation; they are not universal Windows error codes. When reporting a problem, include the complete message, the affected hotkey and action, and the steps to reproduce it. Avoid sharing private paths or text unless needed to diagnose the issue.
+Hotkey action failures appear as brief tray notifications with the shortcut and a shortened target. A new audio or error notification replaces the previous one. The complete action error, including `error` and `detail` numbers and the expanded target, is written to the AutoIt console when running the script. Other errors may show these numbers in a dialog. Their meanings depend on the operation; they are not universal Windows error codes. When reporting a problem, include the message, the affected hotkey and action, and the steps to reproduce it. Avoid sharing private paths or text unless needed to diagnose the issue.
