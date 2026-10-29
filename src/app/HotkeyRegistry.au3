@@ -3,6 +3,7 @@
 #include "..\core\HotkeyRepository.au3"
 #include "..\actions\ActionDispatcher.au3"
 #include "ErrorReporter.au3"
+#include "SideHotkeys.au3"
 
 Global $aHotkeys = _HotkeyRepository_CreateTable(0)
 Global $g_aLastAppliedHotkeys = _HotkeyRepository_CreateTable(0)
@@ -61,18 +62,17 @@ Func _HotkeyRegistry_SetTable(ByRef $aRecords, $sHandler)
     Local $i, $aRecord
     For $i = 1 To _HotkeyRepository_Count($aRecords)
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
-        If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
-        If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], $sHandler) Then Return SetError(1, $i, False)
+        If Not _HotkeyRegistry_BindRecord($aRecord, $sHandler) Then Return SetError(1, $i, False)
     Next
     Return True
 EndFunc
 
 Func _HotkeyRegistry_ClearTable(ByRef $aRecords)
+    $g_iSideGeneration += 1
     Local $bSuccess = True, $i, $aRecord
     For $i = 1 To _HotkeyRepository_Count($aRecords)
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
-        If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
-        If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY]) Then $bSuccess = False
+        If Not _HotkeyRegistry_UnbindRecord($aRecord) Then $bSuccess = False
     Next
     Return $bSuccess
 EndFunc
@@ -92,8 +92,7 @@ Func _HotkeyRegistry_ApplyBindings($sOldToggle, ByRef $aOldRecords, $sNewToggle,
         Local $i, $iApplied = 0, $aRecord
         For $i = 1 To _HotkeyRepository_Count($aNewRecords)
             $aRecord = _HotkeyRepository_GetRecord($aNewRecords, $i)
-            If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
-            If Not _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then ContinueLoop
+            If Not _HotkeyRegistry_BindRecord($aRecord) Then ContinueLoop
             $iApplied += 1
             _HotkeyRepository_SetRecord($aApplied, $iApplied, $aRecord)
         Next
@@ -118,8 +117,7 @@ Func _HotkeyRegistry_RestoreBindings($sToggle, ByRef $aRecords)
     ; A conflict on one old shortcut must not prevent restoring the others.
     For $i = 1 To _HotkeyRepository_Count($aRecords)
         $aRecord = _HotkeyRepository_GetRecord($aRecords, $i)
-        If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
-        If Not _HotkeyRegistry_TrySet($aRecords[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then $bSuccess = False
+        If Not _HotkeyRegistry_BindRecord($aRecord) Then $bSuccess = False
     Next
     Return $bSuccess
 EndFunc
@@ -131,6 +129,7 @@ EndFunc
 
 Func _HotkeyRegistry_Shutdown()
     Local $bSuccess = _HotkeyRegistry_ClearTable($aHotkeys)
+    _SideHotkeys_Shutdown()
     Local $sToggleHotkey = IniRead($APP_INI_PATH, "Options", "Main", "")
     If $sToggleHotkey <> "" And Not _HotkeyRegistry_TrySet($sToggleHotkey) Then $bSuccess = False
     Return $bSuccess
@@ -163,9 +162,11 @@ Global Const $HOTKEY_REGISTRY_ERROR_NOT_FOUND = 1
 Global Const $HOTKEY_REGISTRY_ERROR_DISPATCH = 2
 
 Func HotKeyPressed()
+    If $g_bInputSending Then Return
     Local $iRow = _HotkeyRegistry_FindHotkey(@HotKeyPressed)
     If @error Then Return SetError($HOTKEY_REGISTRY_ERROR_NOT_FOUND, 0, False)
     Local $aRecord = _HotkeyRepository_GetRecord($aHotkeys, $iRow)
+    If $g_hSideHook Then Return _SideHotkeys_QueueOrdinary($aRecord)
     Return _HotkeyRegistry_ExecuteRecord($aRecord)
 EndFunc
 
@@ -178,12 +179,16 @@ Func _HotkeyRegistry_FindHotkey($sHotkey)
     Return SetError($HOTKEY_REGISTRY_ERROR_NOT_FOUND, 0, 0)
 EndFunc
 
-Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True)
-    Local $aSnapshot = _ActionDispatcher_CaptureState($aRecord)
+Func _HotkeyRegistry_ExecuteRecord(ByRef $aRecord, $bShowMessage = True, $aSnapshot = Default)
+    If IsKeyword($aSnapshot) Then $aSnapshot = _ActionDispatcher_CaptureState($aRecord)
     If @error Then Return _AppError_Report("The hotkey input state could not be read; the action was not run.", @error, @extended, $bShowMessage)
     _aTags()
-    If Not _ActionDispatcher_Dispatch($aRecord, $aTags, $aSnapshot) Then
-        Local $iDispatchError = @error
+    Local $bWasDispatching = $g_bSideDispatching
+    $g_bSideDispatching = True
+    Local $bDispatched = _ActionDispatcher_Dispatch($aRecord, $aTags, $aSnapshot)
+    Local $iDispatchError = @error
+    $g_bSideDispatching = $bWasDispatching
+    If Not $bDispatched Then
         Local $sMessage = "The hotkey action could not be completed."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_INPUT_STATE Then $sMessage = "The keyboard lock state could not be read; the action was not run."
         If $iDispatchError = $ACTION_DISPATCH_ERROR_TARGET_NOT_FOUND Then $sMessage = "The target file or folder does not exist. Update this hotkey's path in Settings."
@@ -260,9 +265,8 @@ Func _iniToApply($iniFile)
         $aHotkeys = _HotkeyRepository_CreateTable(_HotkeyRepository_Count($aConfiguredHotkeys))
         For $i = 1 To _HotkeyRepository_Count($aConfiguredHotkeys)
             $aRecord = _HotkeyRepository_GetRecord($aConfiguredHotkeys, $i)
-            ; Restrictions remain inactive until the event-time backend exists.
-            If _HotkeyModel_HasSideRestrictions($aRecord) Then ContinueLoop
-            If _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then
+            ; Side-specific records use registered observation; ordinary records use HotKeySet.
+            If _HotkeyRegistry_BindRecord($aRecord) Then
                 $iRegistered += 1
                 _HotkeyRepository_SetRecord($aHotkeys, $iRegistered, $aRecord)
             Else
@@ -271,7 +275,17 @@ Func _iniToApply($iniFile)
         Next
         ReDim $aHotkeys[$iRegistered + 1][$HOTKEY_FIELD_COUNT]
         $aHotkeys[0][$HOTKEY_FIELD_HOTKEY] = $iRegistered
-        If $sUnavailable <> "" Then _AppWarning_ReportNonBlocking("These hotkeys are already in use and could not be registered:" & @CRLF & @CRLF & $sUnavailable & @CRLF & "LeoMoon HotKeyz is still running. You can change or remove these hotkeys in Settings.")
+        If $sUnavailable <> "" Then _AppWarning_ReportNonBlocking("These hotkeys could not be registered. Windows or another application may own them, or their input settings could not be initialized:" & @CRLF & @CRLF & $sUnavailable & @CRLF & "LeoMoon HotKeyz is still running. You can change or remove these hotkeys in Settings.")
     Endif
     Return True
+EndFunc
+
+Func _HotkeyRegistry_BindRecord(ByRef $aRecord, $sHandler = "HotKeyPressed")
+    If _HotkeyModel_HasSideRestrictions($aRecord) And $g_sHotkeySetHandler = "_HotkeyRegistry_SetBinding" Then Return _SideHotkeys_Register($aRecord)
+    Return _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY], $sHandler)
+EndFunc
+
+Func _HotkeyRegistry_UnbindRecord(ByRef $aRecord)
+    If _HotkeyModel_HasSideRestrictions($aRecord) And $g_sHotkeySetHandler = "_HotkeyRegistry_SetBinding" Then Return _SideHotkeys_Unregister($aRecord)
+    Return _HotkeyRegistry_TrySet($aRecord[$HOTKEY_FIELD_HOTKEY])
 EndFunc

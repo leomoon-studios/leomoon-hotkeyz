@@ -41,6 +41,7 @@ Func _TrayController_Initialize($sIniFile)
 EndFunc
 
 Func _TrayController_ProcessEvents()
+    _SideHotkeys_Poll()
     Local $iTrayMessage = TrayGetMsg()
     If $iTrayMessage = 0 Then Return
     _Debug_Log("Tray message received: " & $iTrayMessage)
@@ -62,13 +63,19 @@ Func _TrayController_ProcessEvents()
 EndFunc
 
 Func _toggle()
-    Local $i
+    $g_iSideGeneration += 1
+    Local $i, $j, $aRollbackRecord
     ;$enabled = Not $enabled
     If $enabled == False Then ;disable it
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
             Local $aDisabledRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
-            If _HotkeyModel_HasSideRestrictions($aDisabledRecord) Then ContinueLoop
-            If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY]) Then Return _AppError_Report("A hotkey could not be disabled", 1, $i)
+            If Not _HotkeyRegistry_UnbindRecord($aDisabledRecord) Then
+                For $j = 1 To $i - 1
+                    $aRollbackRecord = _HotkeyRepository_GetRecord($aHotkeys, $j)
+                    _HotkeyRegistry_BindRecord($aRollbackRecord)
+                Next
+                Return _AppError_Report("A hotkey could not be disabled", 1, $i)
+            EndIf
         Next
         $enabled = True
         TraySetIcon(@ScriptFullPath, 202)
@@ -77,8 +84,13 @@ Func _toggle()
     Else
         For $i = 1 To _HotkeyRepository_Count($aHotkeys)
             Local $aEnabledRecord = _HotkeyRepository_GetRecord($aHotkeys, $i)
-            If _HotkeyModel_HasSideRestrictions($aEnabledRecord) Then ContinueLoop
-            If Not _HotkeyRegistry_TrySet($aHotkeys[$i][$HOTKEY_FIELD_HOTKEY], "HotKeyPressed") Then Return _AppError_Report("A hotkey is unavailable because Windows or another application uses it", 1, $i)
+            If Not _HotkeyRegistry_BindRecord($aEnabledRecord) Then
+                For $j = 1 To $i - 1
+                    $aRollbackRecord = _HotkeyRepository_GetRecord($aHotkeys, $j)
+                    _HotkeyRegistry_UnbindRecord($aRollbackRecord)
+                Next
+                Return _AppError_Report("A hotkey could not be registered. Windows or another application may be using it", 1, $i)
+            EndIf
         Next
         $enabled = False
         TraySetIcon(@ScriptFullPath, 201)

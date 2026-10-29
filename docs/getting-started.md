@@ -78,7 +78,13 @@ In Add/Edit Hotkey, open **Modifiers and conditions...** and set Caps Lock, Num 
 
 The state is captured when HotKeyz begins handling the shortcut. If a blocking dialog delays the callback and you change a lock during that delay, the callback uses the state it reads after the delay. A nonmatching shortcut does nothing: it does not run the action, change the locks, or pass the shortcut to another application.
 
-Lock-only conditions work with the existing hotkey registration. Left/right modifier restrictions remain inactive; leave modifier sides set to **Either** to use lock conditions now.
+## Left and right modifiers
+
+In **Modifiers and conditions...**, choose **Either**, **Left**, or **Right** for each enabled Ctrl, Alt, Shift, or Win modifier. For example, Ctrl: Left with F9 runs only when left Ctrl is held. Holding both Ctrl keys also satisfies Left or Right. These selectors apply to action shortcuts; the main enable/disable shortcut continues to accept either side.
+
+Modifier sides are captured when the base key is pressed. You can combine side requirements with lock conditions; every requirement must match. Locks are checked when the queued action begins. The shortcut stays reserved even when a side or lock does not match, so that press is not passed to another application. You cannot assign the same combination twice with different conditions.
+
+Side-specific shortcuts now run in this development build. Physical keyboards, AltGr, and alternate layouts still need release testing. Save/reload your settings after changing keyboard layouts. Long pauses can drop presses; the observer resumes when the application loop resumes. Repeated key-downs repeat the action, and an overloaded queue drops excess presses rather than replaying them indefinitely.
 
 ## Next steps
 

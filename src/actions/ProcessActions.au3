@@ -1,4 +1,5 @@
 #include-once
+#include "..\core\InputSend.au3"
 
 #include "..\core\HotkeyModel.au3"
 
@@ -14,7 +15,7 @@ EndFunc
 
 Func _ProcessActions_ExecuteMedia($sTarget)
     If Not _ProcessActions_IsMediaTarget($sTarget) Then Return SetError(1, 0, False)
-    Send("{" & StringUpper(StringReplace($sTarget, " ", "_")) & "}")
+    _InputSend_Keys("{" & StringUpper(StringReplace($sTarget, " ", "_")) & "}")
     Return True
 EndFunc
 

@@ -1,4 +1,5 @@
 #include-once
+#include "..\core\InputSend.au3"
 
 #include <Clipboard.au3>
 #include <Memory.au3>
@@ -191,7 +192,7 @@ Func _ClipboardTransaction_ReadText()
 EndFunc
 
 Func _ClipboardTransaction_Send($sKeys)
-    Return Send($sKeys) <> 0
+    Return _InputSend_Keys($sKeys) <> 0
 EndFunc
 
 Func _ClipboardTransaction_Wait($iSequence, $bRequireChange)

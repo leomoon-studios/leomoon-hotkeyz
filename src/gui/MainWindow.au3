@@ -249,10 +249,6 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         Return SetError($HOTKEY_REPOSITORY_ERROR_WRITE, 0, False)
     EndIf
     $g_bSavedInactiveRestrictions = False
-    For $x = 1 To _HotkeyRepository_Count($aNewHotkeys)
-        $aRecord = _HotkeyRepository_GetRecord($aNewHotkeys, $x)
-        If _HotkeyModel_HasSideRestrictions($aRecord) Then $g_bSavedInactiveRestrictions = True
-    Next
     $aHotkeys = $aAppliedHotkeys
     $txt = _HotkeyCodec_DecodeHotkey($appHotkey) ;decode hotkey to text
     TrayItemSetText($enableTray, 'Enable '&$APP_TITLE&@TAB&$txt) ;change menu entry to new hotkey
@@ -286,7 +282,6 @@ Func _saveBtn()
             Return
         EndIf
     EndIf
-    If $g_bSavedInactiveRestrictions Then _AppWarning_Report("Hotkeys with left/right modifier restrictions were saved but remain inactive. Lock-only conditions are supported.")
     If _HotkeyEditorModel_ShouldCloseSettings(True, True) Then
         GUIDelete($g_aGuiState[$GUI_STATE_MAIN_WINDOW])
         $g_aGuiState[$GUI_STATE_WINDOW_VISIBLE] = False

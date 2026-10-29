@@ -55,9 +55,9 @@ EndFunc
 
 Func _ActionDispatcher_Prepare(ByRef $aRecord, ByRef $aTags, $vSnapshot = Default)
     If Not _ActionValidator_ValidateRecord($aRecord, False) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, @error, 0)
-    ; Side-specific input remains unsupported; lock conditions use callback-time state.
-    If _HotkeyModel_HasSideRestrictions($aRecord) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, 0)
-    If _HotkeyModel_HasLockConditions($aRecord) Then
+    ; Side-specific actions require an observer snapshot; never guess from current sides.
+    If _HotkeyModel_HasSideRestrictions($aRecord) And IsKeyword($vSnapshot) Then Return SetError($ACTION_DISPATCH_ERROR_INVALID, 0, 0)
+    If _HotkeyModel_HasRestrictions($aRecord) Then
         If IsKeyword($vSnapshot) Then $vSnapshot = _ActionDispatcher_CaptureState($aRecord)
         If @error Or Not IsArray($vSnapshot) Then Return SetError($ACTION_DISPATCH_ERROR_INPUT_STATE, 0, 0)
         If UBound($vSnapshot, 0) <> 1 Or UBound($vSnapshot) <> $INPUT_STATE_COUNT Then Return SetError($ACTION_DISPATCH_ERROR_INPUT_STATE, 0, 0)
