@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 - 2026-10-29
 
 - Improved text and control sharpness on high-DPI displays using Windows GDI scaling where available.
 - Added accessible names for shortcut, action, path, geometry, list and condition controls.
