@@ -36,6 +36,7 @@ Func _HotkeyEditor_ShowRestrictions()
     For $i = 0 To 6
         GUICtrlCreateLabel($aLabels[$i], 18, 20 + ($i * 37), 145, 22)
         $g_aRestrictionDialogControls[$i] = GUICtrlCreateCombo("", 170, 16 + ($i * 37), 165, 25, $CBS_DROPDOWNLIST)
+        _Accessibility_Name($g_aRestrictionDialogControls[$i], $aLabels[$i])
         $sChoices = "Any|On|Off"
         If $i < 4 Then $sChoices = "Either|Left|Right"
         GUICtrlSetData(-1, $sChoices)
@@ -266,6 +267,7 @@ Func _HotkeyEditor_CreateWindow($name)
     GUICtrlSetState(-1, $GUI_HIDE)
     $g_iEditorSummary = GUICtrlCreateLabel("", 142, 65, $g_iEditorWidth - 165, 30)
     $g_iEditorHint = GUICtrlCreateLabel("", 16, $g_iEditorHeight - 104, $g_iEditorWidth - 38, 22)
+    _HotkeyEditor_NameControls()
     _HotkeyEditor_Layout()
     ;other settings
     GUISetIcon(@ScriptFullPath, 201)
@@ -313,6 +315,16 @@ Func _HotkeyEditor_CreateWindow($name)
     GUISetAccelerators($aAccelKeys)
     ; Add/Edit shows and activates the completed window after populating it.
     _HotkeyEditor_UpdateOkState()
+EndFunc
+
+Func _HotkeyEditor_NameControls()
+    _Accessibility_Name($g_iEditorActionSelector, "Action type")
+    Local $aControls[15] = [$GUI_STATE_EDITOR_KEY_COMBO, $GUI_STATE_FILE_INPUT, $GUI_STATE_FILE_PARAMETER_INPUT, $GUI_STATE_FOLDER_INPUT, $GUI_STATE_SPECIAL_COMBO, $GUI_STATE_OPTICAL_DRIVE_COMBO, $GUI_STATE_WINDOW_COMBO, $GUI_STATE_MOVE_X_INPUT, $GUI_STATE_MOVE_Y_INPUT, $GUI_STATE_RESIZE_WIDTH_INPUT, $GUI_STATE_RESIZE_HEIGHT_INPUT, $GUI_STATE_URL_COMBO, $GUI_STATE_URL_INPUT, $GUI_STATE_TEXT_EDIT, $GUI_STATE_OPTICAL_REFRESH_BUTTON]
+    Local $aNames[15] = ["Shortcut key", "Program, file or command", "Parameters", "Folder", "System action", "Optical drive", "Active window action", "Move X", "Move Y", "Width", "Height", "URL protocol", "Website address", "Text to paste", "Refresh optical drives"]
+    Local $i
+    For $i = 0 To UBound($aControls) - 1
+        _Accessibility_Name($g_aGuiState[$aControls[$i]], $aNames[$i])
+    Next
 EndFunc
 
 Func _HotkeyEditor_SetTabOrder()

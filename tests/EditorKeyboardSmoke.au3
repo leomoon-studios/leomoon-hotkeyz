@@ -21,6 +21,28 @@ IniWrite($APP_INI_PATH, "Options", "Main", "^!+{F11}")
 _mainGui()
 _addBtn()
 If $CmdLine[0] And $CmdLine[1] = "inspect" Then
+    _KeyboardReportHandle("Shortcut key", $g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO])
+    _KeyboardReportHandle("Action type", $g_iEditorActionSelector)
+    _KeyboardReportHandle("Program, file or command", $g_aGuiState[$GUI_STATE_FILE_INPUT])
+    _KeyboardReportHandle("Parameters", $g_aGuiState[$GUI_STATE_FILE_PARAMETER_INPUT])
+    _KeyboardReportHandle("Folder", $g_aGuiState[$GUI_STATE_FOLDER_INPUT])
+    _KeyboardReportHandle("System action", $g_aGuiState[$GUI_STATE_SPECIAL_COMBO])
+    _KeyboardReportHandle("Optical drive", $g_aGuiState[$GUI_STATE_OPTICAL_DRIVE_COMBO])
+    _KeyboardReportHandle("Active window action", $g_aGuiState[$GUI_STATE_WINDOW_COMBO])
+    _KeyboardReportHandle("Move X", $g_aGuiState[$GUI_STATE_MOVE_X_INPUT])
+    _KeyboardReportHandle("Move Y", $g_aGuiState[$GUI_STATE_MOVE_Y_INPUT])
+    _KeyboardReportHandle("Width", $g_aGuiState[$GUI_STATE_RESIZE_WIDTH_INPUT])
+    _KeyboardReportHandle("Height", $g_aGuiState[$GUI_STATE_RESIZE_HEIGHT_INPUT])
+    _KeyboardReportHandle("URL protocol", $g_aGuiState[$GUI_STATE_URL_COMBO])
+    _KeyboardReportHandle("Website address", $g_aGuiState[$GUI_STATE_URL_INPUT])
+    _KeyboardReportHandle("Text to paste", $g_aGuiState[$GUI_STATE_TEXT_EDIT])
+    _KeyboardReportHandle("Enable or disable shortcut key", $g_aGuiState[$GUI_STATE_KEY_COMBO])
+    _KeyboardReportHandle("Hotkeys", $g_aGuiState[$GUI_STATE_LIST_VIEW])
+    _HotkeyEditor_ShowRestrictions()
+    Global $aNames[7] = ["Ctrl side", "Alt side", "Shift side", "Win side", "Caps Lock", "Num Lock", "Scroll Lock"], $iName
+    For $iName = 0 To 6
+        _KeyboardReportHandle($aNames[$iName], $g_aRestrictionDialogControls[$iName])
+    Next
     Sleep(12000)
     Exit 0
 EndIf
@@ -72,10 +94,42 @@ If Not IsHWnd($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Or GUICtrlRead($g_aGuiStat
 Send("{ESC}")
 Sleep(150)
 If IsHWnd($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Then Exit 8
-ConsoleWrite("PASSED: editor tab order, Escape, default Enter and multiline Enter" & @CRLF)
+_addBtn()
+Global $aFirstFields[5] = [$GUI_STATE_FOLDER_INPUT, $GUI_STATE_SPECIAL_COMBO, $GUI_STATE_WINDOW_COMBO, $GUI_STATE_URL_COMBO, $GUI_STATE_TEXT_EDIT], $iAction
+For $iAction = 1 To 5
+    _GUICtrlComboBox_SetCurSel($g_iEditorActionSelector, $iAction)
+    _HotkeyEditor_ActionChanged()
+    ControlFocus($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_iEditorActionSelector)
+    Send("{TAB}")
+    Sleep(80)
+    $aFocus = DllCall("user32.dll", "hwnd", "GetFocus")
+    If $aFocus[0] <> GUICtrlGetHandle($g_aGuiState[$aFirstFields[$iAction - 1]]) Then Exit 9
+Next
+ControlFocus($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], "", $g_aGuiState[$GUI_STATE_RESTRICTIONS_BUTTON])
+Send("{SPACE}")
+Sleep(150)
+If Not IsHWnd($g_hRestrictionDialog) Then Exit 10
+Send("{ESC}")
+Sleep(150)
+If IsHWnd($g_hRestrictionDialog) Or Not IsHWnd($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Then Exit 11
+Send("{ESC}")
+Sleep(150)
+If IsHWnd($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Then Exit 12
+ControlFocus($g_aGuiState[$GUI_STATE_MAIN_WINDOW], "", $g_aGuiState[$GUI_STATE_STARTUP_CHECKBOX])
+Send("{TAB}")
+Sleep(80)
+$aFocus = DllCall("user32.dll", "hwnd", "GetFocus")
+If $aFocus[0] <> GUICtrlGetHandle($g_aGuiState[$GUI_STATE_CTRL_CHECKBOX]) Then Exit 13
+Send("{ESC}")
+Sleep(150)
+If IsHWnd($g_aGuiState[$GUI_STATE_MAIN_WINDOW]) Then Exit 14
+ConsoleWrite("PASSED: keyboard traversal, action fields, Conditions, Escape, default Enter and multiline Enter" & @CRLF)
 Func _KeyboardBinding($sHotkey, $sHandler)
     #forceref $sHotkey, $sHandler
     Return True
+EndFunc
+Func _KeyboardReportHandle($sName, $iControl)
+    ConsoleWrite("ACCESS|" & $sName & "|" & GUICtrlGetHandle($iControl) & @CRLF)
 EndFunc
 Func _KeyboardCleanup()
     If IsHWnd($g_hRestrictionDialog) Then GUIDelete($g_hRestrictionDialog)

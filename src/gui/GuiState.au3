@@ -1,4 +1,5 @@
 #include-once
+#include "Accessibility.au3"
 
 Global Enum $GUI_STATE_WINDOW_VISIBLE = 0, _
             $GUI_STATE_MAIN_WINDOW, _

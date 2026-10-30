@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added accessible names for shortcut, action, path, geometry, list and condition controls.
 - Fixed the Add/Edit window's keyboard tab order and enabled Enter to confirm valid entries.
 - Updated the conditions dialog and nonblocking warning window for consistent fonts and button placement.
 - Refreshed the Add/Edit hotkey window with an action selector, a conditions summary, and guidance for incomplete entries.
