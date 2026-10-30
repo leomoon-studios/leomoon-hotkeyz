@@ -66,8 +66,11 @@ Func _AppWarning_ReportNonBlocking($sMessage)
         Return True
     EndIf
     $g_hWarningWindow = GUICreate("LeoMoon HotKeyz", 500, 280)
-    $g_iWarningText = GUICtrlCreateEdit($sMessage, 15, 15, 470, 210, BitOR($ES_READONLY, $ES_MULTILINE, $ES_AUTOVSCROLL, $WS_VSCROLL))
-    Local $iClose = GUICtrlCreateButton("OK", 210, 240, 80, 25)
+    GUISetFont(9, 400, 0, "Segoe UI")
+    GUICtrlCreateLabel("HotKeyz needs your attention", 16, 16, 468, 22)
+    GUICtrlSetFont(-1, 10, 600, 0, "Segoe UI")
+    $g_iWarningText = GUICtrlCreateEdit($sMessage, 16, 44, 468, 176, BitOR($ES_READONLY, $ES_MULTILINE, $ES_AUTOVSCROLL, $WS_VSCROLL))
+    Local $iClose = GUICtrlCreateButton("OK", 384, 236, 100, 28)
     GUISetOnEvent($GUI_EVENT_CLOSE, "_AppWarning_Close", $g_hWarningWindow)
     GUICtrlSetOnEvent($iClose, "_AppWarning_Close")
     GUISetState(@SW_SHOW, $g_hWarningWindow)

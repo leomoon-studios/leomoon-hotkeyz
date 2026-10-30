@@ -31,7 +31,7 @@ Func _HotkeyEditor_ShowRestrictions()
     Local $aModifierControls[4] = [$GUI_STATE_EDITOR_CTRL_CHECKBOX, $GUI_STATE_EDITOR_ALT_CHECKBOX, $GUI_STATE_EDITOR_SHIFT_CHECKBOX, $GUI_STATE_EDITOR_WIN_CHECKBOX]
     ; An owned popup stays above the editor without being clipped to its client area.
     $g_hRestrictionDialog = GUICreate("Modifiers and conditions", 360, 345, -1, -1, BitOR($WS_POPUP, $WS_CAPTION, $WS_SYSMENU), $WS_EX_DLGMODALFRAME, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW])
-    GUISetFont(9, 400, 0, "Tahoma")
+    GUISetFont(9, 400, 0, "Segoe UI")
     Local $i, $sChoices
     For $i = 0 To 6
         GUICtrlCreateLabel($aLabels[$i], 18, 20 + ($i * 37), 145, 22)
@@ -45,10 +45,12 @@ Func _HotkeyEditor_ShowRestrictions()
         EndIf
     Next
     GUICtrlCreateLabel("All selected conditions must match for the action to run.", 18, 278, 325, 28)
-    GUICtrlCreateButton("OK", 18, 308, 150, 28)
-    GUICtrlSetOnEvent(-1, "_HotkeyEditor_RestrictionsAccept")
-    GUICtrlCreateButton("Cancel", 185, 308, 150, 28)
-    GUICtrlSetOnEvent(-1, "_HotkeyEditor_RestrictionsCancel")
+    Local $iCancel = GUICtrlCreateButton("Cancel", 127, 308, 100, 28)
+    GUICtrlSetOnEvent($iCancel, "_HotkeyEditor_RestrictionsCancel")
+    Local $iOk = GUICtrlCreateButton("OK", 235, 308, 100, 28)
+    GUICtrlSetOnEvent($iOk, "_HotkeyEditor_RestrictionsAccept")
+    Local $aAccelerators[1][2] = [["{ESC}", $iCancel]]
+    GUISetAccelerators($aAccelerators, $g_hRestrictionDialog)
     GUISetOnEvent($GUI_EVENT_CLOSE, "_HotkeyEditor_RestrictionsCancel", $g_hRestrictionDialog)
     If Not _HotkeyEditor_CenterWindow($g_hRestrictionDialog, $g_aGuiState[$GUI_STATE_EDITOR_WINDOW]) Then
         GUIDelete($g_hRestrictionDialog)
@@ -261,7 +263,7 @@ Func _HotkeyEditor_CreateWindow($name)
     $g_iEditorActionLabel = GUICtrlCreateLabel("", 16, 162, $g_iEditorWidth - 38, 20)
     $g_iEditorOpticalLabel = GUICtrlCreateLabel("Drive", 16, 220, 70, 20)
     GUICtrlSetState(-1, $GUI_HIDE)
-    $g_iEditorSummary = GUICtrlCreateLabel("", 142, 62, $g_iEditorWidth - 165, 30)
+    $g_iEditorSummary = GUICtrlCreateLabel("", 142, 65, $g_iEditorWidth - 165, 30)
     $g_iEditorHint = GUICtrlCreateLabel("", 16, $g_iEditorHeight - 104, $g_iEditorWidth - 38, 22)
     _HotkeyEditor_Layout()
     ;other settings

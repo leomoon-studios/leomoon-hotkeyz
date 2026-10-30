@@ -202,13 +202,23 @@ Func _TestDialog()
     Local $aParent = WinGetPos($g_aGuiState[$GUI_STATE_EDITOR_WINDOW]), $aDialog = WinGetPos($g_hRestrictionDialog)
     If Not IsArray($aParent) Or Not IsArray($aDialog) Then _TestFail("cannot measure conditions window")
     If Abs(($aParent[0] + $aParent[2] / 2) - ($aDialog[0] + $aDialog[2] / 2)) > 1 Or Abs(($aParent[1] + $aParent[3] / 2) - ($aDialog[1] + $aDialog[3] / 2)) > 1 Then _TestFail("conditions window not centered over editor")
+    Local $aClient = WinGetClientSize($g_hRestrictionDialog), $aControl, $i
+    For $i = 0 To 6
+        $aControl = ControlGetPos($g_hRestrictionDialog, "", $g_aRestrictionDialogControls[$i])
+        If Not IsArray($aControl) Or $aControl[0] < 0 Or $aControl[1] < 0 Or $aControl[0] + $aControl[2] > $aClient[0] Or $aControl[1] + $aControl[3] > $aClient[1] Then _TestFail("conditions selector is clipped")
+    Next
+    For $i = 1 To 2
+        $aControl = ControlGetPos($g_hRestrictionDialog, "", "Button" & $i)
+        If Not IsArray($aControl) Or $aControl[0] + $aControl[2] > $aClient[0] Or $aControl[1] + $aControl[3] > $aClient[1] Then _TestFail("conditions button is clipped")
+    Next
     If $g_iTestDialog = 0 Then
         _GUICtrlComboBox_SetCurSel($g_aRestrictionDialogControls[0], 1)
         _GUICtrlComboBox_SetCurSel($g_aRestrictionDialogControls[4], 1)
         _HotkeyEditor_RestrictionsAccept()
     Else
         _GUICtrlComboBox_SetCurSel($g_aRestrictionDialogControls[0], 2)
-        _HotkeyEditor_RestrictionsCancel()
+        WinActivate($g_hRestrictionDialog)
+        Send("{ESC}")
     EndIf
 EndFunc
 Func _TestFail($sMessage)
