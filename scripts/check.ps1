@@ -59,6 +59,8 @@ $checkTargets = @($sourcePath) + $testPaths + @(
     (Join-Path $repositoryDirectory "tests\SideFailureSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\VisualBaselineCapture.au3"),
     (Join-Path $repositoryDirectory "tests\NotificationVisualSmoke.au3"),
+    (Join-Path $repositoryDirectory "tests\EditorKeyboardSmoke.au3"),
+    (Join-Path $repositoryDirectory "tests\EditorRoundTripSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\SideEditorWorkflowSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\SideBlockingSmoke.au3"),
     (Join-Path $repositoryDirectory "tests\OpticalEditorSmoke.au3"),

@@ -253,6 +253,7 @@ Func _HotkeyEditor_CreateWindow($name)
     GUICtrlSetData(-1, $HOTKEY_CODEC_KEY_NAMES)
     GUICtrlCreateGroup("", -99, -99, 1, 1)
     $g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON] = GUICtrlCreateButton("OK", 8, 632, 125, 33)
+    GUICtrlSetState($g_aGuiState[$GUI_STATE_EDITOR_OK_BUTTON], $GUI_DEFBUTTON)
     $g_aGuiState[$GUI_STATE_RESTRICTIONS_BUTTON] = GUICtrlCreateButton("Conditions...", 139, 632, 132, 33)
     GUICtrlSetOnEvent(-1, "_HotkeyEditor_ShowRestrictions")
     $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON] = GUICtrlCreateButton("Cancel", 277, 632, 125, 33)
@@ -306,11 +307,34 @@ Func _HotkeyEditor_CreateWindow($name)
                 "<COMPUTERNAME> will paste the name of the computer."&@LF& _
                 "<USERNAME> will paste the name of the current logged in user.", "Predefined Tags", 1)
     GUICtrlSetOnEvent($g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON], "_hideChild")
+    _HotkeyEditor_SetTabOrder()
     If Not _HotkeyEditor_CenterWindow($g_aGuiState[$GUI_STATE_EDITOR_WINDOW], $g_aGuiState[$GUI_STATE_MAIN_WINDOW]) Then Return SetError(3, 0, False)
     Local $aAccelKeys[1][2] = [["{ESC}", $g_aGuiState[$GUI_STATE_EDITOR_CANCEL_BUTTON]]]
     GUISetAccelerators($aAccelKeys)
     ; Add/Edit shows and activates the completed window after populating it.
     _HotkeyEditor_UpdateOkState()
+EndFunc
+
+Func _HotkeyEditor_SetTabOrder()
+    ; Match keyboard traversal to the compact layout, including only controls
+    ; that are visible and enabled for the currently selected action.
+    Local $aOrder[31] = [ _
+        $GUI_STATE_EDITOR_CTRL_CHECKBOX, $GUI_STATE_EDITOR_ALT_CHECKBOX, $GUI_STATE_EDITOR_SHIFT_CHECKBOX, $GUI_STATE_EDITOR_WIN_CHECKBOX, $GUI_STATE_EDITOR_KEY_COMBO, $GUI_STATE_RESTRICTIONS_BUTTON, _
+        -1, $GUI_STATE_FILE_INPUT, $GUI_STATE_FILE_BROWSE_BUTTON, $GUI_STATE_FILE_PARAMETER_INPUT, $GUI_STATE_ADMIN_CHECKBOX, $GUI_STATE_SINGLETON_CHECKBOX, $GUI_STATE_COMMAND_CHECKBOX, _
+        $GUI_STATE_FOLDER_INPUT, $GUI_STATE_FOLDER_BROWSE_BUTTON, $GUI_STATE_SPECIAL_COMBO, $GUI_STATE_OPTICAL_DRIVE_COMBO, $GUI_STATE_OPTICAL_REFRESH_BUTTON, _
+        $GUI_STATE_WINDOW_COMBO, $GUI_STATE_MOVE_CHECKBOX, $GUI_STATE_MOVE_X_INPUT, $GUI_STATE_MOVE_Y_INPUT, $GUI_STATE_RESIZE_CHECKBOX, $GUI_STATE_RESIZE_WIDTH_INPUT, $GUI_STATE_RESIZE_HEIGHT_INPUT, _
+        $GUI_STATE_URL_COMBO, $GUI_STATE_URL_INPUT, $GUI_STATE_TEXT_EDIT, $GUI_STATE_EDITOR_CANCEL_BUTTON, $GUI_STATE_EDITOR_OK_BUTTON, -2]
+    Local $hPrevious = 0, $hControl, $i
+    For $i = 0 To UBound($aOrder) - 1
+        If $aOrder[$i] = -2 Then ExitLoop
+        If $aOrder[$i] = -1 Then
+            $hControl = GUICtrlGetHandle($g_iEditorActionSelector)
+        Else
+            $hControl = GUICtrlGetHandle($g_aGuiState[$aOrder[$i]])
+        EndIf
+        DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $hControl, "hwnd", $hPrevious, "int", 0, "int", 0, "int", 0, "int", 0, "uint", 0x13)
+        $hPrevious = $hControl
+    Next
 EndFunc
 
 Func _HotkeyEditor_Layout()
