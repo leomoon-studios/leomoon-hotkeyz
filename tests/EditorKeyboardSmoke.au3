@@ -13,14 +13,18 @@
 #include "..\src\app\TrayController.au3"
 #include "..\src\gui\HotkeyEditor.au3"
 #include "..\src\gui\MainWindow.au3"
+#include "..\src\app\Application.au3"
 Opt("MustDeclareVars", 1)
 Opt("GUIOnEventMode", 1)
+If $CmdLine[0] And ($CmdLine[1] = "gdi" Or $CmdLine[1] = "inspect-gdi") Then
+    If Not _Application_EnableGdiScaling() Then Exit 15
+EndIf
 If FileExists($APP_INI_PATH) Or FileExists($APP_INI_PATH & ".bak") Or FileExists($APP_INI_PATH & ".tmp") Then Exit 2
 OnAutoItExitRegister("_KeyboardCleanup")
 IniWrite($APP_INI_PATH, "Options", "Main", "^!+{F11}")
 _mainGui()
 _addBtn()
-If $CmdLine[0] And $CmdLine[1] = "inspect" Then
+If $CmdLine[0] And ($CmdLine[1] = "inspect" Or $CmdLine[1] = "inspect-gdi") Then
     _KeyboardReportHandle("Shortcut key", $g_aGuiState[$GUI_STATE_EDITOR_KEY_COMBO])
     _KeyboardReportHandle("Action type", $g_iEditorActionSelector)
     _KeyboardReportHandle("Program, file or command", $g_aGuiState[$GUI_STATE_FILE_INPUT])
@@ -38,7 +42,10 @@ If $CmdLine[0] And $CmdLine[1] = "inspect" Then
     _KeyboardReportHandle("Text to paste", $g_aGuiState[$GUI_STATE_TEXT_EDIT])
     _KeyboardReportHandle("Enable or disable shortcut key", $g_aGuiState[$GUI_STATE_KEY_COMBO])
     _KeyboardReportHandle("Hotkeys", $g_aGuiState[$GUI_STATE_LIST_VIEW])
+    ConsoleWrite("WINDOW|Settings|" & $g_aGuiState[$GUI_STATE_MAIN_WINDOW] & @CRLF)
+    ConsoleWrite("WINDOW|Editor|" & $g_aGuiState[$GUI_STATE_EDITOR_WINDOW] & @CRLF)
     _HotkeyEditor_ShowRestrictions()
+    ConsoleWrite("WINDOW|Conditions|" & $g_hRestrictionDialog & @CRLF)
     Global $aNames[7] = ["Ctrl side", "Alt side", "Shift side", "Win side", "Caps Lock", "Num Lock", "Scroll Lock"], $iName
     For $iName = 0 To 6
         _KeyboardReportHandle($aNames[$iName], $g_aRestrictionDialogControls[$iName])

@@ -52,6 +52,7 @@ Opt("SendKeyDownDelay", 0)
 _Application_Main()
 
 Func _Application_Main()
+    _Application_EnableGdiScaling()
     If @OSArch <> "X86" Then _WinAPI_Wow64EnableWow64FsRedirection(False)
     _ExtMsgBoxSet(0, 0, -1, -1, 9, "Tahoma")
     If _Singleton($APP_TITLE, 1) = 0 Then

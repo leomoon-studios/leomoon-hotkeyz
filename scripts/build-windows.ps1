@@ -106,6 +106,34 @@ if (-not (Test-Path -LiteralPath $applicationPath -PathType Leaf)) {
     throw "AutoIt3Wrapper did not create $applicationPath"
 }
 
+# The tray uses icon groups 201 and 202. A wrapper launched from the wrong
+# working directory can silently skip the extra icon files while still exiting 0.
+if (-not ('HotKeyzBuildResources' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class HotKeyzBuildResources {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr LoadLibraryEx(string path, IntPtr file, uint flags);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr FindResource(IntPtr module, IntPtr name, IntPtr type);
+    [DllImport("kernel32.dll")]
+    public static extern bool FreeLibrary(IntPtr module);
+}
+'@
+}
+$resourceModule = [HotKeyzBuildResources]::LoadLibraryEx($applicationPath, [IntPtr]::Zero, 2)
+if ($resourceModule -eq [IntPtr]::Zero) { throw 'Unable to inspect compiled icon resources.' }
+try {
+    foreach ($iconId in @(201, 202)) {
+        if ([HotKeyzBuildResources]::FindResource($resourceModule, [IntPtr]$iconId, [IntPtr]14) -eq [IntPtr]::Zero) {
+            throw "Compiled app is missing tray icon group $iconId."
+        }
+    }
+} finally {
+    [void][HotKeyzBuildResources]::FreeLibrary($resourceModule)
+}
+
 $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($applicationPath)
 if ($versionInfo.FileVersion -ne $fileVersion -or $versionInfo.ProductVersion -ne $fileVersion) {
     throw "Compiled version metadata does not match $fileVersion. FileVersion=$($versionInfo.FileVersion), ProductVersion=$($versionInfo.ProductVersion)"

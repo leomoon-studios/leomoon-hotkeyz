@@ -49,6 +49,10 @@ Modifier characters are `^` for Ctrl, `!` for Alt, `+` for Shift, and `#` for Wi
 
 Check the notification area's hidden-icons menu and confirm that HotKeyz is running. Right-click its tray icon and choose **Settings...**. If another instance is already running, use that instance or exit it before launching another copy.
 
+### The interface looks blurry
+
+HotKeyz uses Windows GDI scaling to improve text and control sharpness on supported Windows versions. On older Windows versions, the interface uses the system's regular scaling and may look softer. Restart HotKeyz after changing Windows display scaling if the interface or tray icon does not update as expected.
+
 ### Optical drive shortcuts
 
 The saved system action includes its drive letter, for example `[HkzExe]Open optical drive tray D:` or `[HkzExe]Close optical drive tray E:`. There are no separate command-line parameters. Copying a profile preserves that letter; it may need changing on another computer. Bulk Save does not require the drive to be connected. The editor checks that a selected letter is currently an optical drive, while execution checks it again and reports missing drives or failed tray commands separately.

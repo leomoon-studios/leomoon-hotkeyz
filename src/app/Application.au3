@@ -2,6 +2,20 @@
 
 Global $g_bApplicationShuttingDown = False
 
+Func _Application_EnableGdiScaling()
+    ; Keep DPI-unaware coordinate behavior while letting Windows render GDI
+    ; text and controls at the display's DPI. Windows before 10 version 1809
+    ; lacks this context; leave its existing DPI behavior unchanged.
+    ; Process-wide mode also covers native popups such as the tray menu.
+    Local $aResult = DllCall("user32.dll", "bool", "SetProcessDpiAwarenessContext", "ptr", -5)
+    If Not @error And IsArray($aResult) And $aResult[0] Then Return True
+    ; If AutoIt or a compatibility setting has already established a process
+    ; mode, retain sharp rendering for windows created by this thread.
+    $aResult = DllCall("user32.dll", "handle", "SetThreadDpiAwarenessContext", "ptr", -5)
+    If @error Or Not IsArray($aResult) Or Not $aResult[0] Then Return False
+    Return True
+EndFunc
+
 Func _Application_Compose($sIniFile, $sRegistryInitializer = "_HotkeyRegistry_Initialize", $sTrayInitializer = "_TrayController_Initialize")
     ; Gather both action and main-toggle conflicts into one notification after
     ; the tray is initialized, so one startup warning does not replace another.

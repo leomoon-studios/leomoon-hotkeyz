@@ -14,9 +14,13 @@
 #include "..\src\app\TrayController.au3"
 #include "..\src\gui\HotkeyEditor.au3"
 #include "..\src\gui\MainWindow.au3"
+#include "..\src\app\Application.au3"
 
 Opt("MustDeclareVars", 1)
 Opt("GUIOnEventMode", 1)
+If $CmdLine[0] And $CmdLine[1] = "gdi" Then
+    If Not _Application_EnableGdiScaling() Then Exit 2
+EndIf
 Global $g_iDesktopFailures = 0
 Global $g_iDesktopCallbacks = 0
 Global $g_bDesktopDispatch = False

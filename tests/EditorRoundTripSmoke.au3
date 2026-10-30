@@ -13,8 +13,12 @@
 #include "..\src\app\TrayController.au3"
 #include "..\src\gui\HotkeyEditor.au3"
 #include "..\src\gui\MainWindow.au3"
+#include "..\src\app\Application.au3"
 Opt("MustDeclareVars", 1)
 Opt("GUIOnEventMode", 1)
+If $CmdLine[0] And $CmdLine[1] = "gdi" Then
+    If Not _Application_EnableGdiScaling() Then Exit 3
+EndIf
 If FileExists($APP_INI_PATH) Or FileExists($APP_INI_PATH & ".bak") Or FileExists($APP_INI_PATH & ".tmp") Then Exit 2
 OnAutoItExitRegister("_RoundTripCleanup")
 IniWrite($APP_INI_PATH, "Options", "Main", "^!+{F11}")

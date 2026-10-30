@@ -11,6 +11,22 @@ Global $g_iExitTrayItem
 Global $g_sTrayToggleErrorHandler = "_AppError_Report"
 Global Const $APP_DEBUG_LOG_PATH = @TempDir & "\\LeoMoon-HotKeyz-debug.log"
 
+Func _TrayController_SetIcon($bEnabled)
+    ; Request the system's physical small-icon size while AutoIt loads the
+    ; multi-resolution icon, then restore the app's GDI-scaled context.
+    Local $aPrevious = DllCall("user32.dll", "handle", "SetThreadDpiAwarenessContext", "ptr", -4)
+    If @Compiled Then
+        Local $iResource = 201
+        If Not $bEnabled Then $iResource = 202
+        TraySetIcon(@ScriptFullPath, $iResource)
+    Else
+        Local $sIcon = @ScriptDir & "\resources\main.ico"
+        If Not $bEnabled Then $sIcon = @ScriptDir & "\resources\disabled.ico"
+        TraySetIcon($sIcon)
+    EndIf
+    If IsArray($aPrevious) And $aPrevious[0] Then DllCall("user32.dll", "handle", "SetThreadDpiAwarenessContext", "handle", $aPrevious[0])
+EndFunc
+
 Func _Debug_Log($sMessage)
     Local $hLog = FileOpen($APP_DEBUG_LOG_PATH, 1)
     If $hLog = -1 Then Return False
@@ -22,6 +38,7 @@ EndFunc
 Func _TrayController_Initialize($sIniFile)
     FileDelete($APP_DEBUG_LOG_PATH)
     _Debug_Log("Tray initialization started")
+    _TrayController_SetIcon(True)
     TraySetClick(8)
     TrayCreateItem($APP_TITLE & " " & $APP_VERSION)
     TrayItemSetState(-1, $TRAY_DISABLE)
@@ -81,7 +98,7 @@ Func _toggle()
             EndIf
         Next
         $enabled = True
-        TraySetIcon(@ScriptFullPath, 202)
+        _TrayController_SetIcon(False)
         TrayItemSetState($enableTray, $TRAY_UNCHECKED)
         TraySetToolTip($APP_TITLE&" is disabled.")
     Else
@@ -98,7 +115,7 @@ Func _toggle()
             EndIf
         Next
         $enabled = False
-        TraySetIcon(@ScriptFullPath, 201)
+        _TrayController_SetIcon(True)
         TrayItemSetState($enableTray, $TRAY_CHECKED)
         TraySetToolTip($APP_TITLE&" is enabled.")
     EndIf

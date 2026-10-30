@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Improved text and control sharpness on high-DPI displays using Windows GDI scaling where available.
 - Added accessible names for shortcut, action, path, geometry, list and condition controls.
 - Fixed the Add/Edit window's keyboard tab order and enabled Enter to confirm valid entries.
 - Updated the conditions dialog and nonblocking warning window for consistent fonts and button placement.
